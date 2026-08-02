@@ -1,0 +1,38 @@
+import { Module } from '@nestjs/common';
+import { APP_FILTER, APP_GUARD } from '@nestjs/core';
+
+import { AuthModule } from './auth/auth.module';
+import { JwtAuthGuard } from './auth/jwt-auth.guard';
+import { AllExceptionsFilter } from './common/all-exceptions.filter';
+import { EnvModule } from './config/env.module';
+import { ExercisesModule } from './exercises/exercises.module';
+import { GoalsModule } from './goals/goals.module';
+import { HealthModule } from './health/health.module';
+import { MeasurementsModule } from './measurements/measurements.module';
+import { PrismaModule } from './prisma/prisma.module';
+import { RoutinesModule } from './routines/routines.module';
+import { StatsModule } from './stats/stats.module';
+import { UsersModule } from './users/users.module';
+import { WorkoutsModule } from './workouts/workouts.module';
+
+@Module({
+  imports: [
+    EnvModule,
+    PrismaModule,
+    AuthModule,
+    UsersModule,
+    ExercisesModule,
+    WorkoutsModule,
+    RoutinesModule,
+    MeasurementsModule,
+    GoalsModule,
+    StatsModule,
+    HealthModule,
+  ],
+  providers: [
+    // Authenticated by default; routes opt out with `@Public()`.
+    { provide: APP_GUARD, useClass: JwtAuthGuard },
+    { provide: APP_FILTER, useClass: AllExceptionsFilter },
+  ],
+})
+export class AppModule {}

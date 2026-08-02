@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "display": "Fitness Library",
+  "extends": "./base.json",
+  "compilerOptions": {
+    // `nodenext` + a package.json without `"type": "module"` emits CommonJS,
+    // which both the Nest build and Metro consume without interop shims.
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "incremental": true
+    // `rootDir`/`outDir` are intentionally left to each package: paths in a
+    // shared tsconfig resolve relative to *this* file, not the one extending it.
+  }
+}

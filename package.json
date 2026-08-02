@@ -1,0 +1,36 @@
+{
+  "name": "fitness-tracker",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Fitness tracker monorepo — NestJS API + Expo mobile app with shared packages",
+  "license": "ISC",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "devEngines": {
+    "packageManager": {
+      "name": "pnpm",
+      "version": "^11.10.0",
+      "onFail": "download"
+    }
+  },
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "dev:api": "turbo run dev --filter=@fitness/api",
+    "dev:mobile": "turbo run start --filter=@fitness/mobile",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "db:generate": "turbo run db:generate --filter=@fitness/db",
+    "db:push": "turbo run db:push --filter=@fitness/db",
+    "db:seed": "turbo run db:seed --filter=@fitness/db",
+    "db:studio": "turbo run db:studio --filter=@fitness/db",
+    "clean": "turbo run clean && rm -rf node_modules"
+  },
+  "devDependencies": {
+    "turbo": "^2.10.7",
+    "typescript": "^7.0.2"
+  }
+}

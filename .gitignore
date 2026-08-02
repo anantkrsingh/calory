@@ -1,0 +1,27 @@
+node_modules/
+dist/
+build/
+.turbo/
+coverage/
+
+# env
+.env
+.env.*
+!.env.example
+
+# expo
+.expo/
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
+web-build/
+ios/
+android/
+
+# misc
+.DS_Store
+*.log
+*.tsbuildinfo

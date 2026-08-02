@@ -1,0 +1,221 @@
+import type {
+  BodyMeasurement,
+  Exercise,
+  Goal,
+  Routine,
+  User,
+  Workout,
+  WorkoutSummary,
+} from '@fitness/types';
+
+import type {
+  BodyMeasurementRow,
+  ExerciseRow,
+  GoalRow,
+  RoutineRow,
+  UserRow,
+  WorkoutRow,
+} from './rows';
+
+/**
+ * Prisma hands back `Date` objects and nullable columns; the wire contracts in
+ * `@fitness/types` use ISO strings and optional properties. These mappers are the
+ * single place that translation happens, so a controller can never leak a `Date`
+ * or a `null` the mobile app is not typed for.
+ */
+
+const iso = (value: Date): string => value.toISOString();
+const isoOrUndefined = (value: Date | null): string | undefined =>
+  value === null ? undefined : value.toISOString();
+const orUndefined = <T>(value: T | null): T | undefined =>
+  value === null ? undefined : value;
+
+/** Strips `undefined` entries so the result matches `Partial<Record<...>>`. */
+function compact<T extends Record<string, unknown>>(input: T): T {
+  const output = {} as T;
+  for (const [key, value] of Object.entries(input)) {
+    if (value !== null && value !== undefined) {
+      output[key as keyof T] = value as T[keyof T];
+    }
+  }
+  return output;
+}
+
+export function toUser(row: UserRow): User {
+  return {
+    id: row.id,
+    email: row.email,
+    emailVerified: row.emailVerified,
+    role: row.role,
+    profile: compact({
+      displayName: row.profile.displayName,
+      avatarUrl: orUndefined(row.profile.avatarUrl),
+      dateOfBirth: orUndefined(row.profile.dateOfBirth),
+      sex: orUndefined(row.profile.sex),
+      heightCm: orUndefined(row.profile.heightCm),
+      activityLevel: orUndefined(row.profile.activityLevel),
+    }) as User['profile'],
+    preferences: {
+      units: row.preferences.units,
+      timezone: row.preferences.timezone,
+      weeklyWorkoutTarget: row.preferences.weeklyWorkoutTarget,
+      restTimerSeconds: row.preferences.restTimerSeconds,
+      notificationsEnabled: row.preferences.notificationsEnabled,
+    },
+    createdAt: iso(row.createdAt),
+    updatedAt: iso(row.updatedAt),
+  };
+}
+
+export function toExercise(row: ExerciseRow): Exercise {
+  return {
+    id: row.id,
+    name: row.name,
+    category: row.category,
+    primaryMuscles: row.primaryMuscles,
+    secondaryMuscles: row.secondaryMuscles,
+    equipment: row.equipment,
+    instructions: orUndefined(row.instructions),
+    imageUrl: orUndefined(row.imageUrl),
+    createdBy: row.createdById,
+    isCustom: row.isCustom,
+    createdAt: iso(row.createdAt),
+    updatedAt: iso(row.updatedAt),
+  };
+}
+
+export function toWorkout(row: WorkoutRow): Workout {
+  return {
+    id: row.id,
+    userId: row.userId,
+    name: row.name,
+    status: row.status,
+    startedAt: iso(row.startedAt),
+    completedAt: isoOrUndefined(row.completedAt),
+    durationSec: orUndefined(row.durationSec),
+    exercises: row.exercises.map((exercise) => ({
+      id: exercise.id,
+      exerciseId: exercise.exerciseId,
+      exerciseName: exercise.exerciseName,
+      order: exercise.order,
+      restSeconds: orUndefined(exercise.restSeconds),
+      notes: orUndefined(exercise.notes),
+      sets: exercise.sets.map((set) => ({
+        id: set.id,
+        order: set.order,
+        type: set.type,
+        reps: orUndefined(set.reps),
+        weightKg: orUndefined(set.weightKg),
+        durationSec: orUndefined(set.durationSec),
+        distanceM: orUndefined(set.distanceM),
+        rpe: orUndefined(set.rpe),
+        completed: set.completed,
+        notes: orUndefined(set.notes),
+      })),
+    })),
+    stats: {
+      totalSets: row.stats.totalSets,
+      completedSets: row.stats.completedSets,
+      totalVolumeKg: row.stats.totalVolumeKg,
+      totalReps: row.stats.totalReps,
+      totalDistanceM: row.stats.totalDistanceM,
+      totalDurationSec: row.stats.totalDurationSec,
+    },
+    notes: orUndefined(row.notes),
+    routineId: orUndefined(row.routineId),
+    createdAt: iso(row.createdAt),
+    updatedAt: iso(row.updatedAt),
+  };
+}
+
+/** List projection — drops the set tree, which dominates the payload size. */
+export function toWorkoutSummary(row: WorkoutRow): WorkoutSummary {
+  const workout = toWorkout(row);
+  return {
+    id: workout.id,
+    name: workout.name,
+    status: workout.status,
+    startedAt: workout.startedAt,
+    completedAt: workout.completedAt,
+    durationSec: workout.durationSec,
+    exerciseCount: workout.exercises.length,
+    stats: workout.stats,
+  };
+}
+
+export function toRoutine(row: RoutineRow): Routine {
+  return {
+    id: row.id,
+    userId: row.userId,
+    name: row.name,
+    description: orUndefined(row.description),
+    targetMuscles: row.targetMuscles,
+    exercises: row.exercises.map((exercise) => ({
+      id: exercise.id,
+      exerciseId: exercise.exerciseId,
+      exerciseName: exercise.exerciseName,
+      order: exercise.order,
+      restSeconds: orUndefined(exercise.restSeconds),
+      notes: orUndefined(exercise.notes),
+      sets: exercise.sets.map((set) => ({
+        id: set.id,
+        order: set.order,
+        type: set.type,
+        targetReps: orUndefined(set.targetReps),
+        targetWeightKg: orUndefined(set.targetWeightKg),
+        targetDurationSec: orUndefined(set.targetDurationSec),
+        targetDistanceM: orUndefined(set.targetDistanceM),
+      })),
+    })),
+    estimatedDurationSec: orUndefined(row.estimatedDurationSec),
+    isArchived: row.isArchived,
+    lastPerformedAt: isoOrUndefined(row.lastPerformedAt),
+    createdAt: iso(row.createdAt),
+    updatedAt: iso(row.updatedAt),
+  };
+}
+
+export function toBodyMeasurement(row: BodyMeasurementRow): BodyMeasurement {
+  return {
+    id: row.id,
+    userId: row.userId,
+    recordedAt: iso(row.recordedAt),
+    weightKg: orUndefined(row.weightKg),
+    bodyFatPercentage: orUndefined(row.bodyFatPercentage),
+    measurements: compact({
+      neck: row.measurements.neck,
+      chest: row.measurements.chest,
+      waist: row.measurements.waist,
+      hips: row.measurements.hips,
+      leftArm: row.measurements.leftArm,
+      rightArm: row.measurements.rightArm,
+      leftThigh: row.measurements.leftThigh,
+      rightThigh: row.measurements.rightThigh,
+      leftCalf: row.measurements.leftCalf,
+      rightCalf: row.measurements.rightCalf,
+    }) as BodyMeasurement['measurements'],
+    photoUrls: row.photoUrls,
+    notes: orUndefined(row.notes),
+    createdAt: iso(row.createdAt),
+    updatedAt: iso(row.updatedAt),
+  };
+}
+
+export function toGoal(row: GoalRow): Goal {
+  return {
+    id: row.id,
+    userId: row.userId,
+    type: row.type,
+    title: row.title,
+    targetValue: row.targetValue,
+    startValue: row.startValue,
+    currentValue: row.currentValue,
+    unit: row.unit,
+    deadline: orUndefined(row.deadline),
+    status: row.status,
+    achievedAt: isoOrUndefined(row.achievedAt),
+    exerciseId: orUndefined(row.exerciseId),
+    createdAt: iso(row.createdAt),
+    updatedAt: iso(row.updatedAt),
+  };
+}

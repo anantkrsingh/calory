@@ -1,0 +1,354 @@
+// Prisma schema for the fitness tracker — MongoDB.
+//
+// Embedded documents (sets inside exercises inside workouts) are modelled as
+// composite `type` blocks so a whole workout is one read and one write, which is
+// what the mobile app's offline-sync path needs.
+
+// Prisma 6 is the terminal major with a MongoDB connector — Prisma 7 ships none.
+// Keep these packages pinned to the 6.x line; see README for the migration note.
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("MONGODB_URI")
+}
+
+// ---------------------------------------------------------------------------
+// Enums — values mirror the string unions in @fitness/types exactly.
+// ---------------------------------------------------------------------------
+
+enum UserRole {
+  user
+  admin
+}
+
+enum UnitSystem {
+  metric
+  imperial
+}
+
+enum Sex {
+  male
+  female
+  other
+  prefer_not_to_say
+}
+
+enum ActivityLevel {
+  sedentary
+  light
+  moderate
+  active
+  very_active
+}
+
+enum MuscleGroup {
+  chest
+  back
+  shoulders
+  biceps
+  triceps
+  forearms
+  quads
+  hamstrings
+  glutes
+  calves
+  core
+  full_body
+  cardio
+}
+
+enum Equipment {
+  barbell
+  dumbbell
+  kettlebell
+  machine
+  cable
+  bodyweight
+  band
+  other
+}
+
+enum ExerciseCategory {
+  strength
+  cardio
+  duration
+  reps
+}
+
+enum SetType {
+  working
+  warmup
+  drop
+  failure
+}
+
+enum WorkoutStatus {
+  in_progress
+  completed
+  cancelled
+}
+
+enum GoalType {
+  body_weight
+  body_fat
+  workouts_per_week
+  exercise_one_rep_max
+  total_volume
+  distance_run
+}
+
+enum GoalStatus {
+  active
+  achieved
+  abandoned
+}
+
+// ---------------------------------------------------------------------------
+// Composite types
+// ---------------------------------------------------------------------------
+
+type UserProfile {
+  displayName   String
+  avatarUrl     String?
+  /// ISO calendar date, YYYY-MM-DD.
+  dateOfBirth   String?
+  sex           Sex?
+  heightCm      Float?
+  activityLevel ActivityLevel?
+}
+
+type UserPreferences {
+  units                UnitSystem @default(metric)
+  /// IANA zone; drives "today" boundaries in stats.
+  timezone             String     @default("UTC")
+  weeklyWorkoutTarget  Int        @default(3)
+  restTimerSeconds     Int        @default(90)
+  notificationsEnabled Boolean    @default(true)
+}
+
+/// One logged set. Which fields matter depends on the exercise's category.
+type WorkoutSet {
+  /// Client-generated (UUID) so offline-logged sets keep a stable identity.
+  id          String
+  order       Int
+  type        SetType @default(working)
+  reps        Int?
+  weightKg    Float?
+  durationSec Int?
+  distanceM   Float?
+  /// Rate of perceived exertion, 1-10.
+  rpe         Float?
+  completed   Boolean @default(false)
+  notes       String?
+}
+
+type WorkoutExercise {
+  id           String
+  exerciseId   String       @db.ObjectId
+  /// Denormalised so a workout renders offline without the catalogue.
+  exerciseName String
+  order        Int
+  sets         WorkoutSet[]
+  restSeconds  Int?
+  notes        String?
+}
+
+/// Derived totals, recomputed server-side; never trusted from the client.
+type WorkoutStats {
+  totalSets        Int   @default(0)
+  completedSets    Int   @default(0)
+  totalVolumeKg    Float @default(0)
+  totalReps        Int   @default(0)
+  totalDistanceM   Float @default(0)
+  totalDurationSec Int   @default(0)
+}
+
+type RoutineSet {
+  id                String
+  order             Int
+  type              SetType @default(working)
+  targetReps        Int?
+  targetWeightKg    Float?
+  targetDurationSec Int?
+  targetDistanceM   Float?
+}
+
+type RoutineExercise {
+  id           String
+  exerciseId   String       @db.ObjectId
+  exerciseName String
+  order        Int
+  sets         RoutineSet[]
+  restSeconds  Int?
+  notes        String?
+}
+
+/// Circumferences in centimetres.
+type BodyMeasurements {
+  neck       Float?
+  chest      Float?
+  waist      Float?
+  hips       Float?
+  leftArm    Float?
+  rightArm   Float?
+  leftThigh  Float?
+  rightThigh Float?
+  leftCalf   Float?
+  rightCalf  Float?
+}
+
+// ---------------------------------------------------------------------------
+// Models
+// ---------------------------------------------------------------------------
+
+model User {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  email         String   @unique
+  passwordHash  String
+  emailVerified Boolean  @default(false)
+  role          UserRole @default(user)
+
+  profile     UserProfile
+  preferences UserPreferences
+
+  /// Hash of the current refresh token; rotating it revokes the session.
+  refreshTokenHash String?
+  lastLoginAt      DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  exercises    Exercise[]
+  workouts     Workout[]
+  routines     Routine[]
+  measurements BodyMeasurement[]
+  goals        Goal[]
+
+  @@map("users")
+}
+
+model Exercise {
+  id               String           @id @default(auto()) @map("_id") @db.ObjectId
+  name             String
+  category         ExerciseCategory
+  primaryMuscles   MuscleGroup[]
+  secondaryMuscles MuscleGroup[]
+  equipment        Equipment
+  instructions     String?
+  imageUrl         String?
+
+  /// Null for the shared catalogue, set for user-authored exercises.
+  createdById String? @db.ObjectId
+  createdBy   User?   @relation(fields: [createdById], references: [id])
+  isCustom    Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([createdById, name])
+  @@index([category])
+  @@index([equipment])
+  @@index([primaryMuscles])
+  @@map("exercises")
+}
+
+model Workout {
+  id     String @id @default(auto()) @map("_id") @db.ObjectId
+  userId String @db.ObjectId
+  user   User   @relation(fields: [userId], references: [id])
+
+  name        String
+  status      WorkoutStatus @default(in_progress)
+  startedAt   DateTime      @default(now())
+  completedAt DateTime?
+  durationSec Int?
+
+  exercises WorkoutExercise[]
+  stats     WorkoutStats
+  notes     String?
+
+  routineId String?  @db.ObjectId
+  routine   Routine? @relation(fields: [routineId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, startedAt])
+  @@index([userId, status])
+  @@map("workouts")
+}
+
+model Routine {
+  id     String @id @default(auto()) @map("_id") @db.ObjectId
+  userId String @db.ObjectId
+  user   User   @relation(fields: [userId], references: [id])
+
+  name        String
+  description String?
+  /// Derived from the routine's exercises; kept for cheap list filtering.
+  targetMuscles MuscleGroup[]
+
+  exercises            RoutineExercise[]
+  estimatedDurationSec Int?
+  isArchived           Boolean           @default(false)
+  lastPerformedAt      DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  workouts Workout[]
+
+  @@index([userId, isArchived])
+  @@map("routines")
+}
+
+model BodyMeasurement {
+  id     String @id @default(auto()) @map("_id") @db.ObjectId
+  userId String @db.ObjectId
+  user   User   @relation(fields: [userId], references: [id])
+
+  recordedAt        DateTime @default(now())
+  weightKg          Float?
+  bodyFatPercentage Float?
+
+  measurements BodyMeasurements
+  photoUrls    String[]
+  notes        String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, recordedAt])
+  @@map("body_measurements")
+}
+
+model Goal {
+  id     String @id @default(auto()) @map("_id") @db.ObjectId
+  userId String @db.ObjectId
+  user   User   @relation(fields: [userId], references: [id])
+
+  type         GoalType
+  title        String
+  targetValue  Float
+  startValue   Float
+  currentValue Float
+  /// Display unit, e.g. kg / % / workouts.
+  unit         String
+
+  /// ISO calendar date, YYYY-MM-DD.
+  deadline   String?
+  status     GoalStatus @default(active)
+  achievedAt DateTime?
+
+  /// Required for exercise_one_rep_max goals.
+  exerciseId String? @db.ObjectId
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, status])
+  @@map("goals")
+}

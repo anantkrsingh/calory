@@ -1,0 +1,43 @@
+{
+  "name": "@fitness/db",
+  "version": "1.0.0",
+  "private": true,
+  "license": "ISC",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "prisma"
+  ],
+  "scripts": {
+    "build": "prisma generate && tsc -p tsconfig.build.json",
+    "dev": "tsc -p tsconfig.build.json --watch --preserveWatchOutput",
+    "typecheck": "tsc --noEmit",
+    "db:generate": "prisma generate",
+    "db:push": "prisma db push",
+    "db:studio": "prisma studio",
+    "db:seed": "node dist/seed/run.js",
+    "clean": "rm -rf dist .turbo *.tsbuildinfo"
+  },
+  "prisma": {
+    "schema": "prisma/schema.prisma",
+    "seed": "node dist/seed/run.js"
+  },
+  "dependencies": {
+    "@fitness/config": "workspace:*",
+    "@fitness/types": "workspace:*",
+    "@prisma/client": "^6.19.3"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "dotenv": "^17.2.4",
+    "prisma": "^6.19.3",
+    "typescript": "^7.0.2"
+  }
+}

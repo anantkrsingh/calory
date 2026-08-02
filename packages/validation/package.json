@@ -1,0 +1,31 @@
+{
+  "name": "@fitness/validation",
+  "version": "1.0.0",
+  "private": true,
+  "license": "ISC",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "dev": "tsc -p tsconfig.build.json --watch --preserveWatchOutput",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist .turbo *.tsbuildinfo"
+  },
+  "dependencies": {
+    "@fitness/config": "workspace:*",
+    "@fitness/types": "workspace:*",
+    "zod": "^4.1.13"
+  },
+  "devDependencies": {
+    "typescript": "^7.0.2"
+  }
+}
