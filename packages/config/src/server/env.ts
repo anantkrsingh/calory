@@ -41,6 +41,15 @@ export const envSchema = z.object({
     .positive()
     .max(PAGINATION.maxLimit)
     .default(PAGINATION.defaultLimit),
+
+  // BullMQ / Redis configuration for background jobs
+  REDIS_HOST: z.string().default('localhost'),
+  REDIS_PORT: z.coerce.number().int().min(1).max(65535).default(6379),
+  REDIS_PASSWORD: z.string().optional(),
+  
+  // OTP configuration
+  OTP_EXPIRY_MINUTES: z.coerce.number().int().positive().default(10),
+  OTP_LENGTH: z.coerce.number().int().min(4).max(8).default(6),
 });
 
 export type Env = z.infer<typeof envSchema>;

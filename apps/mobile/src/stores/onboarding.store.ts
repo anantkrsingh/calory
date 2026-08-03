@@ -40,28 +40,28 @@ export type OnboardingStore = OnboardingState & OnboardingActions;
 
 const TOTAL_STEPS = 6;
 
+const INITIAL_USER_DATA: OnboardingUserData = {
+  email: '',
+  displayName: '',
+  phone: '',
+  dateOfBirth: '',
+  sex: undefined,
+  heightCm: undefined,
+  weightKg: undefined,
+  activityLevel: undefined,
+  fitnessGoals: [],
+  unitSystem: 'metric',
+};
+
 export const useOnboardingStore = create<OnboardingStore>((set) => ({
-  // State
   currentStep: 1,
   totalSteps: TOTAL_STEPS,
-  userData: {
-    email: '',
-    displayName: '',
-    phone: '',
-    dateOfBirth: '',
-    sex: undefined,
-    heightCm: undefined,
-    weightKg: undefined,
-    activityLevel: undefined,
-    fitnessGoals: [],
-    unitSystem: 'metric',
-  },
+  userData: INITIAL_USER_DATA,
   isVerified: false,
   verificationCode: '',
   isLoading: false,
   error: null,
 
-  // Actions
   nextStep: () => set((state) => ({
     currentStep: Math.min(state.currentStep + 1, state.totalSteps),
   })),
@@ -90,18 +90,7 @@ export const useOnboardingStore = create<OnboardingStore>((set) => ({
   resetOnboarding: () =>
     set({
       currentStep: 1,
-      userData: {
-        email: '',
-        displayName: '',
-        phone: '',
-        dateOfBirth: '',
-        sex: undefined,
-        heightCm: undefined,
-        weightKg: undefined,
-        activityLevel: undefined,
-        fitnessGoals: [],
-        unitSystem: 'metric',
-      },
+      userData: INITIAL_USER_DATA,
       isVerified: false,
       verificationCode: '',
       isLoading: false,
@@ -109,7 +98,6 @@ export const useOnboardingStore = create<OnboardingStore>((set) => ({
     }),
 }));
 
-// Selectors
 export const selectCurrentStep = (state: OnboardingStore): number => state.currentStep;
 export const selectTotalSteps = (state: OnboardingStore): number => state.totalSteps;
 export const selectUserData = (state: OnboardingStore): OnboardingUserData => state.userData;

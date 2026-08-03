@@ -1,83 +1,108 @@
+import { LIMITS, UNIT_CONVERSION } from '@fitness/config';
+import type { UnitSystem } from '@fitness/types';
 import { useState } from 'react';
 import { StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { LIMITS, Spacing } from '@/constants/theme';
+import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import type { UnitSystem } from '@fitness/types';
 
 interface BodyMetricsStepProps {
   heightCm: number | undefined;
   weightKg: number | undefined;
+  unitSystem: UnitSystem;
   onChange: (data: { heightCm?: number; weightKg?: number; unitSystem?: UnitSystem }) => void;
 }
 
-export default function BodyMetricsStep({ heightCm, weightKg, onChange }: BodyMetricsStepProps) {
+type Metric = 'height' | 'weight';
+
+const round = (value: number): number => Math.round(value * 10) / 10;
+
+function toDisplay(value: number, metric: Metric, system: UnitSystem): number {
+  if (system === 'metric') return round(value);
+  return round(
+    metric === 'height' ? value / UNIT_CONVERSION.cmPerInch : value / UNIT_CONVERSION.kgPerLb,
+  );
+}
+
+function toMetric(value: number, metric: Metric, system: UnitSystem): number {
+  if (system === 'metric') return value;
+  return metric === 'height'
+    ? value * UNIT_CONVERSION.cmPerInch
+    : value * UNIT_CONVERSION.kgPerLb;
+}
+
+function unitLabel(metric: Metric, system: UnitSystem): string {
+  if (metric === 'height') return system === 'imperial' ? 'in' : 'cm';
+  return system === 'imperial' ? 'lbs' : 'kg';
+}
+
+function rangeMessage(metric: Metric, system: UnitSystem): string {
+  const limits = metric === 'height' ? LIMITS.heightCm : LIMITS.bodyWeightKg;
+  const min = toDisplay(limits.min, metric, system);
+  const max = toDisplay(limits.max, metric, system);
+  const noun = metric === 'height' ? 'Height' : 'Weight';
+  return `${noun} must be between ${min} and ${max} ${unitLabel(metric, system)}`;
+}
+
+export default function BodyMetricsStep({
+  heightCm,
+  weightKg,
+  unitSystem,
+  onChange,
+}: BodyMetricsStepProps) {
   const theme = useTheme();
-  const [height, setHeight] = useState<string>(heightCm?.toString() || '');
-  const [weight, setWeight] = useState<string>(weightKg?.toString() || '');
-  const [unitSystem, setUnitSystem] = useState<UnitSystem>('metric');
+  const [height, setHeight] = useState(
+    heightCm === undefined ? '' : String(toDisplay(heightCm, 'height', unitSystem)),
+  );
+  const [weight, setWeight] = useState(
+    weightKg === undefined ? '' : String(toDisplay(weightKg, 'weight', unitSystem)),
+  );
   const [heightError, setHeightError] = useState<string | null>(null);
   const [weightError, setWeightError] = useState<string | null>(null);
 
-  const handleHeightChange = (text: string) => {
-    setHeight(text);
-    setHeightError(null);
-    
-    if (text === '') {
-      onChange({ heightCm: undefined });
-      return;
-    }
-    
-    const num = parseFloat(text);
-    if (!isNaN(num) && num >= LIMITS.heightCm.min && num <= LIMITS.heightCm.max) {
-      onChange({ heightCm: num });
-    } else if (text !== '') {
-      setHeightError(`Height must be between ${LIMITS.heightCm.min} and ${LIMITS.heightCm.max} cm`);
-    }
-  };
+  const handleValueChange = (metric: Metric, text: string) => {
+    const setText = metric === 'height' ? setHeight : setWeight;
+    const setError = metric === 'height' ? setHeightError : setWeightError;
+    const limits = metric === 'height' ? LIMITS.heightCm : LIMITS.bodyWeightKg;
+    const emit = (value: number | undefined) =>
+      onChange(metric === 'height' ? { heightCm: value } : { weightKg: value });
 
-  const handleWeightChange = (text: string) => {
-    setWeight(text);
-    setWeightError(null);
-    
-    if (text === '') {
-      onChange({ weightKg: undefined });
+    setText(text);
+    setError(null);
+
+    if (text.trim() === '') {
+      emit(undefined);
       return;
     }
-    
-    const num = parseFloat(text);
-    if (!isNaN(num) && num >= LIMITS.bodyWeightKg.min && num <= LIMITS.bodyWeightKg.max) {
-      onChange({ weightKg: num });
-    } else if (text !== '') {
-      setWeightError(`Weight must be between ${LIMITS.bodyWeightKg.min} and ${LIMITS.bodyWeightKg.max} kg`);
+
+    const parsed = Number.parseFloat(text);
+    if (Number.isNaN(parsed)) {
+      setError(rangeMessage(metric, unitSystem));
+      emit(undefined);
+      return;
     }
+
+    const metricValue = round(toMetric(parsed, metric, unitSystem));
+    if (metricValue < limits.min || metricValue > limits.max) {
+      setError(rangeMessage(metric, unitSystem));
+      emit(undefined);
+      return;
+    }
+
+    emit(metricValue);
   };
 
   const handleUnitChange = (system: UnitSystem) => {
-    setUnitSystem(system);
+    if (system === unitSystem) return;
+
+    setHeight(heightCm === undefined ? '' : String(toDisplay(heightCm, 'height', system)));
+    setWeight(weightKg === undefined ? '' : String(toDisplay(weightKg, 'weight', system)));
+    setHeightError(null);
+    setWeightError(null);
     onChange({ unitSystem: system });
   };
-
-  const getUnitLabel = () => {
-    if (unitSystem === 'imperial') {
-      return {
-        heightLabel: 'Height (ft in)',
-        weightLabel: 'Weight (lbs)',
-        heightPlaceholder: 'e.g., 5.8',
-        weightPlaceholder: 'e.g., 160',
-      };
-    }
-    return {
-      heightLabel: 'Height (cm)',
-      weightLabel: 'Weight (kg)',
-      heightPlaceholder: 'e.g., 175',
-      weightPlaceholder: 'e.g., 70',
-    };
-  };
-
-  const labels = getUnitLabel();
 
   return (
     <ThemedView style={styles.container}>
@@ -88,83 +113,96 @@ export default function BodyMetricsStep({ heightCm, weightKg, onChange }: BodyMe
         This helps us calculate your fitness metrics accurately
       </ThemedText>
 
-      {/* Unit System Toggle */}
       <View style={styles.unitToggle}>
-        <TouchableUnit
+        <UnitButton
           label="Metric"
           isActive={unitSystem === 'metric'}
           onPress={() => handleUnitChange('metric')}
         />
-        <TouchableUnit
+        <UnitButton
           label="Imperial"
           isActive={unitSystem === 'imperial'}
           onPress={() => handleUnitChange('imperial')}
         />
       </View>
 
-      {/* Height Input */}
       <View style={styles.inputGroup}>
         <ThemedText type="smallBold" style={styles.label}>
-          {labels.heightLabel}
+          Height ({unitLabel('height', unitSystem)})
         </ThemedText>
         <TextInput
           style={[
             styles.input,
-            { 
+            {
               backgroundColor: theme.backgroundElement,
               color: theme.text,
               borderColor: heightError ? '#ff3b30' : theme.textSecondary,
             },
           ]}
-          placeholder={labels.heightPlaceholder}
+          placeholder={unitSystem === 'imperial' ? 'e.g., 69' : 'e.g., 175'}
           placeholderTextColor={theme.textSecondary}
           value={height}
-          onChangeText={handleHeightChange}
+          onChangeText={(text) => handleValueChange('height', text)}
           keyboardType="numeric"
           returnKeyType="done"
         />
-        {heightError && <ThemedText type="small" style={styles.errorText}>{heightError}</ThemedText>}
+        {heightError ? (
+          <ThemedText type="small" style={styles.errorText}>
+            {heightError}
+          </ThemedText>
+        ) : null}
       </View>
 
-      {/* Weight Input */}
       <View style={styles.inputGroup}>
         <ThemedText type="smallBold" style={styles.label}>
-          {labels.weightLabel}
+          Weight ({unitLabel('weight', unitSystem)})
         </ThemedText>
         <TextInput
           style={[
             styles.input,
-            { 
+            {
               backgroundColor: theme.backgroundElement,
               color: theme.text,
               borderColor: weightError ? '#ff3b30' : theme.textSecondary,
             },
           ]}
-          placeholder={labels.weightPlaceholder}
+          placeholder={unitSystem === 'imperial' ? 'e.g., 155' : 'e.g., 70'}
           placeholderTextColor={theme.textSecondary}
           value={weight}
-          onChangeText={handleWeightChange}
+          onChangeText={(text) => handleValueChange('weight', text)}
           keyboardType="numeric"
           returnKeyType="done"
         />
-        {weightError && <ThemedText type="small" style={styles.errorText}>{weightError}</ThemedText>}
+        {weightError ? (
+          <ThemedText type="small" style={styles.errorText}>
+            {weightError}
+          </ThemedText>
+        ) : null}
       </View>
 
       <ThemedText type="small" style={[styles.hint, { color: theme.textSecondary }]}>
-        We'll use this to calculate your BMI and other health metrics
+        We&apos;ll use this to calculate your BMI and other health metrics
       </ThemedText>
     </ThemedView>
   );
 }
 
-function TouchableUnit({ label, isActive, onPress }: { label: string; isActive: boolean; onPress: () => void }) {
+function UnitButton({
+  label,
+  isActive,
+  onPress,
+}: {
+  label: string;
+  isActive: boolean;
+  onPress: () => void;
+}) {
   const theme = useTheme();
 
   return (
     <TouchableOpacity
       style={[
         styles.unitButton,
-        { 
+        {
           backgroundColor: isActive ? '#208AEF' : theme.backgroundElement,
           borderColor: theme.textSecondary,
         },
@@ -177,7 +215,7 @@ function TouchableUnit({ label, isActive, onPress }: { label: string; isActive: 
   );
 }
 
-const styles = StyleSheet.create(
+const styles = StyleSheet.create({
   container: {
     width: '100%',
     alignItems: 'center',

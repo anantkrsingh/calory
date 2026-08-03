@@ -1,60 +1,79 @@
-import * as Device from 'expo-device';
 import { Platform, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { HintRow } from '@/components/hint-row';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { WebBadge } from '@/components/web-badge';
 import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
-
-function getDevMenuHint() {
-  if (Platform.OS === 'web') {
-    return <ThemedText type="small">use browser devtools</ThemedText>;
-  }
-  if (Device.isDevice) {
-    return (
-      <ThemedText type="small">
-        shake device or press <ThemedText type="code">m</ThemedText> in terminal
-      </ThemedText>
-    );
-  }
-  const shortcut = Platform.OS === 'android' ? 'cmd+m (or ctrl+m)' : 'cmd+d';
-  return (
-    <ThemedText type="small">
-      press <ThemedText type="code">{shortcut}</ThemedText>
-    </ThemedText>
-  );
-}
+import { selectUser, useAuthStore } from '@/stores/auth.store';
 
 export default function HomeScreen() {
+  const user = useAuthStore(selectUser);
+
   return (
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
         <ThemedView style={styles.heroSection}>
-          <ThemedText type="title" style={styles.title}>
-            Welcome to&nbsp;Expo
-          </ThemedText>
+          {user ? (
+            <>
+              <ThemedText type="subtitle" style={styles.greeting}>
+                Welcome back,
+              </ThemedText>
+              <ThemedText type="title" style={styles.title}>
+                {user.profile.displayName || user.email}
+              </ThemedText>
+              <ThemedText type="small" style={[styles.subtitle, { opacity: 0.6 }]}>
+                Ready to crush your fitness goals today?
+              </ThemedText>
+            </>
+          ) : (
+            <>
+              <ThemedText type="title" style={styles.title}>
+                Welcome to Fitness Tracker
+              </ThemedText>
+              <ThemedText type="small" style={[styles.subtitle, { opacity: 0.6 }]}>
+                Your personal fitness companion
+              </ThemedText>
+            </>
+          )}
         </ThemedView>
 
-        <ThemedText type="code" style={styles.code}>
-          get started
-        </ThemedText>
-
-        <ThemedView type="backgroundElement" style={styles.stepContainer}>
-          <HintRow
-            title="Try editing"
-            hint={<ThemedText type="code">src/app/index.tsx</ThemedText>}
-          />
-          <HintRow title="Dev tools" hint={getDevMenuHint()} />
-          <HintRow
-            title="Fresh start"
-            hint={<ThemedText type="code">npm run reset-project</ThemedText>}
-          />
+        <ThemedView type="backgroundElement" style={styles.content}>
+          {user ? (
+            <>
+              <ThemedText type="smallBold" style={styles.sectionTitle}>
+                Quick Actions
+              </ThemedText>
+              <ThemedView style={styles.quickActions}>
+                <QuickActionCard icon="🏋️" title="Start Workout" />
+                <QuickActionCard icon="📊" title="View Progress" />
+                <QuickActionCard icon="🎯" title="My Goals" />
+                <QuickActionCard icon="📅" title="My Routines" />
+              </ThemedView>
+            </>
+          ) : (
+            <ThemedView style={styles.guestContent}>
+              <ThemedText type="small" style={styles.guestTitle}>
+                Get started with Fitness Tracker
+              </ThemedText>
+              <ThemedText type="small" style={[styles.guestText, { opacity: 0.6 }]}>
+                Sign up or log in to start tracking your fitness journey
+              </ThemedText>
+            </ThemedView>
+          )}
         </ThemedView>
 
         {Platform.OS === 'web' && <WebBadge />}
       </SafeAreaView>
+    </ThemedView>
+  );
+}
+
+function QuickActionCard({ icon, title }: { icon: string; title: string }) {
+  return (
+    <ThemedView style={styles.actionCard}>
+      <ThemedText type="title" style={styles.actionIcon}>{icon}</ThemedText>
+      <ThemedText type="smallBold" style={styles.actionTitle}>{title}</ThemedText>
     </ThemedView>
   );
 }
@@ -78,19 +97,61 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     flex: 1,
     paddingHorizontal: Spacing.four,
-    gap: Spacing.four,
+    gap: Spacing.two,
+  },
+  greeting: {
+    fontSize: 24,
   },
   title: {
     textAlign: 'center',
+    fontSize: 28,
   },
-  code: {
-    textTransform: 'uppercase',
+  subtitle: {
+    textAlign: 'center',
+    fontSize: 16,
   },
-  stepContainer: {
-    gap: Spacing.three,
+  content: {
     alignSelf: 'stretch',
     paddingHorizontal: Spacing.three,
     paddingVertical: Spacing.four,
     borderRadius: Spacing.four,
+    gap: Spacing.three,
+  },
+  sectionTitle: {
+    marginBottom: Spacing.two,
+  },
+  quickActions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.two,
+  },
+  actionCard: {
+    flex: 1,
+    minWidth: '45%',
+    aspectRatio: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 12,
+    padding: Spacing.two,
+  },
+  actionIcon: {
+    fontSize: 28,
+    marginBottom: Spacing.one,
+  },
+  actionTitle: {
+    textAlign: 'center',
+    fontSize: 12,
+  },
+  guestContent: {
+    alignItems: 'center',
+    padding: Spacing.four,
+  },
+  guestTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: Spacing.one,
+  },
+  guestText: {
+    textAlign: 'center',
   },
 });

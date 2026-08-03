@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   SafeAreaView,
   ScrollView,
@@ -10,78 +10,95 @@ import {
 } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { useOnboardingStore } from '@/stores/onboarding.store';
 import { otpService } from '@/services/otp.service';
+import { selectError, useOnboardingStore } from '@/stores/onboarding.store';
+
+const OTP_LENGTH = 6;
+const RESEND_SECONDS = 60;
+
+const formatSeconds = (total: number): string => {
+  const minutes = Math.floor(total / 60);
+  const seconds = total % 60;
+  return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+};
 
 export default function VerifyEmailScreen() {
   const theme = useTheme();
   const router = useRouter();
-  const { userData, setLoading, setError, setVerified, updateUserData } = useOnboardingStore();
-  const [otp, setOtp] = useState('');
-  const [otpDigits, setOtpDigits] = useState<string[]>(['', '', '', '', '', '']);
-  const [canResend, setCanResend] = useState(false);
-  const [resendTimer, setResendTimer] = useState(60);
+  const email = useOnboardingStore((state) => state.userData.email);
+  const error = useOnboardingStore(selectError);
+  const setLoading = useOnboardingStore((state) => state.setLoading);
+  const setError = useOnboardingStore((state) => state.setError);
+  const setVerified = useOnboardingStore((state) => state.setVerified);
+  const [otpDigits, setOtpDigits] = useState<string[]>(Array(OTP_LENGTH).fill(''));
+  const [resendTimer, setResendTimer] = useState(RESEND_SECONDS);
   const [isVerifying, setIsVerifying] = useState(false);
+  const inputs = useRef<(TextInput | null)[]>([]);
 
-  // Start resend timer
-  useEffect(() => {
-    let timer: NodeJS.Timeout;
-    if (resendTimer > 0) {
-      timer = setTimeout(() => setResendTimer(resendTimer - 1), 1000);
-    } else {
-      setCanResend(true);
+  const otp = otpDigits.join('');
+  const canResend = resendTimer === 0;
+
+  const sendVerificationCode = useCallback(async () => {
+    setLoading(true);
+    setResendTimer(RESEND_SECONDS);
+
+    try {
+      await otpService.sendOTP(email, 'registration');
+    } catch {
+      setError('Failed to send verification code');
+    } finally {
+      setLoading(false);
     }
+  }, [email, setError, setLoading]);
+
+  useEffect(() => {
+    if (resendTimer === 0) return;
+
+    const timer = setTimeout(() => setResendTimer((value) => value - 1), 1000);
     return () => clearTimeout(timer);
   }, [resendTimer]);
 
-  // Send OTP on mount
   useEffect(() => {
-    if (userData.email) {
+    if (email) {
       sendVerificationCode();
     }
-  }, []);
-
-  const sendVerificationCode = async () => {
-    setLoading(true);
-    setCanResend(false);
-    setResendTimer(60);
-    
-    try {
-      await otpService.sendOTP(userData.email);
-      setLoading(false);
-    } catch (error) {
-      setError('Failed to send verification code');
-      setLoading(false);
-    }
-  };
-
-  const handleOtpChange = (text: string) => {
-    if (/^\d*$/.test(text) && text.length <= 6) {
-      setOtp(text);
-      const digits = text.split('').concat(Array(6 - text.length).fill(''));
-      setOtpDigits(digits.slice(0, 6));
-    }
-  };
+  }, [email, sendVerificationCode]);
 
   const handleDigitChange = (index: number, text: string) => {
-    if (/^\d*$/.test(text) && text.length <= 1) {
-      const newDigits = [...otpDigits];
-      newDigits[index] = text;
-      setOtpDigits(newDigits);
-      setOtp(newDigits.join(''));
+    const digits = text.replace(/\D/g, '');
 
-      // Auto-focus next input
-      if (text && index < 5) {
-        // In a real app, you'd use refs to focus the next input
-      }
+    if (digits.length > 1) {
+      const next = Array(OTP_LENGTH).fill('');
+      digits
+        .slice(0, OTP_LENGTH)
+        .split('')
+        .forEach((digit, position) => {
+          next[position] = digit;
+        });
+      setOtpDigits(next);
+      inputs.current[Math.min(digits.length, OTP_LENGTH - 1)]?.focus();
+      return;
+    }
+
+    const next = [...otpDigits];
+    next[index] = digits;
+    setOtpDigits(next);
+
+    if (digits && index < OTP_LENGTH - 1) {
+      inputs.current[index + 1]?.focus();
+    }
+  };
+
+  const handleKeyPress = (index: number, key: string) => {
+    if (key === 'Backspace' && !otpDigits[index] && index > 0) {
+      inputs.current[index - 1]?.focus();
     }
   };
 
   const handleVerify = async () => {
-    if (otp.length !== 6) {
+    if (otp.length !== OTP_LENGTH) {
       setError('Please enter a 6-digit code');
       return;
     }
@@ -90,26 +107,24 @@ export default function VerifyEmailScreen() {
     setError(null);
 
     try {
-      const isValid = await otpService.verifyOTP(userData.email, otp);
-      
+      const isValid = await otpService.verifyOTP(email, otp, 'registration');
+
       if (isValid) {
         setVerified(true);
-        // Navigate to create password screen
         router.push('/auth/create-password');
       } else {
         setError('Invalid verification code. Please try again.');
       }
-    } catch (error) {
+    } catch {
       setError('Verification failed. Please try again.');
     } finally {
       setIsVerifying(false);
     }
   };
 
-  const handleResend = () => {
-    if (canResend) {
-      sendVerificationCode();
-    }
+  const handleResend = async () => {
+    if (!canResend) return;
+    await sendVerificationCode();
   };
 
   return (
@@ -118,93 +133,72 @@ export default function VerifyEmailScreen() {
         contentContainerStyle={styles.container}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled">
-        
-        {/* Header */}
         <View style={styles.header}>
           <ThemedText type="subtitle" style={styles.title}>
             Verify your email
           </ThemedText>
           <ThemedText type="small" style={[styles.subtitle, { color: theme.textSecondary }]}>
-            We've sent a 6-digit verification code to
+            We&apos;ve sent a 6-digit verification code to
           </ThemedText>
           <ThemedText type="smallBold" style={styles.email}>
-            {userData.email}
+            {email}
           </ThemedText>
         </View>
 
-        {/* OTP Input */}
         <View style={styles.otpContainer}>
           <View style={styles.otpInputs}>
-            {Array.from({ length: 6 }).map((_, index) => (
+            {otpDigits.map((digit, index) => (
               <TextInput
                 key={index}
+                ref={(input) => {
+                  inputs.current[index] = input;
+                }}
                 style={[
                   styles.otpInput,
-                  { 
+                  {
                     backgroundColor: theme.backgroundElement,
                     color: theme.text,
-                    borderColor: otpDigits[index] ? '#208AEF' : theme.textSecondary,
+                    borderColor: digit ? '#208AEF' : theme.textSecondary,
                   },
                 ]}
-                value={otpDigits[index]}
+                value={digit}
                 onChangeText={(text) => handleDigitChange(index, text)}
+                onKeyPress={({ nativeEvent }) => handleKeyPress(index, nativeEvent.key)}
                 keyboardType="numeric"
-                maxLength={1}
+                maxLength={OTP_LENGTH}
                 textAlign="center"
                 autoCapitalize="none"
                 autoCorrect={false}
+                textContentType="oneTimeCode"
               />
             ))}
           </View>
-          
-          {/* Alternative single input */}
-          <TextInput
-            style={[
-              styles.otpFallbackInput,
-              { 
-                backgroundColor: theme.backgroundElement,
-                color: theme.text,
-                borderColor: theme.textSecondary,
-              },
-            ]}
-            value={otp}
-            onChangeText={handleOtpChange}
-            placeholder="Enter 6-digit code"
-            placeholderTextColor={theme.textSecondary}
-            keyboardType="numeric"
-            maxLength={6}
-            autoCapitalize="none"
-            autoCorrect={false}
-          />
         </View>
 
-        {/* Error */}
-        {useOnboardingStore.getState().error && (
+        {error ? (
           <ThemedText type="small" style={styles.errorText}>
-            {useOnboardingStore.getState().error}
+            {error}
           </ThemedText>
-        )}
+        ) : null}
 
-        {/* Verify Button */}
         <TouchableOpacity
           style={[
             styles.verifyButton,
-            { 
-              backgroundColor: otp.length === 6 ? '#208AEF' : theme.backgroundElement,
-              opacity: otp.length === 6 ? 1 : 0.5,
+            {
+              backgroundColor: otp.length === OTP_LENGTH ? '#208AEF' : theme.backgroundElement,
+              opacity: otp.length === OTP_LENGTH ? 1 : 0.5,
             },
           ]}
           onPress={handleVerify}
-          disabled={otp.length !== 6 || isVerifying}>
+          disabled={otp.length !== OTP_LENGTH || isVerifying}>
           <ThemedText type="smallBold" style={styles.verifyButtonText}>
             {isVerifying ? 'Verifying...' : 'Verify'}
           </ThemedText>
         </TouchableOpacity>
 
-        {/* Resend */}
         <View style={styles.resendContainer}>
           <ThemedText type="small" style={[styles.resendText, { color: theme.textSecondary }]}>
-            Didn't receive a code?{' '}
+            Didn&apos;t receive a code?{' '}
           </ThemedText>
           <TouchableOpacity onPress={handleResend} disabled={!canResend}>
             <ThemedText 
@@ -213,17 +207,16 @@ export default function VerifyEmailScreen() {
               Resend Code
             </ThemedText>
           </TouchableOpacity>
-          {resendTimer > 0 && (
+          {resendTimer > 0 ? (
             <ThemedText type="small" style={[styles.timer, { color: theme.textSecondary }]}>
-              {otpService.formatRemainingTime(userData.email)}
+              {formatSeconds(resendTimer)}
             </ThemedText>
-          )}
+          ) : null}
         </View>
 
-        {/* Back Button */}
         <TouchableOpacity
           style={[styles.backButton, { backgroundColor: theme.backgroundElement }]}
-          onPress={() => router.push('/auth/onboarding')}>
+          onPress={() => router.back()}>
           <ThemedText type="smallBold" style={styles.backButtonText}>
             Back to sign up
           </ThemedText>
@@ -277,15 +270,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     fontSize: 20,
     fontWeight: '600',
-    textAlign: 'center',
-  },
-  otpFallbackInput: {
-    width: '100%',
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.three,
-    borderRadius: 12,
-    borderWidth: 1,
-    fontSize: 16,
     textAlign: 'center',
   },
   errorText: {

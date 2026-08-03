@@ -10,6 +10,7 @@ import { GoalsModule } from './goals/goals.module';
 import { HealthModule } from './health/health.module';
 import { MeasurementsModule } from './measurements/measurements.module';
 import { PrismaModule } from './prisma/prisma.module';
+import { QueuesModule } from './queues/queues.module';
 import { RoutinesModule } from './routines/routines.module';
 import { StatsModule } from './stats/stats.module';
 import { UsersModule } from './users/users.module';
@@ -19,6 +20,7 @@ import { WorkoutsModule } from './workouts/workouts.module';
   imports: [
     EnvModule,
     PrismaModule,
+    QueuesModule,
     AuthModule,
     UsersModule,
     ExercisesModule,

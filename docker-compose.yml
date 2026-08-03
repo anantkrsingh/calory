@@ -1,0 +1,90 @@
+version: '3.8'
+
+services:
+  # Redis for BullMQ background jobs
+  redis:
+    image: redis:7-alpine
+    container_name: fitness_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # MongoDB for data storage
+  mongodb:
+    image: mongo:7
+    container_name: fitness_mongodb
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    environment:
+      MONGO_INITDB_DATABASE: fitness
+    restart: unless-stopped
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet | grep 1
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # API Server
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: fitness_api
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: development
+      PORT: 3000
+      MONGODB_URI: mongodb://mongodb:27017/fitness
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      JWT_SECRET: your-dev-jwt-secret-change-in-production
+      CORS_ORIGIN: *
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    volumes:
+      - ./apps/api/src:/app/src
+      - /app/node_modules
+
+  # BullMQ Worker for background jobs
+  worker:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: fitness_worker
+    command: npm run start:worker
+    environment:
+      NODE_ENV: development
+      MONGODB_URI: mongodb://mongodb:27017/fitness
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      JWT_SECRET: your-dev-jwt-secret-change-in-production
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      api:
+        condition: service_started
+    restart: unless-stopped
+    volumes:
+      - ./apps/api/src:/app/src
+      - /app/node_modules
+
+volumes:
+  redis_data:
+  mongodb_data:

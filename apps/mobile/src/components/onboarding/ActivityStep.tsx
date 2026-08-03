@@ -1,55 +1,50 @@
-import { useState } from 'react';
-import { StyleSheet, TouchableOpacity, View } from 'react-native';
+import type { ActivityLevel } from '@fitness/types';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import type { ActivityLevel } from '@fitness/types';
 
 interface ActivityStepProps {
   activityLevel: ActivityLevel | undefined;
   onChange: (data: { activityLevel?: ActivityLevel }) => void;
 }
 
+const ACTIVITY_LEVELS: ActivityLevel[] = [
+  'sedentary',
+  'light',
+  'moderate',
+  'active',
+  'very_active',
+];
+
+const ACTIVITY_LABELS: Record<ActivityLevel, string> = {
+  sedentary: 'Sedentary',
+  light: 'Lightly Active',
+  moderate: 'Moderately Active',
+  active: 'Very Active',
+  very_active: 'Extremely Active',
+};
+
+const ACTIVITY_DESCRIPTIONS: Record<ActivityLevel, string> = {
+  sedentary: 'Little or no exercise',
+  light: 'Light exercise 1-3 days/week',
+  moderate: 'Moderate exercise 3-5 days/week',
+  active: 'Hard exercise 6-7 days a week',
+  very_active: 'Very hard exercise, physical job, or training twice a day',
+};
+
+const ACTIVITY_ICONS: Record<ActivityLevel, string> = {
+  sedentary: '🛋️',
+  light: '🚶',
+  moderate: '🏃',
+  active: '💪',
+  very_active: '🏋️',
+};
+
 export default function ActivityStep({ activityLevel, onChange }: ActivityStepProps) {
   const theme = useTheme();
-  const [selectedLevel, setSelectedLevel] = useState<ActivityLevel | undefined>(activityLevel);
-
-  const handleSelect = (level: ActivityLevel) => {
-    setSelectedLevel(level);
-    onChange({ activityLevel: level });
-  };
-
-  const activityLevels: ActivityLevel[] = [
-    'sedentary',
-    'light',
-    'moderate',
-    'active',
-    'very_active',
-  ];
-
-  const getActivityDescription = (level: ActivityLevel): string => {
-    const descriptions: Record<ActivityLevel, string> = {
-      sedentary: 'Little or no exercise',
-      light: 'Light exercise 1-3 days/week',
-      moderate: 'Moderate exercise 3-5 days/week',
-      active: 'Hard exercise 6-7 days a week',
-      very_active: 'Very hard exercise, physical job, or training twice a day',
-    };
-    return descriptions[level] || '';
-  };
-
-  const getActivityIcon = (level: ActivityLevel): string => {
-    const icons: Record<ActivityLevel, string> = {
-      sedentary: '🛋️',
-      light: '🚶',
-      moderate: '🏃',
-      active: '💪',
-      very_active: '🏋️',
-    };
-    return icons[level] || '❓';
-  };
 
   return (
     <ThemedView style={styles.container}>
@@ -61,38 +56,40 @@ export default function ActivityStep({ activityLevel, onChange }: ActivityStepPr
       </ThemedText>
 
       <View style={styles.optionsContainer}>
-        {activityLevels.map((level) => (
-          <TouchableOpacity
-            key={level}
-            style={[
-              styles.optionCard,
-              { 
-                backgroundColor: selectedLevel === level ? '#208AEF' : theme.backgroundElement,
-                borderColor: theme.textSecondary,
-              },
-            ]}
-            onPress={() => handleSelect(level)}>
-            <ThemedText type="title" style={styles.optionIcon}>
-              {getActivityIcon(level)}
-            </ThemedText>
-            <ThemedText 
-              type="smallBold" 
-              style={[
-                styles.optionTitle,
-                { color: selectedLevel === level ? 'white' : theme.text }
-              ]}>
-              {formatActivityLevel(level)}
-            </ThemedText>
-            <ThemedText 
-              type="small" 
-              style={[
-                styles.optionDescription,
-                { color: selectedLevel === level ? 'rgba(255, 255, 255, 0.8)' : theme.textSecondary }
-              ]}>
-              {getActivityDescription(level)}
-            </ThemedText>
-          </TouchableOpacity>
-        ))}
+        {ACTIVITY_LEVELS.map((level) => {
+          const isSelected = activityLevel === level;
+
+          return (
+            <Pressable
+              key={level}
+              style={({ pressed }) => [
+                styles.optionCard,
+                {
+                  backgroundColor: isSelected ? '#208AEF' : theme.backgroundElement,
+                  borderColor: theme.textSecondary,
+                  opacity: pressed ? 0.7 : 1,
+                },
+              ]}
+              onPress={() => onChange({ activityLevel: level })}>
+              <ThemedText type="title" style={styles.optionIcon}>
+                {ACTIVITY_ICONS[level]}
+              </ThemedText>
+              <ThemedText
+                type="smallBold"
+                style={[styles.optionTitle, { color: isSelected ? 'white' : theme.text }]}>
+                {ACTIVITY_LABELS[level]}
+              </ThemedText>
+              <ThemedText
+                type="small"
+                style={[
+                  styles.optionDescription,
+                  { color: isSelected ? 'rgba(255, 255, 255, 0.8)' : theme.textSecondary },
+                ]}>
+                {ACTIVITY_DESCRIPTIONS[level]}
+              </ThemedText>
+            </Pressable>
+          );
+        })}
       </View>
 
       <ThemedText type="small" style={[styles.hint, { color: theme.textSecondary }]}>
@@ -102,29 +99,18 @@ export default function ActivityStep({ activityLevel, onChange }: ActivityStepPr
   );
 }
 
-function formatActivityLevel(level: ActivityLevel): string {
-  const mapping: Record<ActivityLevel, string> = {
-    sedentary: 'Sedentary',
-    light: 'Lightly Active',
-    moderate: 'Moderately Active',
-    active: 'Very Active',
-    very_active: 'Extremely Active',
-  };
-  return mapping[level] || level;
-}
-
 const styles = StyleSheet.create({
   container: {
     width: '100%',
     alignItems: 'center',
+    gap: Spacing.one,
   },
   title: {
     textAlign: 'center',
-    marginBottom: Spacing.one,
   },
   subtitle: {
     textAlign: 'center',
-    marginBottom: Spacing.four,
+    marginBottom: Spacing.three,
   },
   optionsContainer: {
     width: '100%',
@@ -135,16 +121,16 @@ const styles = StyleSheet.create({
     width: '100%',
     padding: Spacing.three,
     borderRadius: 12,
+    borderCurve: 'continuous',
     borderWidth: 1,
     alignItems: 'center',
+    gap: Spacing.one,
   },
   optionIcon: {
     fontSize: 32,
-    marginBottom: Spacing.two,
   },
   optionTitle: {
     textAlign: 'center',
-    marginBottom: Spacing.one,
   },
   optionDescription: {
     textAlign: 'center',

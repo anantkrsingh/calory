@@ -1,5 +1,4 @@
 import { useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
 import {
   SafeAreaView,
   ScrollView,
@@ -8,67 +7,36 @@ import {
   View,
 } from 'react-native';
 
+import {
+  ActivityStep,
+  BodyMetricsStep,
+  DobSexStep,
+  EmailStep,
+  GoalsStep,
+  NameStep,
+} from '@/components/onboarding';
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useOnboardingStore } from '@/stores/onboarding.store';
 
-// Step components
-import EmailStep from '@/components/onboarding/EmailStep';
-import NameStep from '@/components/onboarding/NameStep';
-import DobSexStep from '@/components/onboarding/DobSexStep';
-import BodyMetricsStep from '@/components/onboarding/BodyMetricsStep';
-import ActivityStep from '@/components/onboarding/ActivityStep';
-import GoalsStep from '@/components/onboarding/GoalsStep';
-
 export default function OnboardingScreen() {
   const theme = useTheme();
   const router = useRouter();
-  const {
-    currentStep,
-    userData,
-    nextStep,
-    prevStep,
-    updateUserData,
-    resetOnboarding,
-  } = useOnboardingStore();
+  const currentStep = useOnboardingStore((state) => state.currentStep);
+  const totalSteps = useOnboardingStore((state) => state.totalSteps);
+  const userData = useOnboardingStore((state) => state.userData);
+  const nextStep = useOnboardingStore((state) => state.nextStep);
+  const prevStep = useOnboardingStore((state) => state.prevStep);
+  const updateUserData = useOnboardingStore((state) => state.updateUserData);
+  const resetOnboarding = useOnboardingStore((state) => state.resetOnboarding);
 
-  const [canContinue, setCanContinue] = useState(false);
-
-  // Check if current step data is valid
-  useEffect(() => {
-    switch (currentStep) {
-      case 1: // Email
-        setCanContinue(userData.email.trim() !== '');
-        break;
-      case 2: // Name
-        setCanContinue(userData.displayName.trim() !== '');
-        break;
-      case 3: // DOB and Sex
-        setCanContinue(userData.dateOfBirth !== '' && userData.sex !== undefined);
-        break;
-      case 4: // Body Metrics
-        setCanContinue(
-          userData.heightCm !== undefined && userData.weightKg !== undefined
-        );
-        break;
-      case 5: // Activity Level
-        setCanContinue(userData.activityLevel !== undefined);
-        break;
-      case 6: // Goals
-        setCanContinue(userData.fitnessGoals !== undefined && userData.fitnessGoals.length > 0);
-        break;
-      default:
-        setCanContinue(false);
-    }
-  }, [currentStep, userData]);
+  const canContinue = isStepComplete(currentStep, userData);
 
   const handleNext = () => {
-    if (currentStep < 6) {
+    if (currentStep < totalSteps) {
       nextStep();
     } else {
-      // All steps completed, navigate to verification
       router.push('/auth/verify-email');
     }
   };
@@ -77,7 +45,6 @@ export default function OnboardingScreen() {
     if (currentStep > 1) {
       prevStep();
     } else {
-      // Go back to welcome screen
       resetOnboarding();
       router.push('/auth/welcome');
     }
@@ -102,6 +69,7 @@ export default function OnboardingScreen() {
           <BodyMetricsStep
             heightCm={userData.heightCm}
             weightKg={userData.weightKg}
+            unitSystem={userData.unitSystem ?? 'metric'}
             onChange={updateUserData}
           />
         );
@@ -124,7 +92,7 @@ export default function OnboardingScreen() {
     }
   };
 
-  const progressPercentage = ((currentStep - 1) / 5) * 100;
+  const progressPercentage = (currentStep / totalSteps) * 100;
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.background }]}>
@@ -132,23 +100,19 @@ export default function OnboardingScreen() {
         contentContainerStyle={styles.container}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled">
-        
-        {/* Progress Bar */}
         <View style={styles.progressContainer}>
           <View style={styles.progressTrack}>
             <View style={[styles.progressBar, { width: `${progressPercentage}%` }]} />
           </View>
           <ThemedText type="small">
-            Step {currentStep} of 6
+            Step {currentStep} of {totalSteps}
           </ThemedText>
         </View>
 
-        {/* Step Content */}
         <View style={styles.content}>
           {renderStep()}
         </View>
 
-        {/* Navigation Buttons */}
         <View style={styles.buttonContainer}>
           <TouchableOpacity
             style={[styles.backButton, { backgroundColor: theme.backgroundElement }]}
@@ -169,13 +133,34 @@ export default function OnboardingScreen() {
             onPress={handleNext}
             disabled={!canContinue}>
             <ThemedText type="smallBold" style={styles.nextButtonText}>
-              {currentStep < 6 ? 'Continue' : 'Finish'}
+              {currentStep < totalSteps ? 'Continue' : 'Finish'}
             </ThemedText>
           </TouchableOpacity>
         </View>
       </ScrollView>
     </SafeAreaView>
   );
+}
+
+type OnboardingUserData = ReturnType<typeof useOnboardingStore.getState>['userData'];
+
+function isStepComplete(step: number, userData: OnboardingUserData): boolean {
+  switch (step) {
+    case 1:
+      return userData.email.trim() !== '';
+    case 2:
+      return userData.displayName.trim() !== '';
+    case 3:
+      return (userData.dateOfBirth ?? '').trim() !== '' && userData.sex !== undefined;
+    case 4:
+      return userData.heightCm !== undefined && userData.weightKg !== undefined;
+    case 5:
+      return userData.activityLevel !== undefined;
+    case 6:
+      return (userData.fitnessGoals?.length ?? 0) > 0;
+    default:
+      return false;
+  }
 }
 
 const styles = StyleSheet.create({
@@ -204,7 +189,6 @@ const styles = StyleSheet.create({
     height: '100%',
     backgroundColor: '#208AEF',
     borderRadius: 2,
-    transition: 'width 0.3s ease',
   },
   content: {
     flex: 1,

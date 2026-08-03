@@ -1,3 +1,4 @@
+import { AUTH } from '@fitness/config';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
@@ -10,17 +11,20 @@ import {
 } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { AUTH } from '@/constants/theme';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { authService } from '@/services/auth.service';
-import { useOnboardingStore } from '@/stores/onboarding.store';
+import { selectError, selectIsLoading, useOnboardingStore } from '@/stores/onboarding.store';
 
 export default function CreatePasswordScreen() {
   const theme = useTheme();
   const router = useRouter();
-  const { userData, setLoading, setError, resetOnboarding } = useOnboardingStore();
+  const userData = useOnboardingStore((state) => state.userData);
+  const isLoading = useOnboardingStore(selectIsLoading);
+  const error = useOnboardingStore(selectError);
+  const setLoading = useOnboardingStore((state) => state.setLoading);
+  const setError = useOnboardingStore((state) => state.setError);
+  const resetOnboarding = useOnboardingStore((state) => state.resetOnboarding);
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [errors, setErrors] = useState({
@@ -60,14 +64,12 @@ export default function CreatePasswordScreen() {
   };
 
   const handleSubmit = async () => {
-    // Validate password
     const passwordError = validatePassword(password);
     if (passwordError) {
       setErrors({ ...errors, password: passwordError });
       return;
     }
 
-    // Validate password match
     if (password !== confirmPassword) {
       setErrors({ ...errors, confirmPassword: 'Passwords do not match' });
       return;
@@ -77,19 +79,16 @@ export default function CreatePasswordScreen() {
     setError(null);
 
     try {
-      // Register the user with the collected data
-      const session = await authService.register({
+      await authService.register({
         email: userData.email,
-        password: password,
+        password,
         displayName: userData.displayName,
       });
 
-      // Reset onboarding data and navigate to home
       resetOnboarding();
       router.replace('/');
-    } catch (error) {
+    } catch {
       setError('Registration failed. Please try again.');
-      console.error('Registration error:', error);
     } finally {
       setLoading(false);
     }
@@ -103,8 +102,6 @@ export default function CreatePasswordScreen() {
         contentContainerStyle={styles.container}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled">
-        
-        {/* Header */}
         <View style={styles.header}>
           <ThemedText type="subtitle" style={styles.title}>
             Create your password
@@ -113,8 +110,6 @@ export default function CreatePasswordScreen() {
             Secure your account with a strong password
           </ThemedText>
         </View>
-
-        {/* Password Input */}
         <View style={styles.inputContainer}>
           <ThemedText type="smallBold" style={styles.label}>
             Password
@@ -162,8 +157,6 @@ export default function CreatePasswordScreen() {
             </View>
           )}
         </View>
-
-        {/* Confirm Password Input */}
         <View style={styles.inputContainer}>
           <ThemedText type="smallBold" style={styles.label}>
             Confirm Password
@@ -195,12 +188,11 @@ export default function CreatePasswordScreen() {
               </ThemedText>
             </TouchableOpacity>
           </View>
-          {errors.confirmPassword && (
+          {errors.confirmPassword ? (
             <ThemedText type="small" style={styles.errorText}>{errors.confirmPassword}</ThemedText>
-          )}
+          ) : null}
         </View>
 
-        {/* Password Requirements */}
         <View style={styles.requirements}>
           <ThemedText type="smallBold" style={styles.requirementsTitle}>
             Password requirements:
@@ -223,7 +215,12 @@ export default function CreatePasswordScreen() {
           />
         </View>
 
-        {/* Submit Button */}
+        {error ? (
+          <ThemedText type="small" style={styles.errorMessage}>
+            {error}
+          </ThemedText>
+        ) : null}
+
         <TouchableOpacity
           style={[
             styles.submitButton,
@@ -235,16 +232,15 @@ export default function CreatePasswordScreen() {
             },
           ]}
           onPress={handleSubmit}
-          disabled={!password || !confirmPassword || password !== confirmPassword || !!errors.password}>
+          disabled={!password || !confirmPassword || password !== confirmPassword || !!errors.password || isLoading}>
           <ThemedText type="smallBold" style={styles.submitButtonText}>
-            {useOnboardingStore.getState().isLoading ? 'Creating Account...' : 'Create Account'}
+            {isLoading ? 'Creating Account...' : 'Create Account'}
           </ThemedText>
         </TouchableOpacity>
 
-        {/* Back Button */}
         <TouchableOpacity
           style={[styles.backButton, { backgroundColor: theme.backgroundElement }]}
-          onPress={() => router.push('/auth/verify-email')}>
+          onPress={() => router.back()}>
           <ThemedText type="smallBold" style={styles.backButtonText}>
             Back
           </ThemedText>
@@ -288,7 +284,7 @@ function getStrengthColor(strength: number): string {
 }
 
 function getStrengthLabel(strength: number): string {
-  const labels = ['Very Weak', 'Weak', 'Good', 'Strong', 'Very Strong'];
+  const labels = ['', 'Very Weak', 'Weak', 'Good', 'Strong'];
   return labels[strength] || '';
 }
 
@@ -349,6 +345,12 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: Spacing.one,
   },
+  errorMessage: {
+    color: '#ff3b30',
+    fontSize: 14,
+    textAlign: 'center',
+    marginBottom: Spacing.three,
+  },
   strengthIndicator: {
     marginTop: Spacing.two,
   },
@@ -362,7 +364,6 @@ const styles = StyleSheet.create({
   strengthFill: {
     height: '100%',
     borderRadius: 2,
-    transition: 'width 0.3s ease',
   },
   strengthText: {
     fontSize: 12,

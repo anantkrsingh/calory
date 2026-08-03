@@ -1,5 +1,4 @@
-import { useState } from 'react';
-import { StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -22,18 +21,15 @@ const GOAL_OPTIONS = [
 
 export default function GoalsStep({ fitnessGoals = [], onChange }: GoalsStepProps) {
   const theme = useTheme();
-  const [selectedGoals, setSelectedGoals] = useState<string[]>(fitnessGoals);
+  const selected = new Set(fitnessGoals);
 
   const handleToggleGoal = (goalId: string) => {
-    const newGoals = selectedGoals.includes(goalId)
-      ? selectedGoals.filter((g) => g !== goalId)
-      : [...selectedGoals, goalId];
-    
-    setSelectedGoals(newGoals);
-    onChange({ fitnessGoals: newGoals });
-  };
+    const next = selected.has(goalId)
+      ? fitnessGoals.filter((goal) => goal !== goalId)
+      : [...fitnessGoals, goalId];
 
-  const isSelected = (goalId: string): boolean => selectedGoals.includes(goalId);
+    onChange({ fitnessGoals: next });
+  };
 
   return (
     <ThemedView style={styles.container}>
@@ -45,56 +41,54 @@ export default function GoalsStep({ fitnessGoals = [], onChange }: GoalsStepProp
       </ThemedText>
 
       <View style={styles.optionsContainer}>
-        {GOAL_OPTIONS.map((option) => (
-          <TouchableOpacity
-            key={option.id}
-            style={[
-              styles.optionCard,
-              { 
-                backgroundColor: isSelected(option.id) 
-                  ? '#208AEF' 
-                  : theme.backgroundElement,
-                borderColor: theme.textSecondary,
-              },
-            ]}
-            onPress={() => handleToggleGoal(option.id)}>
-            <ThemedText type="title" style={styles.optionIcon}>
-              {option.icon}
-            </ThemedText>
-            <ThemedText 
-              type="smallBold" 
-              style={[
-                styles.optionTitle,
-                { color: isSelected(option.id) ? 'white' : theme.text }
-              ]}>
-              {option.label}
-            </ThemedText>
-            <ThemedText 
-              type="small" 
-              style={[
-                styles.optionDescription,
-                { color: isSelected(option.id) ? 'rgba(255, 255, 255, 0.8)' : theme.textSecondary }
-              ]}>
-              {option.description}
-            </ThemedText>
-            {isSelected(option.id) && (
-              <View style={styles.selectedIndicator}>
-                <ThemedText type="smallBold" style={{ color: 'white' }}>✓</ThemedText>
-              </View>
-            )}
-          </TouchableOpacity>
-        ))}
+        {GOAL_OPTIONS.map((option) => {
+          const isSelected = selected.has(option.id);
+
+          return (
+            <Pressable
+              key={option.id}
+              style={({ pressed }) => [
+                styles.optionCard,
+                {
+                  backgroundColor: isSelected ? '#208AEF' : theme.backgroundElement,
+                  borderColor: theme.textSecondary,
+                  opacity: pressed ? 0.7 : 1,
+                },
+              ]}
+              onPress={() => handleToggleGoal(option.id)}>
+              <ThemedText type="title" style={styles.optionIcon}>
+                {option.icon}
+              </ThemedText>
+              <ThemedText
+                type="smallBold"
+                style={[styles.optionTitle, { color: isSelected ? 'white' : theme.text }]}>
+                {option.label}
+              </ThemedText>
+              <ThemedText
+                type="small"
+                style={[
+                  styles.optionDescription,
+                  { color: isSelected ? 'rgba(255, 255, 255, 0.8)' : theme.textSecondary },
+                ]}>
+                {option.description}
+              </ThemedText>
+              {isSelected ? (
+                <View style={styles.selectedIndicator}>
+                  <ThemedText type="smallBold" style={styles.selectedMark}>
+                    ✓
+                  </ThemedText>
+                </View>
+              ) : null}
+            </Pressable>
+          );
+        })}
       </View>
 
-      {selectedGoals.length > 0 ? (
-        <ThemedText type="small" style={[styles.hint, { color: theme.textSecondary }]}>
-          {selectedGoals.length} goal{selectedGoals.length !== 1 ? 's' : ''} selected
-        </ThemedText>
-      ) : (
-        <ThemedText type="small" style={[styles.hint, { color: theme.textSecondary }]}>
-          Select at least one goal to continue
-        </ThemedText>
-      )}
+      <ThemedText type="small" style={[styles.hint, { color: theme.textSecondary }]}>
+        {fitnessGoals.length > 0
+          ? `${fitnessGoals.length} goal${fitnessGoals.length === 1 ? '' : 's'} selected`
+          : 'Select at least one goal to continue'}
+      </ThemedText>
     </ThemedView>
   );
 }
@@ -103,14 +97,14 @@ const styles = StyleSheet.create({
   container: {
     width: '100%',
     alignItems: 'center',
+    gap: Spacing.one,
   },
   title: {
     textAlign: 'center',
-    marginBottom: Spacing.one,
   },
   subtitle: {
     textAlign: 'center',
-    marginBottom: Spacing.four,
+    marginBottom: Spacing.three,
   },
   optionsContainer: {
     width: '100%',
@@ -124,17 +118,17 @@ const styles = StyleSheet.create({
     minWidth: '45%',
     padding: Spacing.three,
     borderRadius: 12,
+    borderCurve: 'continuous',
     borderWidth: 1,
     alignItems: 'center',
     position: 'relative',
+    gap: Spacing.one,
   },
   optionIcon: {
     fontSize: 28,
-    marginBottom: Spacing.two,
   },
   optionTitle: {
     textAlign: 'center',
-    marginBottom: Spacing.one,
   },
   optionDescription: {
     textAlign: 'center',
@@ -148,9 +142,13 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: 12,
+    borderCurve: 'continuous',
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  selectedMark: {
+    color: 'white',
   },
   hint: {
     fontSize: 12,
