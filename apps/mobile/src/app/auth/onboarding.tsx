@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { StyleSheet, TouchableOpacity, View } from 'react-native';
 import { KeyboardAwareScrollView, KeyboardStickyView } from 'react-native-keyboard-controller';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -7,6 +7,7 @@ import Animated, { SlideInLeft, SlideInRight, SlideOutLeft, SlideOutRight } from
 
 import CircleArrowButton from '@/components/ui/CircleArrowButton';
 import CloseButton from '@/components/ui/CloseButton';
+import DateOfBirthPicker, { type DateOfBirthPickerRef } from '@/components/ui/DateOfBirthPicker';
 import {
   ActivityStep,
   BodyMetricsStep,
@@ -34,6 +35,7 @@ export default function OnboardingScreen() {
   // Tracks the incoming step's measured height so the (position: absolute)
   // step frame below has real height to scroll — see stepViewport/stepContent.
   const [stepHeight, setStepHeight] = useState<number | undefined>(undefined);
+  const dobPickerRef = useRef<DateOfBirthPickerRef>(null);
 
   const canContinue = isStepComplete(currentStep, userData);
 
@@ -81,6 +83,7 @@ export default function OnboardingScreen() {
             dateOfBirth={userData.dateOfBirth}
             sex={userData.sex}
             onChange={updateUserData}
+            onOpenDatePicker={() => dobPickerRef.current?.present()}
           />
         );
       case 4:
@@ -174,6 +177,15 @@ export default function OnboardingScreen() {
           />
         </View>
       </KeyboardStickyView>
+
+      {/* Rendered here, outside the animated/absolute step viewport, so the native
+          sheet's auto-height measurement isn't broken by flex/overflow ancestors —
+          see https://sheet.lodev09.com/troubleshooting ("Weird Layout Render"). */}
+      <DateOfBirthPicker
+        ref={dobPickerRef}
+        value={userData.dateOfBirth}
+        onChange={(isoDate) => updateUserData({ dateOfBirth: isoDate })}
+      />
     </SafeAreaView>
   );
 }

@@ -1,4 +1,5 @@
 import { TrueSheet } from '@lodev09/react-native-true-sheet';
+import { ChevronLeft, ChevronRight } from 'lucide-react-native';
 import {
   forwardRef,
   useImperativeHandle,
@@ -6,7 +7,7 @@ import {
   useRef,
   useState,
 } from 'react';
-import { Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { Brand, Spacing } from '@/constants/theme';
@@ -41,11 +42,24 @@ const DEFAULT_ANCHOR_AGE_YEARS = 20;
 const GRID_COLUMNS = 4;
 const GRID_GAP = 8;
 const YEAR_GRID_MAX_HEIGHT = 280;
-const CARD_HORIZONTAL_INSET = Spacing.four * 2; // sheetPadding + card padding, one side
 const HANDLE_COLOR = 'rgba(120, 120, 128, 0.3)';
 
 function pad2(value: number): string {
   return String(value).padStart(2, '0');
+}
+
+// Chunks into fixed-size rows (padding the last with `null`) so every row —
+// including a partial trailing one — divides the row width into equal flex
+// columns instead of relying on flexWrap, which can misalign across rows when
+// fractional pixel widths round differently per item.
+function chunkWithPadding<T>(items: T[], size: number): Array<Array<T | null>> {
+  const rows: Array<Array<T | null>> = [];
+  for (let i = 0; i < items.length; i += size) {
+    const row: Array<T | null> = items.slice(i, i + size);
+    while (row.length < size) row.push(null);
+    rows.push(row);
+  }
+  return rows;
 }
 
 function toISODate(year: number, month: number, day: number): string {
@@ -79,7 +93,6 @@ export default forwardRef<DateOfBirthPickerRef, DateOfBirthPickerProps>(function
 ) {
   const theme = useTheme();
   const sheetRef = useRef<TrueSheet>(null);
-  const { width: windowWidth } = useWindowDimensions();
 
   const today = useMemo(() => {
     const now = new Date();
@@ -170,21 +183,22 @@ export default forwardRef<DateOfBirthPickerRef, DateOfBirthPickerProps>(function
     [maxYear, minYear],
   );
 
-  // Pixel-exact sizing so 4-across grids (months/years) and the 7-across day
-  // grid always divide the sheet's actual content width evenly, on any device.
-  const contentWidth = windowWidth - CARD_HORIZONTAL_INSET * 2;
-  const dayCellSize = contentWidth / 7;
-  const dayCircleSize = dayCellSize - 8;
-  const pillWidth = (contentWidth - GRID_GAP * (GRID_COLUMNS - 1)) / GRID_COLUMNS;
+  const dayRows = useMemo(() => chunkWithPadding(dayCells, 7), [dayCells]);
+  const monthRows = useMemo(
+    () => chunkWithPadding(MONTH_SHORT.map((label, month) => ({ label, month })), GRID_COLUMNS),
+    [],
+  );
+  const yearRows = useMemo(() => chunkWithPadding(years, GRID_COLUMNS), [years]);
 
   return (
     <TrueSheet
       ref={sheetRef}
       detents={['auto']}
+      dimmed
+      dimmedDetentIndex={0}
       backgroundColor="transparent"
       cornerRadius={0}
-      grabber={false}
-      scrollable>
+      grabber={false}>
       <View style={styles.sheetPadding}>
         <View style={[styles.card, { backgroundColor: theme.background }]}>
           <View style={styles.handle} />
@@ -208,7 +222,7 @@ export default forwardRef<DateOfBirthPickerRef, DateOfBirthPickerProps>(function
 
               <View style={styles.weekdayRow}>
                 {WEEKDAY_LABELS.map((label) => (
-                  <View key={label} style={{ width: dayCellSize, alignItems: 'center' }}>
+                  <View key={label} style={styles.weekdayCell}>
                     <ThemedText type="small" style={{ color: theme.textSecondary }}>
                       {label}
                     </ThemedText>
@@ -216,47 +230,44 @@ export default forwardRef<DateOfBirthPickerRef, DateOfBirthPickerProps>(function
                 ))}
               </View>
 
-              <View style={styles.grid}>
-                {dayCells.map((day, index) => {
-                  if (day === null) {
-                    return <View key={index} style={{ width: dayCellSize, height: dayCellSize }} />;
-                  }
+              <View>
+                {dayRows.map((row, rowIndex) => (
+                  <View key={rowIndex} style={styles.dayRow}>
+                    {row.map((day, index) => {
+                      if (day === null) {
+                        return <View key={index} style={styles.dayCell} />;
+                      }
 
-                  const isSelected =
-                    !!selected && selected.year === viewYear && selected.month === viewMonth && selected.day === day;
-                  const isToday =
-                    viewYear === today.year && viewMonth === today.month && day === today.day;
-                  const disabled = isAfterToday(viewYear, viewMonth, day);
+                      const isSelected =
+                        !!selected && selected.year === viewYear && selected.month === viewMonth && selected.day === day;
+                      const isToday =
+                        viewYear === today.year && viewMonth === today.month && day === today.day;
+                      const disabled = isAfterToday(viewYear, viewMonth, day);
 
-                  return (
-                    <View
-                      key={index}
-                      style={{ width: dayCellSize, height: dayCellSize, alignItems: 'center', justifyContent: 'center' }}>
-                      <Pressable
-                        disabled={disabled}
-                        onPress={() => handleSelectDay(day)}
-                        style={[
-                          styles.dayCircle,
-                          {
-                            width: dayCircleSize,
-                            height: dayCircleSize,
-                            borderRadius: dayCircleSize / 2,
-                          },
-                          isSelected && { backgroundColor: Brand.accent },
-                          !isSelected && isToday && { borderWidth: 1, borderColor: Brand.accent },
-                        ]}>
-                        <ThemedText
-                          type="small"
-                          style={{
-                            color: isSelected ? 'white' : disabled ? theme.textSecondary : theme.text,
-                            opacity: disabled ? 0.4 : 1,
-                          }}>
-                          {day}
-                        </ThemedText>
-                      </Pressable>
-                    </View>
-                  );
-                })}
+                      return (
+                        <View key={index} style={styles.dayCell}>
+                          <Pressable
+                            disabled={disabled}
+                            onPress={() => handleSelectDay(day)}
+                            style={[
+                              styles.dayCircle,
+                              isSelected && { backgroundColor: Brand.accent },
+                              !isSelected && isToday && { borderWidth: 1, borderColor: Brand.accent },
+                            ]}>
+                            <ThemedText
+                              type="small"
+                              style={{
+                                color: isSelected ? 'white' : disabled ? theme.textSecondary : theme.text,
+                                opacity: disabled ? 0.4 : 1,
+                              }}>
+                              {day}
+                            </ThemedText>
+                          </Pressable>
+                        </View>
+                      );
+                    })}
+                  </View>
+                ))}
               </View>
             </>
           )}
@@ -284,31 +295,40 @@ export default forwardRef<DateOfBirthPickerRef, DateOfBirthPickerProps>(function
               </View>
 
               <View style={styles.pillGrid}>
-                {MONTH_SHORT.map((label, month) => {
-                  const isSelected = viewMonth === month;
-                  const disabled = viewYear === today.year && month > today.month;
+                {monthRows.map((row, rowIndex) => (
+                  <View key={rowIndex} style={styles.pillRow}>
+                    {row.map((entry, index) => {
+                      if (entry === null) {
+                        return <View key={index} style={styles.pillSpacer} />;
+                      }
 
-                  return (
-                    <Pressable
-                      key={label}
-                      disabled={disabled}
-                      onPress={() => handleSelectMonth(month)}
-                      style={[
-                        styles.pill,
-                        { width: pillWidth, backgroundColor: theme.backgroundElement },
-                        isSelected && { backgroundColor: Brand.accent },
-                      ]}>
-                      <ThemedText
-                        type="small"
-                        style={{
-                          color: isSelected ? 'white' : theme.text,
-                          opacity: disabled ? 0.4 : 1,
-                        }}>
-                        {label}
-                      </ThemedText>
-                    </Pressable>
-                  );
-                })}
+                      const { label, month } = entry;
+                      const isSelected = viewMonth === month;
+                      const disabled = viewYear === today.year && month > today.month;
+
+                      return (
+                        <Pressable
+                          key={label}
+                          disabled={disabled}
+                          onPress={() => handleSelectMonth(month)}
+                          style={[
+                            styles.pill,
+                            { backgroundColor: theme.backgroundElement },
+                            isSelected && { backgroundColor: Brand.accent },
+                          ]}>
+                          <ThemedText
+                            type="small"
+                            style={{
+                              color: isSelected ? 'white' : theme.text,
+                              opacity: disabled ? 0.4 : 1,
+                            }}>
+                            {label}
+                          </ThemedText>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                ))}
               </View>
             </>
           )}
@@ -326,24 +346,32 @@ export default forwardRef<DateOfBirthPickerRef, DateOfBirthPickerProps>(function
                 showsVerticalScrollIndicator={false}
                 nestedScrollEnabled>
                 <View style={styles.pillGrid}>
-                  {years.map((year) => {
-                    const isSelected = viewYear === year;
+                  {yearRows.map((row, rowIndex) => (
+                    <View key={rowIndex} style={styles.pillRow}>
+                      {row.map((year, index) => {
+                        if (year === null) {
+                          return <View key={index} style={styles.pillSpacer} />;
+                        }
 
-                    return (
-                      <Pressable
-                        key={year}
-                        onPress={() => handleSelectYear(year)}
-                        style={[
-                          styles.pill,
-                          { width: pillWidth, backgroundColor: theme.backgroundElement },
-                          isSelected && { backgroundColor: Brand.accent },
-                        ]}>
-                        <ThemedText type="small" style={{ color: isSelected ? 'white' : theme.text }}>
-                          {year}
-                        </ThemedText>
-                      </Pressable>
-                    );
-                  })}
+                        const isSelected = viewYear === year;
+
+                        return (
+                          <Pressable
+                            key={year}
+                            onPress={() => handleSelectYear(year)}
+                            style={[
+                              styles.pill,
+                              { backgroundColor: theme.backgroundElement },
+                              isSelected && { backgroundColor: Brand.accent },
+                            ]}>
+                            <ThemedText type="small" style={{ color: isSelected ? 'white' : theme.text }}>
+                              {year}
+                            </ThemedText>
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+                  ))}
                 </View>
               </ScrollView>
             </>
@@ -371,9 +399,11 @@ function HeaderChevron({
       disabled={disabled}
       hitSlop={10}
       style={[styles.chevronButton, { backgroundColor: theme.backgroundElement }]}>
-      <ThemedText type="smallBold" style={{ color: theme.text, opacity: disabled ? 0.3 : 1 }}>
-        {direction === 'prev' ? '‹' : '›'}
-      </ThemedText>
+      {direction === 'prev' ? (
+        <ChevronLeft size={18} color={theme.text} opacity={disabled ? 0.3 : 1} />
+      ) : (
+        <ChevronRight size={18} color={theme.text} opacity={disabled ? 0.3 : 1} />
+      )}
     </Pressable>
   );
 }
@@ -420,24 +450,40 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     marginBottom: Spacing.one,
   },
-  grid: {
+  weekdayCell: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  dayRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
+  },
+  dayCell: {
+    flex: 1,
+    aspectRatio: 1,
+    padding: 4,
   },
   dayCircle: {
+    flex: 1,
+    borderRadius: 999,
     alignItems: 'center',
     justifyContent: 'center',
   },
   pillGrid: {
+    gap: GRID_GAP,
+  },
+  pillRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
     gap: GRID_GAP,
   },
   pill: {
+    flex: 1,
     paddingVertical: Spacing.three,
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  pillSpacer: {
+    flex: 1,
   },
   yearScroll: {
     maxHeight: YEAR_GRID_MAX_HEIGHT,

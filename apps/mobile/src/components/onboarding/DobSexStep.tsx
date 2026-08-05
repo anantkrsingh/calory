@@ -1,9 +1,8 @@
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import { Pressable, StyleSheet, TouchableOpacity, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import DateOfBirthPicker, { type DateOfBirthPickerRef } from '@/components/ui/DateOfBirthPicker';
 import { Brand, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import type { Sex } from '@fitness/types';
@@ -12,6 +11,7 @@ interface DobSexStepProps {
   dateOfBirth: string | undefined;
   sex: Sex | undefined;
   onChange: (data: { dateOfBirth?: string; sex?: Sex }) => void;
+  onOpenDatePicker: () => void;
 }
 
 const MONTH_NAMES = [
@@ -29,10 +29,9 @@ function formatDisplayDate(iso: string): string {
   return `${MONTH_NAMES[month]} ${day}, ${year}`;
 }
 
-export default function DobSexStep({ dateOfBirth, sex, onChange }: DobSexStepProps) {
+export default function DobSexStep({ dateOfBirth, sex, onChange, onOpenDatePicker }: DobSexStepProps) {
   const theme = useTheme();
   const [selectedSex, setSelectedSex] = useState<Sex | undefined>(sex);
-  const pickerRef = useRef<DateOfBirthPickerRef>(null);
 
   const handleSexSelect = (value: Sex) => {
     setSelectedSex(value);
@@ -55,7 +54,7 @@ export default function DobSexStep({ dateOfBirth, sex, onChange }: DobSexStepPro
         </ThemedText>
 
         <Pressable
-          onPress={() => pickerRef.current?.present()}
+          onPress={onOpenDatePicker}
           style={[
             styles.dateInput,
             {
@@ -69,12 +68,6 @@ export default function DobSexStep({ dateOfBirth, sex, onChange }: DobSexStepPro
             {dateOfBirth ? formatDisplayDate(dateOfBirth) : 'Select your date of birth'}
           </ThemedText>
         </Pressable>
-
-        <DateOfBirthPicker
-          ref={pickerRef}
-          value={dateOfBirth}
-          onChange={(isoDate) => onChange({ dateOfBirth: isoDate })}
-        />
       </View>
       <View style={styles.inputGroup}>
         <ThemedText type="smallBold" style={styles.label}>
