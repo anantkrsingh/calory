@@ -218,14 +218,14 @@ function UnitButton({
 const styles = StyleSheet.create({
   container: {
     width: '100%',
-    alignItems: 'center',
+    alignItems: 'stretch',
   },
   title: {
-    textAlign: 'center',
+    textAlign: 'left',
     marginBottom: Spacing.one,
   },
   subtitle: {
-    textAlign: 'center',
+    textAlign: 'left',
     marginBottom: Spacing.four,
   },
   unitToggle: {
@@ -265,6 +265,6 @@ const styles = StyleSheet.create({
   },
   hint: {
     fontSize: 12,
-    textAlign: 'center',
+    textAlign: 'left',
   },
 });

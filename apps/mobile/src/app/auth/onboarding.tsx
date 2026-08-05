@@ -1,12 +1,12 @@
 import { useRouter } from 'expo-router';
-import {
-  SafeAreaView,
-  ScrollView,
-  StyleSheet,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { useState } from 'react';
+import { StyleSheet, TouchableOpacity, View } from 'react-native';
+import { KeyboardAwareScrollView, KeyboardStickyView } from 'react-native-keyboard-controller';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import Animated, { SlideInLeft, SlideInRight, SlideOutLeft, SlideOutRight } from 'react-native-reanimated';
 
+import CircleArrowButton from '@/components/ui/CircleArrowButton';
+import CloseButton from '@/components/ui/CloseButton';
 import {
   ActivityStep,
   BodyMetricsStep,
@@ -30,10 +30,13 @@ export default function OnboardingScreen() {
   const prevStep = useOnboardingStore((state) => state.prevStep);
   const updateUserData = useOnboardingStore((state) => state.updateUserData);
   const resetOnboarding = useOnboardingStore((state) => state.resetOnboarding);
+  const [direction, setDirection] = useState<'forward' | 'backward'>('forward');
 
   const canContinue = isStepComplete(currentStep, userData);
 
   const handleNext = () => {
+    setDirection('forward');
+
     if (currentStep < totalSteps) {
       nextStep();
     } else {
@@ -41,13 +44,15 @@ export default function OnboardingScreen() {
     }
   };
 
+  // Step 1 has no Back button — the close button in the top bar exits the flow instead.
   const handleBack = () => {
-    if (currentStep > 1) {
-      prevStep();
-    } else {
-      resetOnboarding();
-      router.push('/auth/welcome');
-    }
+    setDirection('backward');
+    prevStep();
+  };
+
+  const handleClose = () => {
+    resetOnboarding();
+    router.dismissTo('/auth/welcome');
   };
 
   const renderStep = () => {
@@ -95,49 +100,60 @@ export default function OnboardingScreen() {
   const progressPercentage = (currentStep / totalSteps) * 100;
 
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.background }]}>
-      <ScrollView
+    <SafeAreaView
+      style={[styles.safeArea, { backgroundColor: theme.background }]}
+      edges={['top', 'bottom']}>
+      <View style={styles.topBar}>
+        <CloseButton onPress={handleClose} accessibilityLabel="Cancel sign up" />
+      </View>
+
+      <View style={styles.progressContainer}>
+        <View style={styles.progressTrack}>
+          <View style={[styles.progressBar, { width: `${progressPercentage}%` }]} />
+        </View>
+        <ThemedText type="small" style={styles.progressLabel}>
+          Step {currentStep} of {totalSteps}
+        </ThemedText>
+      </View>
+
+      <KeyboardAwareScrollView
+        style={styles.scrollView}
         contentContainerStyle={styles.container}
         showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled">
-        <View style={styles.progressContainer}>
-          <View style={styles.progressTrack}>
-            <View style={[styles.progressBar, { width: `${progressPercentage}%` }]} />
-          </View>
-          <ThemedText type="small">
-            Step {currentStep} of {totalSteps}
-          </ThemedText>
-        </View>
-
-        <View style={styles.content}>
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
+        bottomOffset={Spacing.four}>
+        <Animated.View
+          key={currentStep}
+          entering={direction === 'forward' ? SlideInRight.duration(260) : SlideInLeft.duration(260)}
+          exiting={direction === 'forward' ? SlideOutLeft.duration(260) : SlideOutRight.duration(260)}
+          style={styles.content}>
           {renderStep()}
-        </View>
+        </Animated.View>
+      </KeyboardAwareScrollView>
 
+      {/* Pinned outside the scroll view so it tracks the keyboard instead of scrolling with content. */}
+      <KeyboardStickyView offset={{ closed: 0, opened: Spacing.two }}>
         <View style={styles.buttonContainer}>
-          <TouchableOpacity
-            style={[styles.backButton, { backgroundColor: theme.backgroundElement }]}
-            onPress={handleBack}>
-            <ThemedText type="smallBold" style={styles.backButtonText}>
-              {currentStep > 1 ? 'Back' : 'Cancel'}
-            </ThemedText>
-          </TouchableOpacity>
+          {currentStep > 1 ? (
+            <TouchableOpacity
+              style={[styles.backButton, { backgroundColor: theme.backgroundElement }]}
+              onPress={handleBack}>
+              <ThemedText type="smallBold" style={styles.backButtonText}>
+                Back
+              </ThemedText>
+            </TouchableOpacity>
+          ) : null}
 
-          <TouchableOpacity
-            style={[
-              styles.nextButton,
-              { 
-                backgroundColor: canContinue ? '#208AEF' : theme.backgroundElement,
-                opacity: canContinue ? 1 : 0.5,
-              },
-            ]}
+          <CircleArrowButton
             onPress={handleNext}
-            disabled={!canContinue}>
-            <ThemedText type="smallBold" style={styles.nextButtonText}>
-              {currentStep < totalSteps ? 'Continue' : 'Finish'}
-            </ThemedText>
-          </TouchableOpacity>
+            disabled={!canContinue}
+            accessibilityLabel={currentStep < totalSteps ? 'Continue' : 'Finish'}
+            activeColor="#208AEF"
+            inactiveColor={theme.backgroundElement}
+          />
         </View>
-      </ScrollView>
+      </KeyboardStickyView>
     </SafeAreaView>
   );
 }
@@ -167,16 +183,27 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
   },
+  scrollView: {
+    flex: 1,
+  },
   container: {
     flexGrow: 1,
     paddingHorizontal: Spacing.four,
-    paddingVertical: Spacing.three,
-    justifyContent: 'space-between',
-    minHeight: '100%',
+  },
+  topBar: {
+    alignItems: 'flex-start',
+    paddingHorizontal: Spacing.four,
+    paddingTop: Spacing.two,
+    paddingBottom: Spacing.three,
   },
   progressContainer: {
     width: '100%',
+    alignItems: 'flex-start',
+    paddingHorizontal: Spacing.four,
     marginBottom: Spacing.four,
+  },
+  progressLabel: {
+    textAlign: 'left',
   },
   progressTrack: {
     height: 4,
@@ -192,19 +219,23 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: Spacing.four,
+    alignItems: 'flex-start',
+    justifyContent: 'flex-start',
+    paddingBottom: Spacing.four,
   },
   buttonContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
     width: '100%',
+    paddingHorizontal: Spacing.four,
     paddingTop: Spacing.three,
+    paddingBottom: Spacing.three,
     gap: Spacing.two,
   },
   backButton: {
-    flex: 1,
+    marginRight: 'auto',
+    paddingHorizontal: Spacing.four,
     paddingVertical: Spacing.three,
     borderRadius: 12,
     alignItems: 'center',
@@ -212,17 +243,6 @@ const styles = StyleSheet.create({
   },
   backButtonText: {
     color: '#666',
-    fontSize: 14,
-  },
-  nextButton: {
-    flex: 1,
-    paddingVertical: Spacing.three,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  nextButtonText: {
-    color: 'white',
     fontSize: 14,
   },
 });

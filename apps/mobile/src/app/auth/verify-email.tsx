@@ -1,15 +1,11 @@
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import {
-  SafeAreaView,
-  ScrollView,
-  StyleSheet,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
+import CloseButton from '@/components/ui/CloseButton';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { otpService } from '@/services/otp.service';
@@ -32,6 +28,7 @@ export default function VerifyEmailScreen() {
   const setLoading = useOnboardingStore((state) => state.setLoading);
   const setError = useOnboardingStore((state) => state.setError);
   const setVerified = useOnboardingStore((state) => state.setVerified);
+  const resetOnboarding = useOnboardingStore((state) => state.resetOnboarding);
   const [otpDigits, setOtpDigits] = useState<string[]>(Array(OTP_LENGTH).fill(''));
   const [resendTimer, setResendTimer] = useState(RESEND_SECONDS);
   const [isVerifying, setIsVerifying] = useState(false);
@@ -127,12 +124,25 @@ export default function VerifyEmailScreen() {
     await sendVerificationCode();
   };
 
+  const handleClose = () => {
+    resetOnboarding();
+    router.dismissTo('/auth/welcome');
+  };
+
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.background }]}>
-      <ScrollView
+    <SafeAreaView
+      style={[styles.safeArea, { backgroundColor: theme.background }]}
+      edges={['top', 'bottom']}>
+      <View style={styles.topBar}>
+        <CloseButton onPress={handleClose} accessibilityLabel="Cancel sign up" />
+      </View>
+
+      <KeyboardAwareScrollView
         contentContainerStyle={styles.container}
         showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled">
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
+        bottomOffset={Spacing.four}>
         <View style={styles.header}>
           <ThemedText type="subtitle" style={styles.title}>
             Verify your email
@@ -221,7 +231,7 @@ export default function VerifyEmailScreen() {
             Back to sign up
           </ThemedText>
         </TouchableOpacity>
-      </ScrollView>
+      </KeyboardAwareScrollView>
     </SafeAreaView>
   );
 }
@@ -233,20 +243,26 @@ const styles = StyleSheet.create({
   container: {
     flexGrow: 1,
     paddingHorizontal: Spacing.four,
-    paddingVertical: Spacing.three,
-    alignItems: 'center',
+    paddingBottom: Spacing.three,
+    alignItems: 'stretch',
     justifyContent: 'center',
-    minHeight: '100%',
+  },
+  topBar: {
+    alignItems: 'flex-start',
+    paddingHorizontal: Spacing.four,
+    paddingTop: Spacing.two,
+    paddingBottom: Spacing.three,
   },
   header: {
-    alignItems: 'center',
+    alignItems: 'flex-start',
     marginBottom: Spacing.five,
-    textAlign: 'center',
   },
   title: {
+    textAlign: 'left',
     marginBottom: Spacing.two,
   },
   subtitle: {
+    textAlign: 'left',
     marginBottom: Spacing.one,
   },
   email: {
@@ -254,12 +270,12 @@ const styles = StyleSheet.create({
   },
   otpContainer: {
     width: '100%',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     marginBottom: Spacing.four,
   },
   otpInputs: {
     flexDirection: 'row',
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
     gap: Spacing.two,
     marginBottom: Spacing.three,
   },
@@ -276,7 +292,7 @@ const styles = StyleSheet.create({
     color: '#ff3b30',
     fontSize: 14,
     marginBottom: Spacing.three,
-    textAlign: 'center',
+    textAlign: 'left',
   },
   verifyButton: {
     width: '100%',
@@ -293,7 +309,7 @@ const styles = StyleSheet.create({
   resendContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
     gap: Spacing.one,
     marginBottom: Spacing.four,
   },

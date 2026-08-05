@@ -102,14 +102,14 @@ export default function ActivityStep({ activityLevel, onChange }: ActivityStepPr
 const styles = StyleSheet.create({
   container: {
     width: '100%',
-    alignItems: 'center',
+    alignItems: 'stretch',
     gap: Spacing.one,
   },
   title: {
-    textAlign: 'center',
+    textAlign: 'left',
   },
   subtitle: {
-    textAlign: 'center',
+    textAlign: 'left',
     marginBottom: Spacing.three,
   },
   optionsContainer: {
@@ -123,21 +123,21 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderCurve: 'continuous',
     borderWidth: 1,
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: Spacing.one,
   },
   optionIcon: {
     fontSize: 32,
   },
   optionTitle: {
-    textAlign: 'center',
+    textAlign: 'left',
   },
   optionDescription: {
-    textAlign: 'center',
+    textAlign: 'left',
     fontSize: 12,
   },
   hint: {
     fontSize: 12,
-    textAlign: 'center',
+    textAlign: 'left',
   },
 });

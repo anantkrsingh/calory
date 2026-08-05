@@ -96,14 +96,14 @@ export default function GoalsStep({ fitnessGoals = [], onChange }: GoalsStepProp
 const styles = StyleSheet.create({
   container: {
     width: '100%',
-    alignItems: 'center',
+    alignItems: 'stretch',
     gap: Spacing.one,
   },
   title: {
-    textAlign: 'center',
+    textAlign: 'left',
   },
   subtitle: {
-    textAlign: 'center',
+    textAlign: 'left',
     marginBottom: Spacing.three,
   },
   optionsContainer: {
@@ -120,7 +120,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderCurve: 'continuous',
     borderWidth: 1,
-    alignItems: 'center',
+    alignItems: 'flex-start',
     position: 'relative',
     gap: Spacing.one,
   },
@@ -128,10 +128,10 @@ const styles = StyleSheet.create({
     fontSize: 28,
   },
   optionTitle: {
-    textAlign: 'center',
+    textAlign: 'left',
   },
   optionDescription: {
-    textAlign: 'center',
+    textAlign: 'left',
     fontSize: 11,
     lineHeight: 14,
   },

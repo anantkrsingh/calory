@@ -12,6 +12,7 @@ import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 import { useColorScheme } from 'react-native';
+import { KeyboardProvider } from 'react-native-keyboard-controller';
 
 import { http } from '@/api/http';
 import { queryClient } from '@/api/query-client';
@@ -53,17 +54,19 @@ export default function RootLayout() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-        <Stack screenOptions={{ headerShown: false }}>
-          <Stack.Protected guard={isAuthenticated}>
-            <Stack.Screen name="(app)" />
-          </Stack.Protected>
+      <KeyboardProvider>
+        <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+          <Stack screenOptions={{ headerShown: false }}>
+            <Stack.Protected guard={isAuthenticated}>
+              <Stack.Screen name="(app)" />
+            </Stack.Protected>
 
-          <Stack.Protected guard={!isAuthenticated}>
-            <Stack.Screen name="auth" />
-          </Stack.Protected>
-        </Stack>
-      </ThemeProvider>
+            <Stack.Protected guard={!isAuthenticated}>
+              <Stack.Screen name="auth" />
+            </Stack.Protected>
+          </Stack>
+        </ThemeProvider>
+      </KeyboardProvider>
     </QueryClientProvider>
   );
 }

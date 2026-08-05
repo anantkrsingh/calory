@@ -1,4 +1,3 @@
-import { Brand } from "@/app/auth/welcome";
 import { Spacing } from "@/constants/theme";
 import React from "react";
 import {
