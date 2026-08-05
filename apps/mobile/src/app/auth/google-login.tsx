@@ -2,7 +2,7 @@ import { useRouter } from 'expo-router';
 import { SafeAreaView, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { Spacing } from '@/constants/theme';
+import { Brand, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 export default function GoogleLoginScreen() {
@@ -25,7 +25,7 @@ export default function GoogleLoginScreen() {
           </ThemedText>
 
           <TouchableOpacity
-            style={[styles.primaryButton, { backgroundColor: '#208AEF' }]}
+            style={[styles.primaryButton, { backgroundColor: Brand.accent }]}
             onPress={() => router.replace('/auth/login')}>
             <ThemedText type="smallBold" style={styles.primaryButtonText}>
               Sign in with email

@@ -6,7 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
 import CloseButton from '@/components/ui/CloseButton';
-import { Spacing } from '@/constants/theme';
+import { Brand, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { otpService } from '@/services/otp.service';
 import { selectError, useOnboardingStore } from '@/stores/onboarding.store';
@@ -168,7 +168,7 @@ export default function VerifyEmailScreen() {
                   {
                     backgroundColor: theme.backgroundElement,
                     color: theme.text,
-                    borderColor: digit ? '#208AEF' : theme.textSecondary,
+                    borderColor: digit ? Brand.accent : theme.textSecondary,
                   },
                 ]}
                 value={digit}
@@ -195,7 +195,7 @@ export default function VerifyEmailScreen() {
           style={[
             styles.verifyButton,
             {
-              backgroundColor: otp.length === OTP_LENGTH ? '#208AEF' : theme.backgroundElement,
+              backgroundColor: otp.length === OTP_LENGTH ? Brand.accent : theme.backgroundElement,
               opacity: otp.length === OTP_LENGTH ? 1 : 0.5,
             },
           ]}
@@ -250,7 +250,7 @@ const styles = StyleSheet.create({
   topBar: {
     alignItems: 'flex-start',
     paddingHorizontal: Spacing.four,
-    paddingTop: Spacing.two,
+    paddingTop: Spacing.four,
     paddingBottom: Spacing.three,
   },
   header: {
@@ -266,7 +266,7 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.one,
   },
   email: {
-    color: '#208AEF',
+    color: Brand.accent,
   },
   otpContainer: {
     width: '100%',

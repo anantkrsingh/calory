@@ -16,9 +16,15 @@ export default function NameStep({ displayName, onChange }: NameStepProps) {
   const [input, setInput] = useState(displayName);
   const [error, setError] = useState<string | null>(null);
 
+  const isValidName = (value: string): boolean => {
+    const trimmed = value.trim();
+    return trimmed.length >= 2 && trimmed.length <= 50;
+  };
+
   const handleChange = (text: string) => {
     setInput(text);
     setError(null);
+    onChange({ displayName: isValidName(text) ? text.trim() : '' });
   };
 
   const handleBlur = () => {
@@ -28,9 +34,6 @@ export default function NameStep({ displayName, onChange }: NameStepProps) {
       setError('Name must be at least 2 characters');
     } else if (input.trim().length > 50) {
       setError('Name must be less than 50 characters');
-    } else {
-      setError(null);
-      onChange({ displayName: input.trim() });
     }
   };
 

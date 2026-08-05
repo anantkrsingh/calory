@@ -11,24 +11,13 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { ThemedText } from "@/components/themed-text";
-import { Spacing } from "@/constants/theme";
+import { Brand, Spacing } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { useTheme } from "@/hooks/use-theme";
 import SocialButton from "@/components/welcome/SocialButton";
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports -- no ambient *.png module types in SDK 57
 const heroArt = require("../../../assets/images/arts/welcome/main.png");
-
-/** Sampled from the hero illustration so the UI and the art read as one system. */
-export const Brand = {
-  accent: "#EF5A24",
-  teal: "#23B3A6",
-  ink: "#1F4E4C",
-  cream: "#F7E0B0",
-  /** Outlined-pill CTA: muted sage fill inside a heavy ink frame. */
-  ctaFill: "#9DC6C5",
-  ctaOutline: "#0F0F0F",
-} as const;
 
 export default function WelcomeScreen() {
   const theme = useTheme();

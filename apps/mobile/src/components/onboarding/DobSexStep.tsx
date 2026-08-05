@@ -1,9 +1,10 @@
-import { useState } from 'react';
-import { StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
+import { useRef, useState } from 'react';
+import { Pressable, StyleSheet, TouchableOpacity, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Spacing } from '@/constants/theme';
+import DateOfBirthPicker, { type DateOfBirthPickerRef } from '@/components/ui/DateOfBirthPicker';
+import { Brand, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import type { Sex } from '@fitness/types';
 
@@ -13,54 +14,29 @@ interface DobSexStepProps {
   onChange: (data: { dateOfBirth?: string; sex?: Sex }) => void;
 }
 
-const DOB_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+const MONTH_NAMES = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+];
 
-function isValidDate(value: string): boolean {
-  if (!DOB_PATTERN.test(value)) return false;
+function formatDisplayDate(iso: string): string {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
+  if (!match) return iso;
 
-  const [year, month, day] = value.split('-').map(Number);
-  const date = new Date(Date.UTC(year, month - 1, day));
-
-  return (
-    date.getUTCFullYear() === year &&
-    date.getUTCMonth() === month - 1 &&
-    date.getUTCDate() === day &&
-    date.getTime() <= Date.now()
-  );
+  const year = Number(match[1]);
+  const month = Number(match[2]) - 1;
+  const day = Number(match[3]);
+  return `${MONTH_NAMES[month]} ${day}, ${year}`;
 }
 
 export default function DobSexStep({ dateOfBirth, sex, onChange }: DobSexStepProps) {
   const theme = useTheme();
   const [selectedSex, setSelectedSex] = useState<Sex | undefined>(sex);
-  const [dob, setDob] = useState(dateOfBirth ?? '');
-  const [dobError, setDobError] = useState<string | null>(null);
+  const pickerRef = useRef<DateOfBirthPickerRef>(null);
 
   const handleSexSelect = (value: Sex) => {
     setSelectedSex(value);
     onChange({ sex: value });
-  };
-
-  const handleDobChange = (text: string) => {
-    setDob(text);
-
-    if (text === '') {
-      setDobError(null);
-      onChange({ dateOfBirth: '' });
-      return;
-    }
-
-    if (isValidDate(text)) {
-      setDobError(null);
-      onChange({ dateOfBirth: text });
-      return;
-    }
-
-    setDobError(null);
-    onChange({ dateOfBirth: '' });
-  };
-
-  const handleDobBlur = () => {
-    setDobError(dob === '' || isValidDate(dob) ? null : 'Enter a valid date as YYYY-MM-DD');
   };
 
   const sexOptions: Sex[] = ['male', 'female', 'other', 'prefer_not_to_say'];
@@ -77,53 +53,50 @@ export default function DobSexStep({ dateOfBirth, sex, onChange }: DobSexStepPro
         <ThemedText type="smallBold" style={styles.label}>
           Date of Birth
         </ThemedText>
-        
-        <TextInput
+
+        <Pressable
+          onPress={() => pickerRef.current?.present()}
           style={[
             styles.dateInput,
             {
               backgroundColor: theme.backgroundElement,
-              color: theme.text,
-              borderColor: dobError ? '#ff3b30' : theme.textSecondary,
+              borderColor: theme.textSecondary,
             },
-          ]}
-          placeholder="YYYY-MM-DD"
-          placeholderTextColor={theme.textSecondary}
-          value={dob}
-          onChangeText={handleDobChange}
-          onBlur={handleDobBlur}
-          keyboardType="default"
-          autoCapitalize="none"
-          autoCorrect={false}
-          returnKeyType="done"
-        />
-        {dobError ? (
-          <ThemedText type="small" style={styles.errorText}>
-            {dobError}
+          ]}>
+          <ThemedText
+            type="default"
+            style={dateOfBirth ? undefined : { color: theme.textSecondary }}>
+            {dateOfBirth ? formatDisplayDate(dateOfBirth) : 'Select your date of birth'}
           </ThemedText>
-        ) : null}
+        </Pressable>
+
+        <DateOfBirthPicker
+          ref={pickerRef}
+          value={dateOfBirth}
+          onChange={(isoDate) => onChange({ dateOfBirth: isoDate })}
+        />
       </View>
       <View style={styles.inputGroup}>
         <ThemedText type="smallBold" style={styles.label}>
           Sex
         </ThemedText>
-        
+
         <View style={styles.sexOptions}>
           {sexOptions.map((option) => (
             <TouchableOpacity
               key={option}
               style={[
                 styles.sexOption,
-                { 
-                  backgroundColor: selectedSex === option 
-                    ? '#208AEF' 
+                {
+                  backgroundColor: selectedSex === option
+                    ? Brand.accent
                     : theme.backgroundElement,
                   borderColor: theme.textSecondary,
                 },
               ]}
               onPress={() => handleSexSelect(option)}>
-              <ThemedText 
-                type="small" 
+              <ThemedText
+                type="small"
                 style={[
                   styles.sexOptionText,
                   { color: selectedSex === option ? 'white' : theme.text }
@@ -178,8 +151,6 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.three,
     borderRadius: 12,
     borderWidth: 1,
-    fontSize: 16,
-    fontWeight: '500',
   },
   sexOptions: {
     flexDirection: 'row',
@@ -199,11 +170,6 @@ const styles = StyleSheet.create({
   sexOptionText: {
     fontSize: 14,
     fontWeight: '500',
-  },
-  errorText: {
-    color: '#ff3b30',
-    fontSize: 12,
-    marginTop: Spacing.one,
   },
   hint: {
     fontSize: 12,

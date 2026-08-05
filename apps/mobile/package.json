@@ -9,6 +9,7 @@
     "@fitness/config": "workspace:*",
     "@fitness/types": "workspace:*",
     "@fitness/validation": "workspace:*",
+    "@lodev09/react-native-true-sheet": "^3.11.9",
     "@tanstack/react-query": "^5.101.4",
     "axios": "^1.19.0",
     "expo": "~57.0.9",

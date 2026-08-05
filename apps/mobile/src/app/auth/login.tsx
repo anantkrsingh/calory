@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { Spacing } from '@/constants/theme';
+import { Brand, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { authService } from '@/services/auth.service';
 
@@ -192,7 +192,7 @@ export default function LoginScreen() {
             style={[
               styles.loginButton,
               {
-                backgroundColor: canSubmit ? '#208AEF' : theme.backgroundElement,
+                backgroundColor: canSubmit ? Brand.accent : theme.backgroundElement,
                 opacity: canSubmit ? 1 : 0.5,
               },
             ]}
@@ -255,7 +255,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#208AEF',
+    backgroundColor: Brand.accent,
     marginBottom: Spacing.two,
   },
   logoText: {

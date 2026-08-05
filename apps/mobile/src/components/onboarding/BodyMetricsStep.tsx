@@ -5,7 +5,7 @@ import { StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Spacing } from '@/constants/theme';
+import { Brand, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 interface BodyMetricsStepProps {
@@ -203,7 +203,7 @@ function UnitButton({
       style={[
         styles.unitButton,
         {
-          backgroundColor: isActive ? '#208AEF' : theme.backgroundElement,
+          backgroundColor: isActive ? Brand.accent : theme.backgroundElement,
           borderColor: theme.textSecondary,
         },
       ]}

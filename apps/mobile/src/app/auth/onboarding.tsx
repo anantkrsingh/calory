@@ -16,7 +16,7 @@ import {
   NameStep,
 } from '@/components/onboarding';
 import { ThemedText } from '@/components/themed-text';
-import { Spacing } from '@/constants/theme';
+import { Brand, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useOnboardingStore } from '@/stores/onboarding.store';
 
@@ -31,23 +31,37 @@ export default function OnboardingScreen() {
   const updateUserData = useOnboardingStore((state) => state.updateUserData);
   const resetOnboarding = useOnboardingStore((state) => state.resetOnboarding);
   const [direction, setDirection] = useState<'forward' | 'backward'>('forward');
+  // Tracks the incoming step's measured height so the (position: absolute)
+  // step frame below has real height to scroll — see stepViewport/stepContent.
+  const [stepHeight, setStepHeight] = useState<number | undefined>(undefined);
 
   const canContinue = isStepComplete(currentStep, userData);
 
-  const handleNext = () => {
-    setDirection('forward');
+  // Reanimated bakes the outgoing step's `exiting` animation into its last-rendered
+  // props. Changing `direction` and `currentStep` in the same tick (React batches
+  // them) means the step being removed still carries the *previous* click's exiting
+  // animation — so reversing direction right after would exit and enter on the same
+  // side and collide. Committing the direction flip on its own frame first lets the
+  // still-mounted current step re-render with the correct exiting animation before
+  // the step index changes and actually removes it.
+  const goToStep = (nextDirection: 'forward' | 'backward', advance: () => void) => {
+    setDirection(nextDirection);
+    requestAnimationFrame(advance);
+  };
 
-    if (currentStep < totalSteps) {
-      nextStep();
-    } else {
-      router.push('/auth/verify-email');
-    }
+  const handleNext = () => {
+    goToStep('forward', () => {
+      if (currentStep < totalSteps) {
+        nextStep();
+      } else {
+        router.push('/auth/verify-email');
+      }
+    });
   };
 
   // Step 1 has no Back button — the close button in the top bar exits the flow instead.
   const handleBack = () => {
-    setDirection('backward');
-    prevStep();
+    goToStep('backward', prevStep);
   };
 
   const handleClose = () => {
@@ -123,13 +137,19 @@ export default function OnboardingScreen() {
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="interactive"
         bottomOffset={Spacing.four}>
-        <Animated.View
-          key={currentStep}
-          entering={direction === 'forward' ? SlideInRight.duration(260) : SlideInLeft.duration(260)}
-          exiting={direction === 'forward' ? SlideOutLeft.duration(260) : SlideOutRight.duration(260)}
-          style={styles.content}>
-          {renderStep()}
-        </Animated.View>
+        {/* relative frame — outgoing/incoming steps overlay it absolutely instead of
+            sharing normal flow, so one slides fully off left while the other slides
+            in from the right in the same spot, with no stacking/collision between them. */}
+        <View style={[styles.stepViewport, { minHeight: stepHeight }]}>
+          <Animated.View
+            key={currentStep}
+            entering={direction === 'forward' ? SlideInRight.duration(280) : SlideInLeft.duration(280)}
+            exiting={direction === 'forward' ? SlideOutLeft.duration(280) : SlideOutRight.duration(280)}
+            onLayout={(event) => setStepHeight(event.nativeEvent.layout.height)}
+            style={styles.content}>
+            {renderStep()}
+          </Animated.View>
+        </View>
       </KeyboardAwareScrollView>
 
       {/* Pinned outside the scroll view so it tracks the keyboard instead of scrolling with content. */}
@@ -149,7 +169,7 @@ export default function OnboardingScreen() {
             onPress={handleNext}
             disabled={!canContinue}
             accessibilityLabel={currentStep < totalSteps ? 'Continue' : 'Finish'}
-            activeColor="#208AEF"
+            activeColor={Brand.accent}
             inactiveColor={theme.backgroundElement}
           />
         </View>
@@ -193,7 +213,7 @@ const styles = StyleSheet.create({
   topBar: {
     alignItems: 'flex-start',
     paddingHorizontal: Spacing.four,
-    paddingTop: Spacing.two,
+    paddingTop: Spacing.four,
     paddingBottom: Spacing.three,
   },
   progressContainer: {
@@ -214,13 +234,20 @@ const styles = StyleSheet.create({
   },
   progressBar: {
     height: '100%',
-    backgroundColor: '#208AEF',
+    backgroundColor: Brand.accent,
     borderRadius: 2,
   },
-  content: {
+  stepViewport: {
     flex: 1,
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  content: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
     alignItems: 'flex-start',
-    justifyContent: 'flex-start',
     paddingBottom: Spacing.four,
   },
   buttonContainer: {

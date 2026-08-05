@@ -19,6 +19,7 @@ export default function EmailStep({ email, onChange }: EmailStepProps) {
   const handleChange = (text: string) => {
     setInput(text);
     setError(null);
+    onChange({ email: isValidEmail(text) ? text : '' });
   };
 
   const handleBlur = () => {
@@ -26,9 +27,6 @@ export default function EmailStep({ email, onChange }: EmailStepProps) {
       setError('Email is required');
     } else if (!isValidEmail(input)) {
       setError('Please enter a valid email address');
-    } else {
-      setError(null);
-      onChange({ email: input });
     }
   };
 

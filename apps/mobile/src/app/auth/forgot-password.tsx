@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { Spacing } from '@/constants/theme';
+import { Brand, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { otpService } from '@/services/otp.service';
 
@@ -87,7 +87,7 @@ export default function ForgotPasswordScreen() {
             </ThemedText>
 
             <TouchableOpacity
-              style={[styles.primaryButton, { backgroundColor: '#208AEF' }]}
+              style={[styles.primaryButton, { backgroundColor: Brand.accent }]}
               onPress={handleResend}>
               <ThemedText type="smallBold" style={styles.primaryButtonText}>
                 Send again
@@ -159,7 +159,7 @@ export default function ForgotPasswordScreen() {
             style={[
               styles.submitButton,
               { 
-                backgroundColor: email.trim() !== '' ? '#208AEF' : theme.backgroundElement,
+                backgroundColor: email.trim() !== '' ? Brand.accent : theme.backgroundElement,
                 opacity: email.trim() !== '' ? 1 : 0.5,
               },
             ]}
@@ -208,7 +208,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#208AEF',
+    backgroundColor: Brand.accent,
     marginBottom: Spacing.two,
   },
   logoText: {

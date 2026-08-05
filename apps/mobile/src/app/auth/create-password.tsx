@@ -7,7 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
 import CloseButton from '@/components/ui/CloseButton';
-import { Spacing } from '@/constants/theme';
+import { Brand, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { authService } from '@/services/auth.service';
 import { selectError, selectIsLoading, useOnboardingStore } from '@/stores/onboarding.store';
@@ -235,7 +235,7 @@ export default function CreatePasswordScreen() {
             styles.submitButton,
             { 
               backgroundColor: password && confirmPassword && password === confirmPassword && !errors.password
-                ? '#208AEF' 
+                ? Brand.accent
                 : theme.backgroundElement,
               opacity: password && confirmPassword && password === confirmPassword && !errors.password ? 1 : 0.5,
             },
@@ -311,7 +311,7 @@ const styles = StyleSheet.create({
   topBar: {
     alignItems: 'flex-start',
     paddingHorizontal: Spacing.four,
-    paddingTop: Spacing.two,
+    paddingTop: Spacing.four,
     paddingBottom: Spacing.three,
   },
   header: {

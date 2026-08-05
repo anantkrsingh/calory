@@ -2,7 +2,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Spacing } from '@/constants/theme';
+import { Brand, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 interface GoalsStepProps {
@@ -50,7 +50,7 @@ export default function GoalsStep({ fitnessGoals = [], onChange }: GoalsStepProp
               style={({ pressed }) => [
                 styles.optionCard,
                 {
-                  backgroundColor: isSelected ? '#208AEF' : theme.backgroundElement,
+                  backgroundColor: isSelected ? Brand.accent : theme.backgroundElement,
                   borderColor: theme.textSecondary,
                   opacity: pressed ? 0.7 : 1,
                 },
