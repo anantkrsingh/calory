@@ -14,7 +14,7 @@ import { useEffect } from 'react';
 import { useColorScheme } from 'react-native';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
 
-import { http } from '@/api/http';
+import { setOnUnauthorized } from '@/api/http';
 import { queryClient } from '@/api/query-client';
 import { selectHydrated, selectIsAuthenticated, useAuthStore } from '@/stores/auth.store';
 
@@ -38,8 +38,8 @@ export default function RootLayout() {
   });
 
   useEffect(() => {
-    http.setOnUnauthorized(() => queryClient.clear());
-    return () => http.setOnUnauthorized(undefined);
+    setOnUnauthorized(() => queryClient.clear());
+    return () => setOnUnauthorized(undefined);
   }, []);
 
   useEffect(() => {

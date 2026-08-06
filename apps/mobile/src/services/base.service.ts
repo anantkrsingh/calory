@@ -1,4 +1,6 @@
-import { http, type HttpClient } from '@/api/http';
+import type { AxiosInstance } from 'axios';
+
+import { http } from '@/api/http';
 
 /**
  * Shared plumbing for the endpoint classes. Each service owns one resource path
@@ -8,7 +10,7 @@ import { http, type HttpClient } from '@/api/http';
 export abstract class BaseService {
   protected constructor(
     protected readonly path: string,
-    protected readonly client: HttpClient = http,
+    protected readonly client: AxiosInstance = http,
   ) {}
 
   /** Joins the resource path with a sub-path: `('/123', 'sets') → /workouts/123/sets`. */

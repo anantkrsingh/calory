@@ -15,27 +15,32 @@ interface VerifyOtpResponse {
 }
 
 class OTPService {
-  sendOTP(email: string, purpose: OtpPurpose = 'registration'): Promise<SendOtpResponse> {
-    return http.post<SendOtpResponse>('/otp/send', {
-      body: { type: 'email', contact: email, purpose },
-      skipAuth: true,
-    });
+  async sendOTP(email: string, purpose: OtpPurpose = 'registration'): Promise<SendOtpResponse> {
+    const { data } = await http.post<SendOtpResponse>(
+      '/otp/send',
+      { type: 'email', contact: email, purpose },
+      { skipAuth: true },
+    );
+    return data;
   }
 
   async verifyOTP(email: string, code: string, purpose: OtpPurpose = 'registration'): Promise<boolean> {
-    const result = await http.post<VerifyOtpResponse>('/otp/verify', {
-      body: { type: 'email', contact: email, code, purpose },
-      skipAuth: true,
-    });
+    const { data } = await http.post<VerifyOtpResponse>(
+      '/otp/verify',
+      { type: 'email', contact: email, code, purpose },
+      { skipAuth: true },
+    );
 
-    return result.success;
+    return data.success;
   }
 
-  resendOTP(email: string, purpose: OtpPurpose = 'registration'): Promise<SendOtpResponse> {
-    return http.post<SendOtpResponse>('/otp/resend', {
-      body: { type: 'email', contact: email, purpose },
-      skipAuth: true,
-    });
+  async resendOTP(email: string, purpose: OtpPurpose = 'registration'): Promise<SendOtpResponse> {
+    const { data } = await http.post<SendOtpResponse>(
+      '/otp/resend',
+      { type: 'email', contact: email, purpose },
+      { skipAuth: true },
+    );
+    return data;
   }
 }
 

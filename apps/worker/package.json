@@ -19,7 +19,6 @@
   "dependencies": {
     "@fitness/config": "workspace:*",
     "@fitness/types": "workspace:*",
-    "@nestjs/bull": "^10.0.1",
     "@nestjs/common": "^11.0.1",
     "@nestjs/core": "^11.0.1",
     "bullmq": "^5.1.0",

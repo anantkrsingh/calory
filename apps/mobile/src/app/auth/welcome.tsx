@@ -99,6 +99,7 @@ export default function WelcomeScreen() {
           onPress={() => router.push("/auth/onboarding")}
           style={({ pressed }) => [
             styles.primaryButtonFrame,
+            isDark && { backgroundColor: theme.backgroundElement },
             pressed && styles.pressed,
           ]}
         >
@@ -330,7 +331,7 @@ const styles = StyleSheet.create({
     lineHeight: 16,
   },
   legalLink: {
-    color: "rgba(255, 255, 255, 0.7)",
+    color: Brand.accent,
     fontSize: 11,
     lineHeight: 16,
     textDecorationLine: "underline",

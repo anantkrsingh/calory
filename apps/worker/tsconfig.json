@@ -4,9 +4,9 @@
     "rootDir": "./src",
     "outDir": "./dist",
     "baseUrl": "./",
-    "types": ["node", "jest"]
+    "types": ["node", "jest"],
+    "incremental":false,
   },
-  "incremental":false,
 
   "include": ["src/**/*.ts", "test/**/*.ts"]
 }

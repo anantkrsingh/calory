@@ -22,8 +22,9 @@ interface AuthActions {
 export type AuthStore = AuthState & AuthActions;
 
 /**
- * Holds the session. `HttpClient` reads tokens straight off this store, so it
- * is the single source of truth for "am I signed in" across screens and calls.
+ * Holds the session. The axios interceptors in `api/http.ts` read tokens straight
+ * off this store, so it is the single source of truth for "am I signed in" across
+ * screens and calls.
  */
 export const useAuthStore = create<AuthStore>()(
   persist(

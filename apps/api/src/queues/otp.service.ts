@@ -42,12 +42,10 @@ export class OtpService {
     // Generate OTP
     const otp = this.otpQueue.generateOtp();
 
-    // Calculate expiry
     const expiresAt = new Date(
       Date.now() + (this.env.OTP_EXPIRY_MINUTES || 10) * 60000,
     );
 
-    // Create job data
     const jobData: OtpJobData = {
       type,
       to: contact,
@@ -56,11 +54,9 @@ export class OtpService {
       userId,
     };
 
-    // Add to queue
     const job = await this.otpQueue.sendOtp(jobData);
     const jobId = job.id ?? '';
 
-    // Store OTP for verification
     const otpKey = this.getOtpKey(type, contact, purpose);
     this.otpStore.set(otpKey, {
       code: otp,
@@ -72,12 +68,8 @@ export class OtpService {
       jobId,
     });
 
-    // Clean up expired OTPs periodically
     this.cleanupExpiredOtps();
 
-    this.logger.log(
-      `OTP sent via ${type} to ${this.maskContact(contact)} for ${purpose}`,
-    );
 
     return {
       success: true,
@@ -86,9 +78,6 @@ export class OtpService {
     };
   }
 
-  /**
-   * Verify an OTP code
-   */
   async verifyOtp(
     type: 'email',
     contact: string,

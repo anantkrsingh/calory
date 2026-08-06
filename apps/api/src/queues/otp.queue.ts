@@ -28,15 +28,10 @@ export class OtpQueue {
     this.otpQueue = this.queueProvider(OTP_QUEUE_NAME);
   }
 
-  /**
-   * Add a new OTP job to the queue
-   */
   async sendOtp(data: OtpJobData): Promise<Job<OtpJobResult>> {
     const job = await this.otpQueue.add('sendOtp', data, {
-      // OTP jobs should be processed quickly
       priority: 1,
-      // Job expires after OTP expiry time + some buffer
-      jobId: `otp:${data.type}:${data.to}:${Date.now()}`,
+      jobId: `otp-${data.type}-${data.to}-${Date.now()}`,
     });
 
     this.logger.debug(
@@ -46,23 +41,15 @@ export class OtpQueue {
     return job;
   }
 
-  /**
-   * Mask contact information for logging (privacy)
-   */
   private maskContact(contact: string): string {
     if (contact.includes('@')) {
-      // Email
       const [localPart = '', domain = ''] = contact.split('@');
       return `${localPart[0] ?? ''}****@${domain}`;
     } else {
-      // Phone - show last 4 digits
       return contact.slice(-4).padStart(contact.length, '*');
     }
   }
 
-  /**
-   * Generate a random OTP code
-   */
   generateOtp(): string {
     const length = this.env.OTP_LENGTH || 6;
     let otp = '';

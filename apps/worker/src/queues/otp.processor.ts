@@ -1,12 +1,11 @@
-import { Injectable, Inject, Logger, OnModuleDestroy } from '@nestjs/common';
 import {
-  OnQueueActive,
-  OnQueueCompleted,
-  OnQueueFailed,
-  Process,
-  Processor,
-} from '@nestjs/bull';
-import { Job } from 'bullmq';
+  Injectable,
+  Inject,
+  Logger,
+  OnModuleInit,
+  OnModuleDestroy,
+} from '@nestjs/common';
+import { Worker, type Job } from 'bullmq';
 import { createTransport, type Transporter } from 'nodemailer';
 import type { Env } from '@fitness/config/server';
 import {
@@ -19,18 +18,22 @@ import { ENV } from '../config/env.module';
 
 /**
  * OTP Queue Processor - sends OTP codes by email via nodemailer.
+ *
+ * Uses bullmq's `Worker` directly (not `@nestjs/bull`, which wraps the older,
+ * wire-incompatible `bull` package) so it actually consumes jobs added by the
+ * API's `bullmq.Queue` producer.
  */
-@Processor(OTP_QUEUE_NAME)
 @Injectable()
-export class OtpQueueProcessor implements OnModuleDestroy {
+export class OtpQueueProcessor implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(OtpQueueProcessor.name);
   private readonly transporter: Transporter;
+  private worker?: Worker<OtpJobData, OtpJobResult>;
 
   constructor(@Inject(ENV) private readonly env: Env) {
     this.transporter = createTransport({
       host: env.SMTP_HOST,
       port: env.SMTP_PORT,
-      secure: env.SMTP_SECURE,
+      secure: process.env.SMTP_SECURE === "true",
       auth:
         env.SMTP_USER && env.SMTP_PASSWORD
           ? { user: env.SMTP_USER, pass: env.SMTP_PASSWORD }
@@ -38,19 +41,48 @@ export class OtpQueueProcessor implements OnModuleDestroy {
     });
   }
 
-  onModuleDestroy(): void {
+  onModuleInit(): void {
+    this.worker = new Worker<OtpJobData, OtpJobResult>(
+      OTP_QUEUE_NAME,
+      (job) => this.handleSendOtp(job),
+      {
+        connection: {
+          host: this.env.REDIS_HOST,
+          port: this.env.REDIS_PORT,
+          password: this.env.REDIS_PASSWORD,
+          maxRetriesPerRequest: null,
+        },
+        prefix: 'fitness',
+      },
+    );
+
+    this.worker.on('active', (job) => {
+      this.logger.debug(`OTP Queue: Job ${job.id} is now active`);
+    });
+
+    this.worker.on('completed', (job, result) => {
+      this.logger.debug(
+        `OTP Queue: Job ${job.id} completed with result: ${JSON.stringify(result)}`,
+      );
+    });
+
+    this.worker.on('failed', (job, error) => {
+      this.logger.error(
+        `OTP Queue: Job ${job?.id} failed with error: ${error.message}`,
+      );
+    });
+  }
+
+  async onModuleDestroy(): Promise<void> {
+    await this.worker?.close();
     this.transporter.close();
   }
 
-  /**
-   * Process OTP sending jobs
-   */
-  @Process('sendOtp')
-  async handleSendOtp(job: Job<OtpJobData>): Promise<OtpJobResult> {
+  private async handleSendOtp(job: Job<OtpJobData>): Promise<OtpJobResult> {
     const { to, otp, purpose } = job.data;
 
     this.logger.log(
-      `Processing OTP job ${job.id}: sending email to ${this.maskContact(to)}`,
+      `Processing OTP job ${job.id}: sending email to ${this.maskContact(to)} ${this.env.SMTP_PASSWORD}`,
     );
 
     try {
@@ -91,33 +123,8 @@ export class OtpQueueProcessor implements OnModuleDestroy {
     });
   }
 
-  /**
-   * Mask contact information for logging (privacy)
-   */
   private maskContact(contact: string): string {
     const [localPart = '', domain = ''] = contact.split('@');
     return `${localPart[0] ?? ''}****@${domain}`;
-  }
-
-  /**
-   * Event handlers for queue monitoring
-   */
-  @OnQueueActive()
-  onActive(job: Job) {
-    this.logger.debug(`OTP Queue: Job ${job.id} is now active`);
-  }
-
-  @OnQueueCompleted()
-  onCompleted(job: Job, result: OtpJobResult) {
-    this.logger.debug(
-      `OTP Queue: Job ${job.id} completed with result: ${JSON.stringify(result)}`,
-    );
-  }
-
-  @OnQueueFailed()
-  onFailed(job: Job, error: Error) {
-    this.logger.error(
-      `OTP Queue: Job ${job.id} failed with error: ${error.message}`,
-    );
   }
 }

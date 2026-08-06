@@ -5,45 +5,50 @@ import type {
   RegisterInput,
 } from '@fitness/validation';
 
-import { type HttpClient, http } from '@/api/http';
+import type { AxiosInstance } from 'axios';
+
+import { http } from '@/api/http';
 import { authState } from '@/stores/auth.store';
 
 import { BaseService } from './base.service';
 
 export class AuthService extends BaseService {
-  constructor(client: HttpClient = http) {
+  constructor(client: AxiosInstance = http) {
     super('/auth', client);
   }
 
   /** Registers, persists the returned session, and returns it. */
   async register(input: RegisterInput): Promise<AuthSession> {
-    const session = await this.client.post<AuthSession>(this.url('register'), {
-      body: input,
-      skipAuth: true,
-    });
+    const { data: session } = await this.client.post<AuthSession>(
+      this.url('register'),
+      input,
+      { skipAuth: true },
+    );
     authState.setSession(session);
     return session;
   }
 
   async login(input: LoginInput): Promise<AuthSession> {
-    const session = await this.client.post<AuthSession>(this.url('login'), {
-      body: input,
-      skipAuth: true,
-    });
+    const { data: session } = await this.client.post<AuthSession>(
+      this.url('login'),
+      input,
+      { skipAuth: true },
+    );
     authState.setSession(session);
     return session;
   }
 
   /**
-   * Exchanges a refresh token for a new pair. `HttpClient` runs this on its own
-   * when a request 401s, so app code rarely needs it directly.
+   * Exchanges a refresh token for a new pair. The interceptor in `api/http.ts`
+   * runs this on its own when a request 401s, so app code rarely needs it directly.
    */
-  refresh(refreshToken: string): Promise<AuthTokens> {
-    return this.client.post<AuthTokens>(this.url('refresh'), {
-      body: { refreshToken },
-      skipAuth: true,
-      skipRetry: true,
-    });
+  async refresh(refreshToken: string): Promise<AuthTokens> {
+    const { data } = await this.client.post<AuthTokens>(
+      this.url('refresh'),
+      { refreshToken },
+      { skipAuth: true, skipRetry: true },
+    );
+    return data;
   }
 
   /** Clears the local session even if the server call fails — logout must not block. */
@@ -55,12 +60,13 @@ export class AuthService extends BaseService {
     }
   }
 
-  me(): Promise<User> {
-    return this.client.get<User>(this.url('me'));
+  async me(): Promise<User> {
+    const { data } = await this.client.get<User>(this.url('me'));
+    return data;
   }
 
-  changePassword(input: ChangePasswordInput): Promise<void> {
-    return this.client.post<void>(this.url('change-password'), { body: input });
+  async changePassword(input: ChangePasswordInput): Promise<void> {
+    await this.client.post<void>(this.url('change-password'), input);
   }
 }
 

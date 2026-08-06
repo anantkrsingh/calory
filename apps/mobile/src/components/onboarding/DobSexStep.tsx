@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Pressable, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
+import { EyeOff, Mars, Venus, type LucideIcon } from 'lucide-react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -29,6 +30,23 @@ function formatDisplayDate(iso: string): string {
   return `${MONTH_NAMES[month]} ${day}, ${year}`;
 }
 
+interface SexOption {
+  value: Sex;
+  label: string;
+  Icon: LucideIcon;
+}
+
+const TOP_ROW_OPTIONS: SexOption[] = [
+  { value: 'male', label: 'Male', Icon: Mars },
+  { value: 'female', label: 'Female', Icon: Venus },
+];
+
+const PREFER_NOT_TO_SAY_OPTION: SexOption = {
+  value: 'prefer_not_to_say',
+  label: 'Prefer not to say',
+  Icon: EyeOff,
+};
+
 export default function DobSexStep({ dateOfBirth, sex, onChange, onOpenDatePicker }: DobSexStepProps) {
   const theme = useTheme();
   const [selectedSex, setSelectedSex] = useState<Sex | undefined>(sex);
@@ -38,7 +56,35 @@ export default function DobSexStep({ dateOfBirth, sex, onChange, onOpenDatePicke
     onChange({ sex: value });
   };
 
-  const sexOptions: Sex[] = ['male', 'female', 'other', 'prefer_not_to_say'];
+  const renderOption = ({ value, label, Icon }: SexOption) => {
+    const selected = selectedSex === value;
+    return (
+      <Pressable
+        key={value}
+        style={[
+          styles.sexOption,
+          {
+            backgroundColor: selected ? Brand.accent : theme.backgroundElement,
+            borderColor: theme.textSecondary,
+          },
+        ]}
+        onPress={() => handleSexSelect(value)}>
+        <Icon
+          size={20}
+          color={selected ? 'white' : theme.text}
+          style={styles.sexOptionIcon}
+        />
+        <ThemedText
+          type="small"
+          style={[
+            styles.sexOptionText,
+            { color: selected ? 'white' : theme.text }
+          ]}>
+          {label}
+        </ThemedText>
+      </Pressable>
+    );
+  };
 
   return (
     <ThemedView style={styles.container}>
@@ -74,48 +120,15 @@ export default function DobSexStep({ dateOfBirth, sex, onChange, onOpenDatePicke
           Sex
         </ThemedText>
 
-        <View style={styles.sexOptions}>
-          {sexOptions.map((option) => (
-            <TouchableOpacity
-              key={option}
-              style={[
-                styles.sexOption,
-                {
-                  backgroundColor: selectedSex === option
-                    ? Brand.accent
-                    : theme.backgroundElement,
-                  borderColor: theme.textSecondary,
-                },
-              ]}
-              onPress={() => handleSexSelect(option)}>
-              <ThemedText
-                type="small"
-                style={[
-                  styles.sexOptionText,
-                  { color: selectedSex === option ? 'white' : theme.text }
-                ]}>
-                {formatSexOption(option)}
-              </ThemedText>
-            </TouchableOpacity>
-          ))}
+        <View style={styles.sexOptionsRow}>
+          {TOP_ROW_OPTIONS.map((option) => renderOption(option))}
+        </View>
+        <View style={styles.sexOptionsRow}>
+          {renderOption(PREFER_NOT_TO_SAY_OPTION)}
         </View>
       </View>
-
-      <ThemedText type="small" style={[styles.hint, { color: theme.textSecondary }]}>
-        This information helps us provide better recommendations
-      </ThemedText>
     </ThemedView>
   );
-}
-
-function formatSexOption(option: Sex): string {
-  const mapping: Record<Sex, string> = {
-    male: 'Male',
-    female: 'Female',
-    other: 'Other',
-    prefer_not_to_say: 'Prefer not to say',
-  };
-  return mapping[option] || option;
 }
 
 const styles = StyleSheet.create({
@@ -145,27 +158,25 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
   },
-  sexOptions: {
+  sexOptionsRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
     gap: Spacing.two,
+    marginBottom: Spacing.two,
   },
   sexOption: {
     flex: 1,
-    minWidth: '45%',
     paddingHorizontal: Spacing.two,
-    paddingVertical: Spacing.three,
+    paddingVertical: Spacing.two,
     borderRadius: 12,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  sexOptionIcon: {
+    marginBottom: Spacing.one,
+  },
   sexOptionText: {
     fontSize: 14,
     fontWeight: '500',
-  },
-  hint: {
-    fontSize: 12,
-    textAlign: 'left',
   },
 });

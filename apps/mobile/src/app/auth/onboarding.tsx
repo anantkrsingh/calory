@@ -15,6 +15,7 @@ import {
   EmailStep,
   GoalsStep,
   NameStep,
+  SegmentedProgressBar,
 } from '@/components/onboarding';
 import { ThemedText } from '@/components/themed-text';
 import { Brand, Spacing } from '@/constants/theme';
@@ -74,10 +75,6 @@ export default function OnboardingScreen() {
   const renderStep = () => {
     switch (currentStep) {
       case 1:
-        return <EmailStep email={userData.email} onChange={updateUserData} />;
-      case 2:
-        return <NameStep displayName={userData.displayName} onChange={updateUserData} />;
-      case 3:
         return (
           <DobSexStep
             dateOfBirth={userData.dateOfBirth}
@@ -86,7 +83,7 @@ export default function OnboardingScreen() {
             onOpenDatePicker={() => dobPickerRef.current?.present()}
           />
         );
-      case 4:
+      case 2:
         return (
           <BodyMetricsStep
             heightCm={userData.heightCm}
@@ -95,26 +92,28 @@ export default function OnboardingScreen() {
             onChange={updateUserData}
           />
         );
-      case 5:
+      case 3:
         return (
           <ActivityStep
             activityLevel={userData.activityLevel}
             onChange={updateUserData}
           />
         );
-      case 6:
+      case 4:
         return (
           <GoalsStep
             fitnessGoals={userData.fitnessGoals}
             onChange={updateUserData}
           />
         );
+      case 5:
+        return <EmailStep email={userData.email} onChange={updateUserData} />;
+      case 6:
+        return <NameStep displayName={userData.displayName} onChange={updateUserData} />;
       default:
         return null;
     }
   };
-
-  const progressPercentage = (currentStep / totalSteps) * 100;
 
   return (
     <SafeAreaView
@@ -124,14 +123,7 @@ export default function OnboardingScreen() {
         <CloseButton onPress={handleClose} accessibilityLabel="Cancel sign up" />
       </View>
 
-      <View style={styles.progressContainer}>
-        <View style={styles.progressTrack}>
-          <View style={[styles.progressBar, { width: `${progressPercentage}%` }]} />
-        </View>
-        <ThemedText type="small" style={styles.progressLabel}>
-          Step {currentStep} of {totalSteps}
-        </ThemedText>
-      </View>
+      <SegmentedProgressBar currentStep={currentStep} totalSteps={totalSteps} />
 
       <KeyboardAwareScrollView
         style={styles.scrollView}
@@ -195,17 +187,17 @@ type OnboardingUserData = ReturnType<typeof useOnboardingStore.getState>['userDa
 function isStepComplete(step: number, userData: OnboardingUserData): boolean {
   switch (step) {
     case 1:
-      return userData.email.trim() !== '';
-    case 2:
-      return userData.displayName.trim() !== '';
-    case 3:
       return (userData.dateOfBirth ?? '').trim() !== '' && userData.sex !== undefined;
-    case 4:
+    case 2:
       return userData.heightCm !== undefined && userData.weightKg !== undefined;
-    case 5:
+    case 3:
       return userData.activityLevel !== undefined;
-    case 6:
+    case 4:
       return (userData.fitnessGoals?.length ?? 0) > 0;
+    case 5:
+      return userData.email.trim() !== '';
+    case 6:
+      return userData.displayName.trim() !== '';
     default:
       return false;
   }
@@ -227,27 +219,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.four,
     paddingTop: Spacing.four,
     paddingBottom: Spacing.three,
-  },
-  progressContainer: {
-    width: '100%',
-    alignItems: 'flex-start',
-    paddingHorizontal: Spacing.four,
-    marginBottom: Spacing.four,
-  },
-  progressLabel: {
-    textAlign: 'left',
-  },
-  progressTrack: {
-    height: 4,
-    backgroundColor: 'rgba(0, 0, 0, 0.1)',
-    borderRadius: 2,
-    overflow: 'hidden',
-    marginBottom: Spacing.two,
-  },
-  progressBar: {
-    height: '100%',
-    backgroundColor: Brand.accent,
-    borderRadius: 2,
   },
   stepViewport: {
     flex: 1,
