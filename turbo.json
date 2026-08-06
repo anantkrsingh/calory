@@ -10,7 +10,6 @@
       "outputs": ["dist/**", ".expo/**", "!.expo/cache/**"]
     },
     "dev": {
-      "dependsOn": ["^build"],
       "cache": false,
       "persistent": true
     },

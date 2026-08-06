@@ -1,10 +1,4 @@
-import {
-  Body,
-  Controller,
-  HttpCode,
-  HttpStatus,
-  Post,
-} from '@nestjs/common';
+import { Body, Controller, HttpCode, HttpStatus, Post } from '@nestjs/common';
 import { z } from 'zod';
 
 import { Public } from '../common/decorators';
@@ -13,23 +7,29 @@ import { OtpService } from './otp.service';
 
 // Validation schemas
 const sendOtpSchema = z.object({
-  type: z.enum(['email', 'sms']).default('email'),
+  type: z.literal('email').default('email'),
   contact: z.string().min(1, 'Contact is required'),
-  purpose: z.enum(['registration', 'login', 'password_reset']).default('registration'),
+  purpose: z
+    .enum(['registration', 'login', 'password_reset'])
+    .default('registration'),
   userId: z.string().optional(),
 });
 
 const verifyOtpSchema = z.object({
-  type: z.enum(['email', 'sms']).default('email'),
+  type: z.literal('email').default('email'),
   contact: z.string().min(1, 'Contact is required'),
   code: z.string().min(1, 'OTP code is required'),
-  purpose: z.enum(['registration', 'login', 'password_reset']).default('registration'),
+  purpose: z
+    .enum(['registration', 'login', 'password_reset'])
+    .default('registration'),
 });
 
 const resendOtpSchema = z.object({
-  type: z.enum(['email', 'sms']).default('email'),
+  type: z.literal('email').default('email'),
   contact: z.string().min(1, 'Contact is required'),
-  purpose: z.enum(['registration', 'login', 'password_reset']).default('registration'),
+  purpose: z
+    .enum(['registration', 'login', 'password_reset'])
+    .default('registration'),
   userId: z.string().optional(),
 });
 

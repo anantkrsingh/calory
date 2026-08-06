@@ -6,5 +6,7 @@
     // TypeScript 7 no longer pulls in `@types/*` implicitly.
     "types": ["node"]
   },
+  "incremental":false,
+
   "include": ["src/**/*.ts"]
 }

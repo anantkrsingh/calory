@@ -64,9 +64,8 @@ services:
   worker:
     build:
       context: .
-      dockerfile: apps/api/Dockerfile
+      dockerfile: apps/worker/Dockerfile
     container_name: fitness_worker
-    command: npm run start:worker
     environment:
       NODE_ENV: development
       MONGODB_URI: mongodb://mongodb:27017/fitness
@@ -82,7 +81,7 @@ services:
         condition: service_started
     restart: unless-stopped
     volumes:
-      - ./apps/api/src:/app/src
+      - ./apps/worker/src:/app/src
       - /app/node_modules
 
 volumes:

@@ -50,6 +50,17 @@ export const envSchema = z.object({
   // OTP configuration
   OTP_EXPIRY_MINUTES: z.coerce.number().int().positive().default(10),
   OTP_LENGTH: z.coerce.number().int().min(4).max(8).default(6),
+
+  // SMTP configuration for sending OTP emails via nodemailer
+  SMTP_HOST: z.string().min(1, 'SMTP_HOST is required').default('localhost'),
+  SMTP_PORT: z.coerce.number().int().min(1).max(65535).default(587),
+  SMTP_SECURE: z
+    .enum(['true', 'false'])
+    .default('false')
+    .transform((value) => value === 'true'),
+  SMTP_USER: z.string().optional(),
+  SMTP_PASSWORD: z.string().optional(),
+  SMTP_FROM: z.string().min(1).default('no-reply@fitness.app'),
 });
 
 export type Env = z.infer<typeof envSchema>;

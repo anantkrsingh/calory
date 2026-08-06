@@ -6,10 +6,7 @@ import { ENV } from '../config/env.module';
 import { OtpQueueProcessor } from './otp.processor';
 
 /**
- * Worker Module - Minimal module for running BullMQ workers
- * 
- * This module is designed to be used in a separate worker process
- * and only includes the necessary components for job processing.
+ * Registers the BullMQ connection and job processors this worker runs.
  */
 @Module({
   imports: [
@@ -29,4 +26,4 @@ import { OtpQueueProcessor } from './otp.processor';
   ],
   providers: [OtpQueueProcessor],
 })
-export class WorkerModule {}
+export class QueuesModule {}

@@ -1,8 +1,8 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Inject, Logger } from '@nestjs/common';
 import type { Env } from '@fitness/config/server';
 
 import { ENV } from '../config/env.module';
-import { OtpQueue, type OtpJobData, type OtpJobResult } from './otp.queue';
+import { OtpQueue, type OtpJobData } from './otp.queue';
 
 /**
  * OTP storage for verification (in-memory, replace with Redis in production)
@@ -10,7 +10,7 @@ import { OtpQueue, type OtpJobData, type OtpJobResult } from './otp.queue';
 interface StoredOtp {
   code: string;
   contact: string;
-  type: 'email' | 'sms';
+  type: 'email';
   purpose: string;
   userId?: string;
   expiresAt: Date;
@@ -26,7 +26,7 @@ export class OtpService {
   private readonly otpStore = new Map<string, StoredOtp>();
 
   constructor(
-    @ENV private readonly env: Env,
+    @Inject(ENV) private readonly env: Env,
     private readonly otpQueue: OtpQueue,
   ) {}
 
@@ -34,14 +34,14 @@ export class OtpService {
    * Generate and send an OTP to the specified contact
    */
   async sendOtp(
-    type: 'email' | 'sms',
+    type: 'email',
     contact: string,
     purpose: 'registration' | 'login' | 'password_reset',
     userId?: string,
   ): Promise<{ success: boolean; jobId: string; message?: string }> {
     // Generate OTP
     const otp = this.otpQueue.generateOtp();
-    
+
     // Calculate expiry
     const expiresAt = new Date(
       Date.now() + (this.env.OTP_EXPIRY_MINUTES || 10) * 60000,
@@ -58,6 +58,7 @@ export class OtpService {
 
     // Add to queue
     const job = await this.otpQueue.sendOtp(jobData);
+    const jobId = job.id ?? '';
 
     // Store OTP for verification
     const otpKey = this.getOtpKey(type, contact, purpose);
@@ -68,7 +69,7 @@ export class OtpService {
       purpose,
       userId,
       expiresAt,
-      jobId: job.id,
+      jobId,
     });
 
     // Clean up expired OTPs periodically
@@ -80,7 +81,7 @@ export class OtpService {
 
     return {
       success: true,
-      jobId: job.id,
+      jobId,
       message: `OTP sent to ${type}`,
     };
   }
@@ -89,7 +90,7 @@ export class OtpService {
    * Verify an OTP code
    */
   async verifyOtp(
-    type: 'email' | 'sms',
+    type: 'email',
     contact: string,
     code: string,
     purpose: 'registration' | 'login' | 'password_reset',
@@ -132,7 +133,7 @@ export class OtpService {
 
     // OTP is valid - remove it and return success
     this.otpStore.delete(otpKey);
-    
+
     this.logger.log(
       `OTP verified successfully for ${type} ${this.maskContact(contact)}`,
     );
@@ -148,7 +149,7 @@ export class OtpService {
    * Resend OTP for the specified contact
    */
   async resendOtp(
-    type: 'email' | 'sms',
+    type: 'email',
     contact: string,
     purpose: 'registration' | 'login' | 'password_reset',
     userId?: string,
@@ -194,13 +195,7 @@ export class OtpService {
    * Mask contact information for logging (privacy)
    */
   private maskContact(contact: string): string {
-    if (contact.includes('@')) {
-      // Email
-      const [localPart, domain] = contact.split('@');
-      return `${localPart[0]}****@${domain}`;
-    } else {
-      // Phone - show last 4 digits
-      return contact.slice(-4).padStart(contact.length, '*');
-    }
+    const [localPart = '', domain = ''] = contact.split('@');
+    return `${localPart[0] ?? ''}****@${domain}`;
   }
 }

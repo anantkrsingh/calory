@@ -8,6 +8,7 @@
 // Keep these packages pinned to the 6.x line; see README for the migration note.
 generator client {
   provider = "prisma-client-js"
+  
 }
 
 datasource db {
