@@ -9,6 +9,13 @@ export const UnitSystem = {
 } as const;
 export type UnitSystem = (typeof UnitSystem)[keyof typeof UnitSystem];
 
+export const AuthProvider = {
+  Google: 'google',
+  Facebook: 'facebook',
+  X: 'x',
+} as const;
+export type AuthProvider = (typeof AuthProvider)[keyof typeof AuthProvider];
+
 export const Sex = {
   Male: 'male',
   Female: 'female',

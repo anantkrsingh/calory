@@ -1,8 +1,9 @@
-import type { AuthSession, User } from '@fitness/types';
+import type { AuthProvider, AuthSession, User } from '@fitness/types';
 import type {
   ChangePasswordInput,
   LoginInput,
   RegisterInput,
+  SocialLoginInput,
 } from '@fitness/validation';
 import {
   queryOptions,
@@ -13,6 +14,7 @@ import {
   type UseQueryResult,
 } from '@tanstack/react-query';
 
+import { SOCIAL_AUTHORIZERS } from '@/lib/social-auth';
 import { authService } from '@/services/auth.service';
 import { selectIsAuthenticated, useAuthStore } from '@/stores/auth.store';
 
@@ -57,6 +59,33 @@ export function useLogin(): UseMutationResult<AuthSession, Error, LoginInput> {
     },
   });
 }
+
+export function useSocialLogin(): UseMutationResult<
+  AuthSession,
+  Error,
+  AuthProvider
+> {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (provider: AuthProvider) => {
+      const credential = await SOCIAL_AUTHORIZERS[provider]();
+      return SOCIAL_LOGINS[provider](credential);
+    },
+    onSuccess: (session) => {
+      queryClient.setQueryData(AuthQueries.keys.me(), session.user);
+    },
+  });
+}
+
+const SOCIAL_LOGINS: Record<
+  AuthProvider,
+  (input: SocialLoginInput) => Promise<AuthSession>
+> = {
+  google: (input) => authService.loginGoogle(input),
+  facebook: (input) => authService.loginFacebook(input),
+  x: (input) => authService.loginX(input),
+};
 
 export function useRegister(): UseMutationResult<
   AuthSession,

@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 
+import { AiModule } from './ai/ai.module';
 import { AuthModule } from './auth/auth.module';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import { AllExceptionsFilter } from './common/all-exceptions.filter';
@@ -21,6 +22,7 @@ import { WorkoutsModule } from './workouts/workouts.module';
     EnvModule,
     PrismaModule,
     QueuesModule,
+    AiModule,
     AuthModule,
     UsersModule,
     ExercisesModule,

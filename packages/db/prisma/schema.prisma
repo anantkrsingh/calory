@@ -25,6 +25,12 @@ enum UserRole {
   admin
 }
 
+enum AuthProvider {
+  google
+  facebook
+  x
+}
+
 enum UnitSystem {
   metric
   imperial
@@ -121,6 +127,13 @@ type UserProfile {
   activityLevel ActivityLevel?
 }
 
+type LinkedAccount {
+  provider AuthProvider
+  subject  String
+  email    String?
+  linkedAt DateTime @default(now())
+}
+
 type UserPreferences {
   units                UnitSystem @default(metric)
   /// IANA zone; drives "today" boundaries in stats.
@@ -208,12 +221,14 @@ type BodyMeasurements {
 model User {
   id            String   @id @default(auto()) @map("_id") @db.ObjectId
   email         String   @unique
-  passwordHash  String
+  passwordHash  String?
   emailVerified Boolean  @default(false)
   role          UserRole @default(user)
 
   profile     UserProfile
   preferences UserPreferences
+
+  linkedAccounts LinkedAccount[]
 
   /// Hash of the current refresh token; rotating it revokes the session.
   refreshTokenHash String?

@@ -1,6 +1,15 @@
 import type { Id, IsoDateTime } from './common';
-import type { UserRole } from './enums';
+import type { AuthProvider, UserRole } from './enums';
 import type { User } from './user';
+
+export interface SocialProfile {
+  provider: AuthProvider;
+  subject: string;
+  email?: string;
+  displayName?: string;
+  avatarUrl?: string;
+  emailVerified: boolean;
+}
 
 export interface AuthTokens {
   accessToken: string;
@@ -12,6 +21,13 @@ export interface AuthTokens {
 export interface AuthSession {
   user: User;
   tokens: AuthTokens;
+}
+
+export interface PendingVerification {
+  userId: Id;
+  email: string;
+  emailVerified: false;
+  otpSent: boolean;
 }
 
 /** Decoded JWT payload. `sub` is the user id. */

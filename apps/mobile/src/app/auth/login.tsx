@@ -1,3 +1,4 @@
+import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
@@ -10,7 +11,9 @@ import {
 } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
+import SocialButton from '@/components/welcome/SocialButton';
 import { Brand, Spacing } from '@/constants/theme';
+import { useSocialLogin } from '@/hooks/use-social-login';
 import { useTheme } from '@/hooks/use-theme';
 import { authService } from '@/services/auth.service';
 
@@ -26,6 +29,7 @@ export default function LoginScreen() {
   const [formError, setFormError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const socialLogin = useSocialLogin(isLoading);
 
   const handleEmailChange = (text: string) => {
     setEmail(text);
@@ -203,9 +207,9 @@ export default function LoginScreen() {
             </ThemedText>
           </TouchableOpacity>
 
-          {formError ? (
+          {formError ?? socialLogin.error ? (
             <ThemedText type="small" style={styles.errorMessage}>
-              {formError}
+              {formError ?? socialLogin.error}
             </ThemedText>
           ) : null}
 
@@ -215,6 +219,37 @@ export default function LoginScreen() {
               or
             </ThemedText>
             <View style={[styles.divider, { backgroundColor: theme.textSecondary }]} />
+          </View>
+
+          <View
+            style={[styles.socialRow, socialLogin.isPending && styles.socialRowBusy]}>
+            <SocialButton
+              onClick={() => void socialLogin.signIn('google')}
+              icon={
+                <Image
+                  style={styles.socialIcon}
+                  source={require('@/assets/icons/social/google.svg')}
+                />
+              }
+            />
+            <SocialButton
+              onClick={() => void socialLogin.signIn('facebook')}
+              icon={
+                <Image
+                  style={styles.socialIcon}
+                  source={require('@/assets/icons/social/facebook.svg')}
+                />
+              }
+            />
+            <SocialButton
+              onClick={() => void socialLogin.signIn('x')}
+              icon={
+                <Image
+                  style={styles.socialIcon}
+                  source={require('@/assets/icons/social/x.svg')}
+                />
+              }
+            />
           </View>
 
           <View style={styles.signupContainer}>
@@ -358,6 +393,18 @@ const styles = StyleSheet.create({
   dividerText: {
     fontSize: 14,
     opacity: 0.6,
+  },
+  socialRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-evenly',
+    gap: Spacing.two,
+  },
+  socialRowBusy: {
+    opacity: 0.5,
+  },
+  socialIcon: {
+    width: 28,
+    height: 28,
   },
   signupContainer: {
     flexDirection: 'row',

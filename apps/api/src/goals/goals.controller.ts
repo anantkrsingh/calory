@@ -10,6 +10,12 @@ import {
   Post,
   Query,
 } from '@nestjs/common';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 import type {
   AuthenticatedUser,
   Goal,
@@ -17,6 +23,8 @@ import type {
   Paginated,
 } from '@fitness/types';
 import {
+  goalSchema,
+  goalProgressSchema,
   createGoalSchema,
   goalQuerySchema,
   objectIdSchema,
@@ -27,14 +35,20 @@ import {
 } from '@fitness/validation';
 
 import { CurrentUser } from '../common/decorators';
+import { ApiZodBody, ApiZodQuery, ApiZodResponse } from '../common/swagger';
 import { zodPipe } from '../common/zod-validation.pipe';
 import { GoalsService } from './goals.service';
 
+@ApiTags('goals')
+@ApiBearerAuth('access-token')
 @Controller('goals')
 export class GoalsController {
   constructor(private readonly goals: GoalsService) {}
 
   @Get()
+  @ApiOperation({ summary: 'List your goals' })
+  @ApiZodQuery(goalQuerySchema)
+  @ApiZodResponse(goalSchema, { paginated: true, description: 'Page of goals', name: 'Goal' })
   list(
     @CurrentUser() user: AuthenticatedUser,
     @Query(zodPipe(goalQuerySchema)) query: GoalQueryInput,
@@ -43,6 +57,9 @@ export class GoalsController {
   }
 
   @Get(':id')
+  @ApiOperation({ summary: 'Get one goal' })
+  @ApiResponse({ status: 404, description: 'Not found' })
+  @ApiZodResponse(goalSchema, { description: 'The goal', name: 'Goal' })
   get(
     @CurrentUser() user: AuthenticatedUser,
     @Param('id', zodPipe(objectIdSchema)) id: string,
@@ -51,6 +68,9 @@ export class GoalsController {
   }
 
   @Get(':id/progress')
+  @ApiOperation({ summary: 'Get current progress towards a goal' })
+  @ApiResponse({ status: 404, description: 'Not found' })
+  @ApiZodResponse(goalProgressSchema, { description: 'Progress towards the goal', name: 'GoalProgress' })
   progress(
     @CurrentUser() user: AuthenticatedUser,
     @Param('id', zodPipe(objectIdSchema)) id: string,
@@ -59,6 +79,9 @@ export class GoalsController {
   }
 
   @Post()
+  @ApiOperation({ summary: 'Create a goal' })
+  @ApiZodBody(createGoalSchema)
+  @ApiZodResponse(goalSchema, { status: 201, description: 'Created goal', name: 'Goal' })
   create(
     @CurrentUser() user: AuthenticatedUser,
     @Body(zodPipe(createGoalSchema)) body: CreateGoalInput,
@@ -67,6 +90,10 @@ export class GoalsController {
   }
 
   @Patch(':id')
+  @ApiOperation({ summary: 'Update a goal' })
+  @ApiZodBody(updateGoalSchema)
+  @ApiResponse({ status: 404, description: 'Not found' })
+  @ApiZodResponse(goalSchema, { description: 'Updated goal', name: 'Goal' })
   update(
     @CurrentUser() user: AuthenticatedUser,
     @Param('id', zodPipe(objectIdSchema)) id: string,
@@ -77,6 +104,8 @@ export class GoalsController {
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Delete a goal' })
+  @ApiResponse({ status: 404, description: 'Not found' })
   remove(
     @CurrentUser() user: AuthenticatedUser,
     @Param('id', zodPipe(objectIdSchema)) id: string,

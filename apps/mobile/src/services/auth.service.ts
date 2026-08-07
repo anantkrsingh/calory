@@ -1,8 +1,9 @@
-import type { AuthSession, AuthTokens, User } from '@fitness/types';
+import type { AuthProvider, AuthSession, AuthTokens, User } from '@fitness/types';
 import type {
   ChangePasswordInput,
   LoginInput,
   RegisterInput,
+  SocialLoginInput,
 } from '@fitness/validation';
 
 import type { AxiosInstance } from 'axios';
@@ -31,6 +32,31 @@ export class AuthService extends BaseService {
   async login(input: LoginInput): Promise<AuthSession> {
     const { data: session } = await this.client.post<AuthSession>(
       this.url('login'),
+      input,
+      { skipAuth: true },
+    );
+    authState.setSession(session);
+    return session;
+  }
+
+  async loginGoogle(input: SocialLoginInput): Promise<AuthSession> {
+    return this.loginSocial('google', input);
+  }
+
+  async loginFacebook(input: SocialLoginInput): Promise<AuthSession> {
+    return this.loginSocial('facebook', input);
+  }
+
+  async loginX(input: SocialLoginInput): Promise<AuthSession> {
+    return this.loginSocial('x', input);
+  }
+
+  private async loginSocial(
+    provider: AuthProvider,
+    input: SocialLoginInput,
+  ): Promise<AuthSession> {
+    const { data: session } = await this.client.post<AuthSession>(
+      this.url(provider),
       input,
       { skipAuth: true },
     );
