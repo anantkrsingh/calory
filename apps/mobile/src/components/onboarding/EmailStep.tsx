@@ -9,12 +9,15 @@ import { useTheme } from '@/hooks/use-theme';
 interface EmailStepProps {
   email: string;
   onChange: (data: { email: string }) => void;
+  /** Server-side error (e.g. failed to send the verification code), shown alongside field validation. */
+  submitError?: string | null;
 }
 
-export default function EmailStep({ email, onChange }: EmailStepProps) {
+export default function EmailStep({ email, onChange, submitError }: EmailStepProps) {
   const theme = useTheme();
   const [input, setInput] = useState(email);
   const [error, setError] = useState<string | null>(null);
+  const displayedError = error ?? submitError;
 
   const handleChange = (text: string) => {
     setInput(text);
@@ -51,7 +54,7 @@ export default function EmailStep({ email, onChange }: EmailStepProps) {
             {
               backgroundColor: theme.backgroundElement,
               color: theme.text,
-              borderWidth: error ? 1.5 : 0,
+              borderWidth: displayedError ? 1.5 : 0,
               borderColor: '#ff3b30',
             },
           ]}
@@ -65,7 +68,7 @@ export default function EmailStep({ email, onChange }: EmailStepProps) {
           autoCorrect={false}
           returnKeyType="done"
         />
-        {error && <ThemedText type="small" style={styles.errorText}>{error}</ThemedText>}
+        {displayedError && <ThemedText type="small" style={styles.errorText}>{displayedError}</ThemedText>}
       </View>
 
       <ThemedText type="small" style={[styles.hint, { color: theme.textSecondary }]}>

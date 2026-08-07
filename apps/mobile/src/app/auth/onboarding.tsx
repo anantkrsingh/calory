@@ -6,6 +6,7 @@ import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { SlideInLeft, SlideInRight, SlideOutLeft, SlideOutRight } from 'react-native-reanimated';
 
+import VerifyEmailSheet, { type VerifyEmailSheetRef } from '@/components/auth/VerifyEmailSheet';
 import CircleArrowButton from '@/components/ui/CircleArrowButton';
 import CloseButton from '@/components/ui/CloseButton';
 import DateOfBirthPicker, { type DateOfBirthPickerRef } from '@/components/ui/DateOfBirthPicker';
@@ -21,13 +22,20 @@ import {
 } from '@/components/onboarding';
 import { Brand, Pressed, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { useSendOtp } from '@/queries';
+import { selectUser, useAuthStore } from '@/stores/auth.store';
 import { useOnboardingStore } from '@/stores/onboarding.store';
+
+const STEPS_WITH_ACCOUNT = 5; // Sex, BodyMetrics, Dob, Goals, Activity — skips Email/Name.
 
 export default function OnboardingScreen() {
   const theme = useTheme();
   const router = useRouter();
+  const currentUser = useAuthStore(selectUser);
+  const isLoggedIn = currentUser !== null;
   const currentStep = useOnboardingStore((state) => state.currentStep);
   const totalSteps = useOnboardingStore((state) => state.totalSteps);
+  const effectiveTotalSteps = isLoggedIn ? STEPS_WITH_ACCOUNT : totalSteps;
   const userData = useOnboardingStore((state) => state.userData);
   const nextStep = useOnboardingStore((state) => state.nextStep);
   const prevStep = useOnboardingStore((state) => state.prevStep);
@@ -38,6 +46,9 @@ export default function OnboardingScreen() {
   // step frame below has real height to scroll — see stepViewport/stepContent.
   const [stepHeight, setStepHeight] = useState<number | undefined>(undefined);
   const dobPickerRef = useRef<DateOfBirthPickerRef>(null);
+  const verifyEmailSheetRef = useRef<VerifyEmailSheetRef>(null);
+  const [emailError, setEmailError] = useState<string | null>(null);
+  const sendOtp = useSendOtp();
 
   const canContinue = isStepComplete(currentStep, userData);
 
@@ -54,13 +65,26 @@ export default function OnboardingScreen() {
   };
 
   const handleNext = () => {
-    goToStep('forward', () => {
-      if (currentStep < totalSteps) {
-        nextStep();
-      } else {
-        router.push('/auth/verify-email');
-      }
-    });
+    if (currentStep < effectiveTotalSteps) {
+      goToStep('forward', nextStep);
+      return;
+    }
+
+    if (isLoggedIn) {
+      // Already has a verified account — the fitness profile alone is enough to finish.
+      resetOnboarding();
+      router.replace('/');
+      return;
+    }
+
+    setEmailError(null);
+    sendOtp.mutate(
+      { email: userData.email },
+      {
+        onSuccess: () => verifyEmailSheetRef.current?.present(),
+        onError: () => setEmailError('Failed to send verification code. Please try again.'),
+      },
+    );
   };
 
   // Step 1 has no Back button — the close button in the top bar exits the flow instead.
@@ -108,9 +132,15 @@ export default function OnboardingScreen() {
           />
         );
       case 6:
-        return <EmailStep email={userData.email} onChange={updateUserData} />;
-      case 7:
         return <NameStep displayName={userData.displayName} onChange={updateUserData} />;
+      case 7:
+        return (
+          <EmailStep
+            email={userData.email}
+            onChange={updateUserData}
+            submitError={emailError}
+          />
+        );
       default:
         return null;
     }
@@ -124,7 +154,7 @@ export default function OnboardingScreen() {
         <CloseButton onPress={handleClose} accessibilityLabel="Cancel sign up" />
       </View>
 
-      <SegmentedProgressBar currentStep={currentStep} totalSteps={totalSteps} />
+      <SegmentedProgressBar currentStep={currentStep} totalSteps={effectiveTotalSteps} />
 
       <KeyboardAwareScrollView
         style={styles.scrollView}
@@ -174,7 +204,8 @@ export default function OnboardingScreen() {
         <CircleArrowButton
           onPress={handleNext}
           disabled={!canContinue}
-          accessibilityLabel={currentStep < totalSteps ? 'Continue' : 'Finish'}
+          loading={sendOtp.isPending}
+          accessibilityLabel={currentStep < effectiveTotalSteps ? 'Continue' : 'Finish'}
           activeColor={Brand.accent}
           inactiveColor={theme.backgroundElement}
         />
@@ -188,6 +219,8 @@ export default function OnboardingScreen() {
         value={userData.dateOfBirth}
         onChange={(isoDate) => updateUserData({ dateOfBirth: isoDate })}
       />
+
+      {!isLoggedIn ? <VerifyEmailSheet ref={verifyEmailSheetRef} /> : null}
     </SafeAreaView>
   );
 }
@@ -207,9 +240,9 @@ function isStepComplete(step: number, userData: OnboardingUserData): boolean {
     case 5:
       return userData.activityLevel !== undefined;
     case 6:
-      return userData.email.trim() !== '';
-    case 7:
       return userData.displayName.trim() !== '';
+    case 7:
+      return userData.email.trim() !== '';
     default:
       return false;
   }

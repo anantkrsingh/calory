@@ -1,9 +1,11 @@
 import { SymbolView } from 'expo-symbols';
-import { Pressable, StyleSheet, Text } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text } from 'react-native';
 
 type CircleArrowButtonProps = {
   onPress: () => void;
   disabled?: boolean;
+  /** Shows a spinner instead of the arrow and blocks interaction, without dimming to inactiveColor. */
+  loading?: boolean;
   accessibilityLabel?: string;
   activeColor: string;
   inactiveColor: string;
@@ -13,29 +15,36 @@ type CircleArrowButtonProps = {
 export default function CircleArrowButton({
   onPress,
   disabled = false,
+  loading = false,
   accessibilityLabel = 'Next',
   activeColor,
   inactiveColor,
 }: CircleArrowButtonProps) {
+  const interactionDisabled = disabled || loading;
+
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
-      accessibilityState={{ disabled }}
+      accessibilityState={{ disabled: interactionDisabled, busy: loading }}
       hitSlop={8}
       onPress={onPress}
-      disabled={disabled}
+      disabled={interactionDisabled}
       style={({ pressed }) => [
         styles.button,
         { backgroundColor: disabled ? inactiveColor : activeColor, opacity: pressed ? 0.85 : 1 },
       ]}>
-      <SymbolView
-        name="arrow.right"
-        size={22}
-        weight="semibold"
-        tintColor="white"
-        fallback={<Text style={styles.fallbackGlyph}>→</Text>}
-      />
+      {loading ? (
+        <ActivityIndicator color="white" />
+      ) : (
+        <SymbolView
+          name="arrow.right"
+          size={22}
+          weight="semibold"
+          tintColor="white"
+          fallback={<Text style={styles.fallbackGlyph}>→</Text>}
+        />
+      )}
     </Pressable>
   );
 }

@@ -1,8 +1,10 @@
 import type { ActivityLevel } from '@fitness/types';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Armchair, Check, Dumbbell, Flame, Footprints, PersonStanding, type LucideIcon } from 'lucide-react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import Chip from '@/components/ui/Chip';
 import { Brand, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
@@ -27,20 +29,12 @@ const ACTIVITY_LABELS: Record<ActivityLevel, string> = {
   very_active: 'Extremely Active',
 };
 
-const ACTIVITY_DESCRIPTIONS: Record<ActivityLevel, string> = {
-  sedentary: 'Little or no exercise',
-  light: 'Light exercise 1-3 days/week',
-  moderate: 'Moderate exercise 3-5 days/week',
-  active: 'Hard exercise 6-7 days a week',
-  very_active: 'Very hard exercise, physical job, or training twice a day',
-};
-
-const ACTIVITY_ICONS: Record<ActivityLevel, string> = {
-  sedentary: '🛋️',
-  light: '🚶',
-  moderate: '🏃',
-  active: '💪',
-  very_active: '🏋️',
+const ACTIVITY_ICONS: Record<ActivityLevel, LucideIcon> = {
+  sedentary: Armchair,
+  light: Footprints,
+  moderate: PersonStanding,
+  active: Dumbbell,
+  very_active: Flame,
 };
 
 export default function ActivityStep({ activityLevel, onChange }: ActivityStepProps) {
@@ -58,36 +52,22 @@ export default function ActivityStep({ activityLevel, onChange }: ActivityStepPr
       <View style={styles.optionsContainer}>
         {ACTIVITY_LEVELS.map((level) => {
           const isSelected = activityLevel === level;
+          const Icon = ACTIVITY_ICONS[level];
 
           return (
-            <Pressable
+            <Chip
               key={level}
-              style={({ pressed }) => [
-                styles.optionCard,
-                {
-                  backgroundColor: isSelected ? Brand.accent : theme.backgroundElement,
-                  borderColor: theme.textSecondary,
-                  opacity: pressed ? 0.7 : 1,
-                },
-              ]}
-              onPress={() => onChange({ activityLevel: level })}>
-              <ThemedText type="title" style={styles.optionIcon}>
-                {ACTIVITY_ICONS[level]}
-              </ThemedText>
-              <ThemedText
-                type="smallBold"
-                style={[styles.optionTitle, { color: isSelected ? 'white' : theme.text }]}>
-                {ACTIVITY_LABELS[level]}
-              </ThemedText>
-              <ThemedText
-                type="small"
-                style={[
-                  styles.optionDescription,
-                  { color: isSelected ? 'rgba(255, 255, 255, 0.8)' : theme.textSecondary },
-                ]}>
-                {ACTIVITY_DESCRIPTIONS[level]}
-              </ThemedText>
-            </Pressable>
+              label={ACTIVITY_LABELS[level]}
+              selected={isSelected}
+              onPress={() => onChange({ activityLevel: level })}
+              icon={
+                isSelected ? (
+                  <Check size={18} color={Brand.accent} />
+                ) : (
+                  <Icon size={18} color={theme.text} />
+                )
+              }
+            />
           );
         })}
       </View>
@@ -114,27 +94,10 @@ const styles = StyleSheet.create({
   },
   optionsContainer: {
     width: '100%',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: Spacing.two,
     marginBottom: Spacing.four,
-  },
-  optionCard: {
-    width: '100%',
-    padding: Spacing.three,
-    borderRadius: 12,
-    borderCurve: 'continuous',
-    borderWidth: 1,
-    alignItems: 'flex-start',
-    gap: Spacing.one,
-  },
-  optionIcon: {
-    fontSize: 32,
-  },
-  optionTitle: {
-    textAlign: 'left',
-  },
-  optionDescription: {
-    textAlign: 'left',
-    fontSize: 12,
   },
   hint: {
     fontSize: 12,

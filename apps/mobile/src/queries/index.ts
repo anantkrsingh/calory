@@ -6,3 +6,4 @@ export {
   useMe,
   useRegister,
 } from './auth.queries';
+export { useSendOtp, useVerifyOtp } from './otp.queries';
