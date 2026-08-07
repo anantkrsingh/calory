@@ -1,7 +1,8 @@
 import { useRouter } from 'expo-router';
+import { SymbolView } from 'expo-symbols';
 import { useRef, useState } from 'react';
-import { StyleSheet, TouchableOpacity, View } from 'react-native';
-import { KeyboardAwareScrollView, KeyboardStickyView } from 'react-native-keyboard-controller';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { SlideInLeft, SlideInRight, SlideOutLeft, SlideOutRight } from 'react-native-reanimated';
 
@@ -11,14 +12,14 @@ import DateOfBirthPicker, { type DateOfBirthPickerRef } from '@/components/ui/Da
 import {
   ActivityStep,
   BodyMetricsStep,
-  DobSexStep,
+  DobStep,
   EmailStep,
   GoalsStep,
   NameStep,
   SegmentedProgressBar,
+  SexStep,
 } from '@/components/onboarding';
-import { ThemedText } from '@/components/themed-text';
-import { Brand, Spacing } from '@/constants/theme';
+import { Brand, Pressed, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useOnboardingStore } from '@/stores/onboarding.store';
 
@@ -75,14 +76,7 @@ export default function OnboardingScreen() {
   const renderStep = () => {
     switch (currentStep) {
       case 1:
-        return (
-          <DobSexStep
-            dateOfBirth={userData.dateOfBirth}
-            sex={userData.sex}
-            onChange={updateUserData}
-            onOpenDatePicker={() => dobPickerRef.current?.present()}
-          />
-        );
+        return <SexStep sex={userData.sex} onChange={updateUserData} />;
       case 2:
         return (
           <BodyMetricsStep
@@ -94,9 +88,9 @@ export default function OnboardingScreen() {
         );
       case 3:
         return (
-          <ActivityStep
-            activityLevel={userData.activityLevel}
-            onChange={updateUserData}
+          <DobStep
+            dateOfBirth={userData.dateOfBirth}
+            onOpenDatePicker={() => dobPickerRef.current?.present()}
           />
         );
       case 4:
@@ -107,8 +101,15 @@ export default function OnboardingScreen() {
           />
         );
       case 5:
-        return <EmailStep email={userData.email} onChange={updateUserData} />;
+        return (
+          <ActivityStep
+            activityLevel={userData.activityLevel}
+            onChange={updateUserData}
+          />
+        );
       case 6:
+        return <EmailStep email={userData.email} onChange={updateUserData} />;
+      case 7:
         return <NameStep displayName={userData.displayName} onChange={updateUserData} />;
       default:
         return null;
@@ -147,28 +148,37 @@ export default function OnboardingScreen() {
         </View>
       </KeyboardAwareScrollView>
 
-      {/* Pinned outside the scroll view so it tracks the keyboard instead of scrolling with content. */}
-      <KeyboardStickyView offset={{ closed: 0, opened: Spacing.two }}>
-        <View style={styles.buttonContainer}>
-          {currentStep > 1 ? (
-            <TouchableOpacity
-              style={[styles.backButton, { backgroundColor: theme.backgroundElement }]}
-              onPress={handleBack}>
-              <ThemedText type="smallBold" style={styles.backButtonText}>
-                Back
-              </ThemedText>
-            </TouchableOpacity>
-          ) : null}
+      {/* Kept outside the scroll view but not keyboard-sticky, so it stays fixed at the
+          bottom instead of tracking the keyboard up over the input fields. */}
+      <View style={styles.buttonContainer}>
+        {currentStep > 1 ? (
+          <Pressable
+            style={({ pressed }) => [
+              styles.backButton,
+              { backgroundColor: theme.backgroundElement },
+              pressed && Pressed,
+            ]}
+            onPress={handleBack}
+            accessibilityRole="button"
+            accessibilityLabel="Back">
+            <SymbolView
+              name="arrow.left"
+              size={20}
+              weight="semibold"
+              tintColor={theme.text}
+              fallback={<Text style={[styles.backButtonFallback, { color: theme.text }]}>←</Text>}
+            />
+          </Pressable>
+        ) : null}
 
-          <CircleArrowButton
-            onPress={handleNext}
-            disabled={!canContinue}
-            accessibilityLabel={currentStep < totalSteps ? 'Continue' : 'Finish'}
-            activeColor={Brand.accent}
-            inactiveColor={theme.backgroundElement}
-          />
-        </View>
-      </KeyboardStickyView>
+        <CircleArrowButton
+          onPress={handleNext}
+          disabled={!canContinue}
+          accessibilityLabel={currentStep < totalSteps ? 'Continue' : 'Finish'}
+          activeColor={Brand.accent}
+          inactiveColor={theme.backgroundElement}
+        />
+      </View>
 
       {/* Rendered here, outside the animated/absolute step viewport, so the native
           sheet's auto-height measurement isn't broken by flex/overflow ancestors —
@@ -187,16 +197,18 @@ type OnboardingUserData = ReturnType<typeof useOnboardingStore.getState>['userDa
 function isStepComplete(step: number, userData: OnboardingUserData): boolean {
   switch (step) {
     case 1:
-      return (userData.dateOfBirth ?? '').trim() !== '' && userData.sex !== undefined;
+      return userData.sex !== undefined;
     case 2:
       return userData.heightCm !== undefined && userData.weightKg !== undefined;
     case 3:
-      return userData.activityLevel !== undefined;
+      return (userData.dateOfBirth ?? '').trim() !== '';
     case 4:
       return (userData.fitnessGoals?.length ?? 0) > 0;
     case 5:
-      return userData.email.trim() !== '';
+      return userData.activityLevel !== undefined;
     case 6:
+      return userData.email.trim() !== '';
+    case 7:
       return userData.displayName.trim() !== '';
     default:
       return false;
@@ -245,14 +257,15 @@ const styles = StyleSheet.create({
   },
   backButton: {
     marginRight: 'auto',
-    paddingHorizontal: Spacing.four,
-    paddingVertical: Spacing.three,
-    borderRadius: 12,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    borderCurve: 'continuous',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  backButtonText: {
-    color: '#666',
-    fontSize: 14,
+  backButtonFallback: {
+    fontSize: 22,
+    fontWeight: '600',
   },
 });

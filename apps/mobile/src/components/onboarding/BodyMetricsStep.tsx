@@ -134,7 +134,8 @@ export default function BodyMetricsStep({
             {
               backgroundColor: theme.backgroundElement,
               color: theme.text,
-              borderColor: heightError ? '#ff3b30' : theme.textSecondary,
+              borderWidth: heightError ? 1.5 : 0,
+              borderColor: '#ff3b30',
             },
           ]}
           placeholder={unitSystem === 'imperial' ? 'e.g., 69' : 'e.g., 175'}
@@ -161,7 +162,8 @@ export default function BodyMetricsStep({
             {
               backgroundColor: theme.backgroundElement,
               color: theme.text,
-              borderColor: weightError ? '#ff3b30' : theme.textSecondary,
+              borderWidth: weightError ? 1.5 : 0,
+              borderColor: '#ff3b30',
             },
           ]}
           placeholder={unitSystem === 'imperial' ? 'e.g., 155' : 'e.g., 70'}
@@ -216,10 +218,9 @@ const styles = StyleSheet.create({
   },
   input: {
     width: '100%',
-    paddingHorizontal: Spacing.three,
+    paddingHorizontal: Spacing.four,
     paddingVertical: Spacing.three,
-    borderRadius: 12,
-    borderWidth: 1,
+    borderRadius: 999,
     fontSize: 16,
     fontWeight: '500',
   },

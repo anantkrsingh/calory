@@ -74,3 +74,9 @@ export const Spacing = {
 
 export const BottomTabInset = Platform.select({ ios: 50, android: 80 }) ?? 0;
 export const MaxContentWidth = 800;
+
+/** Standard `Pressable` press-in feedback — mirrors the welcome screen's "Get started" button. */
+export const Pressed = {
+  opacity: 0.85,
+  transform: [{ scale: 0.99 }],
+} as const;

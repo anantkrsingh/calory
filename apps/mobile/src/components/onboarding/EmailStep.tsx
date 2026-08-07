@@ -48,10 +48,11 @@ export default function EmailStep({ email, onChange }: EmailStepProps) {
         <TextInput
           style={[
             styles.input,
-            { 
+            {
               backgroundColor: theme.backgroundElement,
               color: theme.text,
-              borderColor: error ? '#ff3b30' : theme.textSecondary,
+              borderWidth: error ? 1.5 : 0,
+              borderColor: '#ff3b30',
             },
           ]}
           placeholder="Enter your email"
@@ -93,10 +94,9 @@ const styles = StyleSheet.create({
   },
   input: {
     width: '100%',
-    paddingHorizontal: Spacing.three,
+    paddingHorizontal: Spacing.four,
     paddingVertical: Spacing.three,
-    borderRadius: 12,
-    borderWidth: 1,
+    borderRadius: 999,
     fontSize: 16,
     fontWeight: '500',
   },

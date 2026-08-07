@@ -1,13 +1,13 @@
 import { AUTH } from '@fitness/config';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
+import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
 import CloseButton from '@/components/ui/CloseButton';
-import { Brand, Spacing } from '@/constants/theme';
+import { Brand, Pressed, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { authService } from '@/services/auth.service';
 import { selectError, selectIsLoading, useOnboardingStore } from '@/stores/onboarding.store';
@@ -142,13 +142,16 @@ export default function CreatePasswordScreen() {
               autoCorrect={false}
               returnKeyType="done"
             />
-            <TouchableOpacity
-              style={styles.eyeIcon}
+            <Pressable
+              style={({ pressed }) => [
+                styles.eyeIcon,
+                pressed && { opacity: Pressed.opacity, transform: [{ translateY: -12 }, { scale: 0.99 }] },
+              ]}
               onPress={() => setShowPassword(!showPassword)}>
               <ThemedText type="default" style={styles.eyeIconText}>
                 {showPassword ? '👁️' : '👁️‍🗨️'}
               </ThemedText>
-            </TouchableOpacity>
+            </Pressable>
           </View>
           {errors.password ? (
             <ThemedText type="small" style={styles.errorText}>{errors.password}</ThemedText>
@@ -189,13 +192,16 @@ export default function CreatePasswordScreen() {
               autoCorrect={false}
               returnKeyType="done"
             />
-            <TouchableOpacity
-              style={styles.eyeIcon}
+            <Pressable
+              style={({ pressed }) => [
+                styles.eyeIcon,
+                pressed && { opacity: Pressed.opacity, transform: [{ translateY: -12 }, { scale: 0.99 }] },
+              ]}
               onPress={() => setShowConfirmPassword(!showConfirmPassword)}>
               <ThemedText type="default" style={styles.eyeIconText}>
                 {showConfirmPassword ? '👁️' : '👁️‍🗨️'}
               </ThemedText>
-            </TouchableOpacity>
+            </Pressable>
           </View>
           {errors.confirmPassword ? (
             <ThemedText type="small" style={styles.errorText}>{errors.confirmPassword}</ThemedText>
@@ -230,30 +236,35 @@ export default function CreatePasswordScreen() {
           </ThemedText>
         ) : null}
 
-        <TouchableOpacity
-          style={[
+        <Pressable
+          style={({ pressed }) => [
             styles.submitButton,
-            { 
+            {
               backgroundColor: password && confirmPassword && password === confirmPassword && !errors.password
                 ? Brand.accent
                 : theme.backgroundElement,
               opacity: password && confirmPassword && password === confirmPassword && !errors.password ? 1 : 0.5,
             },
+            pressed && Pressed,
           ]}
           onPress={handleSubmit}
           disabled={!password || !confirmPassword || password !== confirmPassword || !!errors.password || isLoading}>
           <ThemedText type="smallBold" style={styles.submitButtonText}>
             {isLoading ? 'Creating Account...' : 'Create Account'}
           </ThemedText>
-        </TouchableOpacity>
+        </Pressable>
 
-        <TouchableOpacity
-          style={[styles.backButton, { backgroundColor: theme.backgroundElement }]}
+        <Pressable
+          style={({ pressed }) => [
+            styles.backButton,
+            { backgroundColor: theme.backgroundElement },
+            pressed && Pressed,
+          ]}
           onPress={() => router.back()}>
           <ThemedText type="smallBold" style={styles.backButtonText}>
             Back
           </ThemedText>
-        </TouchableOpacity>
+        </Pressable>
       </KeyboardAwareScrollView>
     </SafeAreaView>
   );

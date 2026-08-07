@@ -38,7 +38,7 @@ interface OnboardingActions {
 
 export type OnboardingStore = OnboardingState & OnboardingActions;
 
-const TOTAL_STEPS = 6;
+const TOTAL_STEPS = 7;
 
 const INITIAL_USER_DATA: OnboardingUserData = {
   email: '',

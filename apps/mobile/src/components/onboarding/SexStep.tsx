@@ -8,26 +8,9 @@ import { Brand, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import type { Sex } from '@fitness/types';
 
-interface DobSexStepProps {
-  dateOfBirth: string | undefined;
+interface SexStepProps {
   sex: Sex | undefined;
-  onChange: (data: { dateOfBirth?: string; sex?: Sex }) => void;
-  onOpenDatePicker: () => void;
-}
-
-const MONTH_NAMES = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December',
-];
-
-function formatDisplayDate(iso: string): string {
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
-  if (!match) return iso;
-
-  const year = Number(match[1]);
-  const month = Number(match[2]) - 1;
-  const day = Number(match[3]);
-  return `${MONTH_NAMES[month]} ${day}, ${year}`;
+  onChange: (data: { sex?: Sex }) => void;
 }
 
 interface SexOption {
@@ -47,7 +30,7 @@ const PREFER_NOT_TO_SAY_OPTION: SexOption = {
   Icon: EyeOff,
 };
 
-export default function DobSexStep({ dateOfBirth, sex, onChange, onOpenDatePicker }: DobSexStepProps) {
+export default function SexStep({ sex, onChange }: SexStepProps) {
   const theme = useTheme();
   const [selectedSex, setSelectedSex] = useState<Sex | undefined>(sex);
 
@@ -63,10 +46,7 @@ export default function DobSexStep({ dateOfBirth, sex, onChange, onOpenDatePicke
         key={value}
         style={[
           styles.sexOption,
-          {
-            backgroundColor: selected ? Brand.accent : theme.backgroundElement,
-            borderColor: theme.textSecondary,
-          },
+          { backgroundColor: selected ? Brand.accent : theme.backgroundElement },
         ]}
         onPress={() => handleSexSelect(value)}>
         <Icon
@@ -94,27 +74,6 @@ export default function DobSexStep({ dateOfBirth, sex, onChange, onOpenDatePicke
       <ThemedText type="small" style={[styles.subtitle, { color: theme.textSecondary }]}>
         This helps us personalize your experience
       </ThemedText>
-      <View style={styles.inputGroup}>
-        <ThemedText type="smallBold" style={styles.label}>
-          Date of Birth
-        </ThemedText>
-
-        <Pressable
-          onPress={onOpenDatePicker}
-          style={[
-            styles.dateInput,
-            {
-              backgroundColor: theme.backgroundElement,
-              borderColor: theme.textSecondary,
-            },
-          ]}>
-          <ThemedText
-            type="default"
-            style={dateOfBirth ? undefined : { color: theme.textSecondary }}>
-            {dateOfBirth ? formatDisplayDate(dateOfBirth) : 'Select your date of birth'}
-          </ThemedText>
-        </Pressable>
-      </View>
       <View style={styles.inputGroup}>
         <ThemedText type="smallBold" style={styles.label}>
           Sex
@@ -151,13 +110,6 @@ const styles = StyleSheet.create({
   label: {
     marginBottom: Spacing.two,
   },
-  dateInput: {
-    width: '100%',
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.three,
-    borderRadius: 12,
-    borderWidth: 1,
-  },
   sexOptionsRow: {
     flexDirection: 'row',
     gap: Spacing.two,
@@ -168,7 +120,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.two,
     paddingVertical: Spacing.two,
     borderRadius: 12,
-    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
