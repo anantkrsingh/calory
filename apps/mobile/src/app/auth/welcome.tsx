@@ -1,6 +1,7 @@
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
+import { useRef } from "react";
 import {
   Pressable,
   StyleSheet,
@@ -11,10 +12,12 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { ThemedText } from "@/components/themed-text";
+import PrimaryButton from "@/components/ui/PrimaryButton";
 import { Brand, Spacing } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { useTheme } from "@/hooks/use-theme";
 import SocialButton from "@/components/welcome/SocialButton";
+import LoginSheet, { type LoginSheetRef } from "@/components/auth/LoginSheet";
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports -- no ambient *.png module types in SDK 57
 const heroArt = require("../../../assets/images/arts/welcome/main.png");
@@ -25,6 +28,7 @@ export default function WelcomeScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { height } = useWindowDimensions();
+  const loginSheetRef = useRef<LoginSheetRef>(null);
 
   const isDark = scheme === "dark";
   const heroHeight = Math.round(height * 0.62);
@@ -93,22 +97,14 @@ export default function WelcomeScreen() {
           goals that actually matter.
         </ThemedText>
 
-        {/* Ink frame doubles as the outline — padded on every side, heavier at the bottom. */}
-        <Pressable
-          accessibilityRole="button"
+        <PrimaryButton
+          label="Get started"
           onPress={() => router.push("/auth/onboarding")}
-          style={({ pressed }) => [
-            styles.primaryButtonFrame,
+          style={[
+            styles.getStartedSpacing,
             isDark && { backgroundColor: theme.backgroundElement },
-            pressed && styles.pressed,
           ]}
-        >
-          <View style={styles.primaryButtonFill}>
-            <ThemedText fontWeight="bold" style={styles.primaryButtonText}>
-              Get started
-            </ThemedText>
-          </View>
-        </Pressable>
+        />
         <View style={{ flexDirection: "row" ,justifyContent:"space-evenly",gap:10}}>
           <SocialButton
             onClick={() => {}}
@@ -149,7 +145,7 @@ export default function WelcomeScreen() {
           <Pressable
             accessibilityRole="button"
             hitSlop={8}
-            onPress={() => router.push("/auth/login")}
+            onPress={() => loginSheetRef.current?.present()}
           >
             <ThemedText fontWeight="bold" style={styles.signInLink}>
               Sign In
@@ -171,6 +167,8 @@ export default function WelcomeScreen() {
           </ThemedText>
         </ThemedText>
       </View>
+
+      <LoginSheet ref={loginSheetRef} />
     </View>
   );
 }
@@ -258,26 +256,8 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 16,
   },
-  primaryButtonFrame: {
-    borderRadius: 999,
-    backgroundColor: Brand.ctaOutline,
-    padding: 3,
-    paddingBottom: 6,
-    paddingHorizontal: 4,
+  getStartedSpacing: {
     marginTop: Spacing.four,
-  },
-  primaryButtonFill: {
-    height: 58,
-    borderRadius: 999,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: Brand.ctaFill,
-  },
-  primaryButtonText: {
-    color: Brand.ctaOutline,
-    fontSize: 20,
-    lineHeight: 26,
-    letterSpacing: -0.2,
   },
   googleButton: {
     flexDirection: "row",
@@ -335,9 +315,5 @@ const styles = StyleSheet.create({
     fontSize: 11,
     lineHeight: 16,
     textDecorationLine: "underline",
-  },
-  pressed: {
-    opacity: 0.85,
-    transform: [{ scale: 0.99 }],
   },
 });
