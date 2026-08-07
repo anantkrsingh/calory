@@ -158,7 +158,16 @@ caches the old identifier and regenerates a Java file that will not compile.
 ## Known gaps
 
 - **Web** — Google's web support is paywalled and `react-native-fbsdk-next` has no
-  web build, so social login is Android/iOS only. X would still work on web.
+  web build, so social login is Android/iOS only. X would still work on web. A
+  `social-auth.web.ts` using the browser flow would restore it; Metro picks the
+  file per platform, so nothing else would change.
+- **Native SDK vs `expo-auth-session`** — Google is on the native SDK because a
+  Web OAuth client rejects the `mobile://` redirect ("must contain a domain").
+  That decision is reversible. Google *does* accept `http://localhost` redirects,
+  and an HTTPS callback on the deployed API would work as well, so a
+  browser-based flow remains viable — it would cost a callback endpoint, CSRF
+  state handling, and the browser UX, but would drop the native dependency and
+  work on web. Not worth revisiting while Android is the only target.
 - **OTP storage** is an in-memory `Map` (pre-existing): it does not survive a
   restart and will not work across multiple API instances. Needs Redis before
   production.
