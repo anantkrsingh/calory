@@ -1,7 +1,8 @@
 import { LIMITS, UNIT_CONVERSION } from '@fitness/config';
 import type { UnitSystem } from '@fitness/types';
+import { SegmentedControl } from '@expo/ui/community/segmented-control';
 import { useState } from 'react';
-import { StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, TextInput, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -114,15 +115,12 @@ export default function BodyMetricsStep({
       </ThemedText>
 
       <View style={styles.unitToggle}>
-        <UnitButton
-          label="Metric"
-          isActive={unitSystem === 'metric'}
-          onPress={() => handleUnitChange('metric')}
-        />
-        <UnitButton
-          label="Imperial"
-          isActive={unitSystem === 'imperial'}
-          onPress={() => handleUnitChange('imperial')}
+        <SegmentedControl
+          values={['Metric', 'Imperial']}
+          selectedIndex={unitSystem === 'metric' ? 0 : 1}
+          onValueChange={(value) => handleUnitChange(value.toLowerCase() as UnitSystem)}
+          tintColor={Brand.accent}
+          style={styles.segmentedControl}
         />
       </View>
 
@@ -187,34 +185,6 @@ export default function BodyMetricsStep({
   );
 }
 
-function UnitButton({
-  label,
-  isActive,
-  onPress,
-}: {
-  label: string;
-  isActive: boolean;
-  onPress: () => void;
-}) {
-  const theme = useTheme();
-
-  return (
-    <TouchableOpacity
-      style={[
-        styles.unitButton,
-        {
-          backgroundColor: isActive ? Brand.accent : theme.backgroundElement,
-          borderColor: theme.textSecondary,
-        },
-      ]}
-      onPress={onPress}>
-      <ThemedText type="small" style={{ color: isActive ? 'white' : theme.text }}>
-        {label}
-      </ThemedText>
-    </TouchableOpacity>
-  );
-}
-
 const styles = StyleSheet.create({
   container: {
     width: '100%',
@@ -230,17 +200,12 @@ const styles = StyleSheet.create({
   },
   unitToggle: {
     flexDirection: 'row',
-    gap: Spacing.two,
+    justifyContent: 'flex-end',
     marginBottom: Spacing.four,
   },
-  unitButton: {
-    flex: 1,
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.three,
-    borderRadius: 12,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
+  segmentedControl: {
+    width: 180,
+    height: 32,
   },
   inputGroup: {
     width: '100%',
