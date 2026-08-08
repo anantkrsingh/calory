@@ -19,7 +19,9 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.calory.fitness"
+      "package": "com.calory.fitness",
+      "googleServicesFile": "./google-services.json"
+
     },
     "web": {
       "output": "static",
