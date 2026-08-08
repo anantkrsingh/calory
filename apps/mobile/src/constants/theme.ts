@@ -26,26 +26,20 @@ export const Colors = {
 
 export type ThemeColor = keyof typeof Colors.light & keyof typeof Colors.dark;
 
-/** Sampled from the welcome screen's hero illustration so the whole app reads as one system. */
 export const Brand = {
   accent: '#EF5A24',
   teal: '#23B3A6',
   ink: '#1F4E4C',
   cream: '#F7E0B0',
-  /** Outlined-pill CTA: muted sage fill inside a heavy ink frame. */
   ctaFill: '#9DC6C5',
   ctaOutline: '#0F0F0F',
 } as const;
 
 export const Fonts = Platform.select({
   ios: {
-    /** iOS `UIFontDescriptorSystemDesignDefault` */
     sans: 'system-ui',
-    /** iOS `UIFontDescriptorSystemDesignSerif` */
     serif: 'ui-serif',
-    /** iOS `UIFontDescriptorSystemDesignRounded` */
     rounded: 'ui-rounded',
-    /** iOS `UIFontDescriptorSystemDesignMonospaced` */
     mono: 'ui-monospace',
   },
   default: {
