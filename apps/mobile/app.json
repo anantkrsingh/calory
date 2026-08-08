@@ -38,12 +38,12 @@
       [
         "expo-font",
         {
-          "fonts": [
-            "./assets/fonts/lucon.ttf"
-          ]
+          "fonts": ["./assets/fonts/lucon.ttf"]
         }
       ],
-      "@react-native-google-signin/google-signin"
+      "@react-native-google-signin/google-signin",
+      "@react-native-firebase/app",
+      "@react-native-firebase/auth"
     ],
     "experiments": {
       "typedRoutes": true,

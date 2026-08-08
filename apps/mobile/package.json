@@ -10,6 +10,8 @@
     "@fitness/types": "workspace:*",
     "@fitness/validation": "workspace:*",
     "@lodev09/react-native-true-sheet": "^3.11.9",
+    "@react-native-firebase/app": "^26.1.0",
+    "@react-native-firebase/auth": "^26.1.0",
     "@react-native-google-signin/google-signin": "^16.1.4",
     "@tanstack/react-query": "^5.101.4",
     "axios": "^1.19.0",

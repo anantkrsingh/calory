@@ -52,7 +52,7 @@ export async function authorizeGoogle(): Promise<SocialLoginInput> {
 
   GoogleSignin.configure({
     webClientId: clientId('google'),
-    iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
+    iosClientId: process.env.EXPO_PUBLIC_IOS_GOOGLE_CLIENT_ID,
     scopes: ['profile', 'email'],
   });
 
