@@ -8,21 +8,29 @@ import { JwtService, type JwtSignOptions } from '@nestjs/jwt';
 import type { Env } from '@fitness/config/server';
 import { toUser } from '@fitness/db';
 import type {
+  AuthProvider,
   AuthSession,
   AuthTokens,
   Id,
   JwtPayload,
+  PendingVerification,
+  SocialProfile,
   User,
 } from '@fitness/types';
 import type {
   ChangePasswordInput,
   LoginInput,
   RegisterInput,
+  SocialLoginInput,
+  VerifyRegistrationInput,
 } from '@fitness/validation';
 import { compare, hash } from 'bcryptjs';
 
 import { ENV } from '../config/env.module';
+import { MeasurementsService } from '../measurements/measurements.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { OtpService } from '../queues/otp.service';
+import { SOCIAL_VERIFIERS } from './social-providers';
 
 const BCRYPT_ROUNDS = 12;
 const REFRESH_TOKEN_TTL: JwtSignOptions['expiresIn'] = '30d';
@@ -32,30 +40,97 @@ export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
+    private readonly otp: OtpService,
+    private readonly measurements: MeasurementsService,
     @Inject(ENV) private readonly env: Env,
   ) {}
 
-  async register(input: RegisterInput): Promise<AuthSession> {
+  async register(input: RegisterInput): Promise<PendingVerification> {
     const existing = await this.prisma.user.findUnique({
       where: { email: input.email },
-      select: { id: true },
+      select: { id: true, emailVerified: true },
     });
 
-    if (existing) {
+    if (existing?.emailVerified) {
       throw new ConflictException({
         message: 'That email is already registered',
         details: { email: ['Already registered'] },
       });
     }
 
-    const user = await this.prisma.user.create({
-      data: {
+    const profile = {
+      displayName: input.displayName,
+      ...(input.profile?.avatarUrl ? { avatarUrl: input.profile.avatarUrl } : {}),
+      ...(input.profile?.dateOfBirth
+        ? { dateOfBirth: input.profile.dateOfBirth }
+        : {}),
+      ...(input.profile?.sex ? { sex: input.profile.sex } : {}),
+      ...(input.profile?.heightCm != null
+        ? { heightCm: input.profile.heightCm }
+        : {}),
+      ...(input.profile?.activityLevel
+        ? { activityLevel: input.profile.activityLevel }
+        : {}),
+    };
+
+    const passwordHash = await hash(input.password, BCRYPT_ROUNDS);
+
+    const user = await this.prisma.user.upsert({
+      where: { email: input.email },
+      create: {
         email: input.email,
-        passwordHash: await hash(input.password, BCRYPT_ROUNDS),
-        profile: { displayName: input.displayName },
-        // Composite fields carry their own defaults; an empty object adopts them.
+        passwordHash,
+        emailVerified: false,
+        profile,
         preferences: {},
       },
+      update: {
+        passwordHash,
+        emailVerified: false,
+        profile,
+        refreshTokenHash: null,
+      },
+    });
+
+    if (input.measurement) {
+      await this.measurements.create(user.id, input.measurement);
+    }
+
+    const { success } = await this.otp.sendOtp(
+      'email',
+      user.email,
+      'registration',
+      user.id,
+    );
+
+    return {
+      userId: user.id,
+      email: user.email,
+      emailVerified: false,
+      otpSent: success,
+    };
+  }
+
+  async verifyRegistration(
+    input: VerifyRegistrationInput,
+  ): Promise<AuthSession> {
+    const result = await this.otp.verifyOtp(
+      'email',
+      input.email,
+      input.code,
+      'registration',
+    );
+
+    if (!result.success) {
+      throw new UnauthorizedException({
+        message: result.message ?? 'Invalid OTP code',
+        details: { code: [result.message ?? 'Invalid OTP code'] },
+      });
+    }
+
+    const user = await this.prisma.user.update({
+      where: { email: input.email },
+      data: { emailVerified: true, lastLoginAt: new Date() },
     });
 
     return this.startSession(user.id, toUser(user));
@@ -73,13 +148,96 @@ export class AuthService {
       user?.passwordHash ?? '$2a$12$invalidinvalidinvalidinvalidinvalidinvalidinvalidinvalidinv',
     );
 
-    if (!user || !passwordMatches) {
+    if (!user || !user.passwordHash || !passwordMatches) {
       throw new UnauthorizedException('Incorrect email or password');
     }
 
     await this.prisma.user.update({
       where: { id: user.id },
       data: { lastLoginAt: new Date() },
+    });
+
+    return this.startSession(user.id, toUser(user));
+  }
+
+  async loginSocial(
+    provider: AuthProvider,
+    input: SocialLoginInput,
+  ): Promise<AuthSession> {
+    const profile = await SOCIAL_VERIFIERS[provider](input, this.env);
+
+    const existing =
+      (await this.prisma.user.findFirst({
+        where: {
+          linkedAccounts: {
+            some: { provider: profile.provider, subject: profile.subject },
+          },
+        },
+      })) ??
+      (profile.email && profile.emailVerified
+        ? await this.prisma.user.findUnique({ where: { email: profile.email } })
+        : null);
+
+    if (existing) {
+      const alreadyLinked = existing.linkedAccounts.some(
+        (account) =>
+          account.provider === profile.provider &&
+          account.subject === profile.subject,
+      );
+
+      const user = await this.prisma.user.update({
+        where: { id: existing.id },
+        data: {
+          lastLoginAt: new Date(),
+          ...(alreadyLinked
+            ? {}
+            : {
+                linkedAccounts: {
+                  push: {
+                    provider: profile.provider,
+                    subject: profile.subject,
+                    email: profile.email ?? null,
+                  },
+                },
+              }),
+          ...(profile.emailVerified && !existing.emailVerified
+            ? { emailVerified: true }
+            : {}),
+          ...(existing.profile.avatarUrl || !profile.avatarUrl
+            ? {}
+            : { profile: { ...existing.profile, avatarUrl: profile.avatarUrl } }),
+        },
+      });
+
+      return this.startSession(user.id, toUser(user));
+    }
+
+    if (!profile.email) {
+      throw new ConflictException({
+        message: `Your ${provider} account did not share an email address`,
+        details: { email: ['Required to create an account'] },
+      });
+    }
+
+    const email = profile.email;
+    const user = await this.prisma.user.create({
+      data: {
+        email,
+        emailVerified: profile.emailVerified,
+        profile: {
+          displayName: profile.displayName || email.split('@')[0] || email,
+          avatarUrl: profile.avatarUrl ?? null,
+        },
+        preferences: {},
+        linkedAccounts: [
+          {
+            provider: profile.provider,
+            subject: profile.subject,
+            email: profile.email,
+          },
+        ],
+        lastLoginAt: new Date(),
+      },
     });
 
     return this.startSession(user.id, toUser(user));
@@ -136,6 +294,13 @@ export class AuthService {
   ): Promise<void> {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new UnauthorizedException('Account no longer exists');
+
+    if (!user.passwordHash) {
+      throw new ConflictException({
+        message: 'This account signs in with a social provider',
+        details: { currentPassword: ['No password is set on this account'] },
+      });
+    }
 
     const matches = await compare(input.currentPassword, user.passwordHash);
     if (!matches) {

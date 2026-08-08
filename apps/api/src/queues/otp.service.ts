@@ -1,7 +1,13 @@
-import { Injectable, Inject, Logger } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  Inject,
+  Logger,
+} from '@nestjs/common';
 import type { Env } from '@fitness/config/server';
 
 import { ENV } from '../config/env.module';
+import { PrismaService } from '../prisma/prisma.service';
 import { OtpQueue, type OtpJobData } from './otp.queue';
 
 /**
@@ -28,6 +34,7 @@ export class OtpService {
   constructor(
     @Inject(ENV) private readonly env: Env,
     private readonly otpQueue: OtpQueue,
+    private readonly prisma: PrismaService,
   ) {}
 
   /**
@@ -39,6 +46,20 @@ export class OtpService {
     purpose: 'registration' | 'login' | 'password_reset',
     userId?: string,
   ): Promise<{ success: boolean; jobId: string; message?: string }> {
+    if (purpose === 'registration') {
+      const existing = await this.prisma.user.findUnique({
+        where: { email: contact.toLowerCase() },
+        select: { emailVerified: true },
+      });
+
+      if (existing?.emailVerified) {
+        throw new ConflictException({
+          message: 'That email is already registered',
+          details: { email: ['Already registered'] },
+        });
+      }
+    }
+
     // Generate OTP
     const otp = this.otpQueue.generateOtp();
 
@@ -123,6 +144,17 @@ export class OtpService {
     // OTP is valid - remove it and return success
     this.otpStore.delete(otpKey);
 
+    let userId = storedOtp.userId;
+
+    if (purpose === 'registration' || purpose === 'login') {
+      const user = await this.prisma.user.update({
+        where: { email: contact.toLowerCase() },
+        data: { emailVerified: true },
+        select: { id: true },
+      });
+      userId = user.id;
+    }
+
     this.logger.log(
       `OTP verified successfully for ${type} ${this.maskContact(contact)}`,
     );
@@ -130,7 +162,7 @@ export class OtpService {
     return {
       success: true,
       message: 'OTP verified successfully.',
-      userId: storedOtp.userId,
+      userId,
     };
   }
 

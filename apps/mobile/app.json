@@ -9,7 +9,7 @@
     "userInterfaceStyle": "automatic",
     "ios": {
       "icon": "./assets/expo.icon",
-      "bundleIdentifier": "com.fitness.app"
+      "bundleIdentifier": "com.calory.fitness"
     },
     "android": {
       "adaptiveIcon": {
@@ -19,7 +19,7 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.fitness.app"
+      "package": "com.calory.fitness"
     },
     "web": {
       "output": "static",
@@ -42,7 +42,8 @@
             "./assets/fonts/lucon.ttf"
           ]
         }
-      ]
+      ],
+      "@react-native-google-signin/google-signin"
     ],
     "experiments": {
       "typedRoutes": true,

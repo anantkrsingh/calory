@@ -10,6 +10,12 @@ import {
   Post,
   Query,
 } from '@nestjs/common';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 import type {
   AuthenticatedUser,
   Exercise,
@@ -17,6 +23,8 @@ import type {
   Paginated,
 } from '@fitness/types';
 import {
+  exerciseSchema,
+  exercisePersonalRecordSchema,
   createExerciseSchema,
   exerciseQuerySchema,
   objectIdSchema,
@@ -27,14 +35,20 @@ import {
 } from '@fitness/validation';
 
 import { CurrentUser } from '../common/decorators';
+import { ApiZodBody, ApiZodQuery, ApiZodResponse } from '../common/swagger';
 import { zodPipe } from '../common/zod-validation.pipe';
 import { ExercisesService } from './exercises.service';
 
+@ApiTags('exercises')
+@ApiBearerAuth('access-token')
 @Controller('exercises')
 export class ExercisesController {
   constructor(private readonly exercises: ExercisesService) {}
 
   @Get()
+  @ApiOperation({ summary: 'List exercises — the shared catalogue plus your own custom ones' })
+  @ApiZodQuery(exerciseQuerySchema)
+  @ApiZodResponse(exerciseSchema, { paginated: true, description: 'Page of exercises', name: 'Exercise' })
   list(
     @CurrentUser() user: AuthenticatedUser,
     @Query(zodPipe(exerciseQuerySchema)) query: ExerciseQueryInput,
@@ -43,6 +57,9 @@ export class ExercisesController {
   }
 
   @Get(':id')
+  @ApiOperation({ summary: 'Get one exercise' })
+  @ApiResponse({ status: 404, description: 'Not found' })
+  @ApiZodResponse(exerciseSchema, { description: 'The exercise', name: 'Exercise' })
   get(
     @CurrentUser() user: AuthenticatedUser,
     @Param('id', zodPipe(objectIdSchema)) id: string,
@@ -51,6 +68,9 @@ export class ExercisesController {
   }
 
   @Get(':id/personal-records')
+  @ApiOperation({ summary: 'Get your best set and estimated 1RM for an exercise' })
+  @ApiResponse({ status: 404, description: 'Not found' })
+  @ApiZodResponse(exercisePersonalRecordSchema, { description: 'Personal records', name: 'ExercisePersonalRecord' })
   personalRecords(
     @CurrentUser() user: AuthenticatedUser,
     @Param('id', zodPipe(objectIdSchema)) id: string,
@@ -59,6 +79,9 @@ export class ExercisesController {
   }
 
   @Post()
+  @ApiOperation({ summary: 'Create a custom exercise' })
+  @ApiZodBody(createExerciseSchema)
+  @ApiZodResponse(exerciseSchema, { status: 201, description: 'Created exercise', name: 'Exercise' })
   create(
     @CurrentUser() user: AuthenticatedUser,
     @Body(zodPipe(createExerciseSchema)) body: CreateExerciseInput,
@@ -67,6 +90,11 @@ export class ExercisesController {
   }
 
   @Patch(':id')
+  @ApiOperation({ summary: 'Update a custom exercise' })
+  @ApiZodBody(updateExerciseSchema)
+  @ApiResponse({ status: 403, description: 'Not yours to modify' })
+  @ApiResponse({ status: 404, description: 'Not found' })
+  @ApiZodResponse(exerciseSchema, { description: 'Updated exercise', name: 'Exercise' })
   update(
     @CurrentUser() user: AuthenticatedUser,
     @Param('id', zodPipe(objectIdSchema)) id: string,
@@ -77,6 +105,9 @@ export class ExercisesController {
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Delete a custom exercise' })
+  @ApiResponse({ status: 403, description: 'Not yours to modify' })
+  @ApiResponse({ status: 404, description: 'Not found' })
   remove(
     @CurrentUser() user: AuthenticatedUser,
     @Param('id', zodPipe(objectIdSchema)) id: string,

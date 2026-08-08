@@ -17,6 +17,7 @@ import { Brand, Spacing } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { useTheme } from "@/hooks/use-theme";
 import SocialButton from "@/components/welcome/SocialButton";
+import { useSocialLogin } from "@/hooks/use-social-login";
 import LoginSheet, { type LoginSheetRef } from "@/components/auth/LoginSheet";
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports -- no ambient *.png module types in SDK 57
@@ -29,6 +30,8 @@ export default function WelcomeScreen() {
   const router = useRouter();
   const { height } = useWindowDimensions();
   const loginSheetRef = useRef<LoginSheetRef>(null);
+
+  const socialLogin = useSocialLogin();
 
   const isDark = scheme === "dark";
   const heroHeight = Math.round(height * 0.62);
@@ -107,7 +110,7 @@ export default function WelcomeScreen() {
         />
         <View style={{ flexDirection: "row" ,justifyContent:"space-evenly",gap:10}}>
           <SocialButton
-            onClick={() => {}}
+            onClick={() => void socialLogin.signIn("google")}
             icon={
               <Image
                 style={{ width: 28, height: 28 }}
@@ -116,7 +119,7 @@ export default function WelcomeScreen() {
             }
           />
           <SocialButton
-            onClick={() => {}}
+            onClick={() => void socialLogin.signIn("facebook")}
             icon={
               <Image
                 style={{ width: 28, height: 28 }}
@@ -125,7 +128,7 @@ export default function WelcomeScreen() {
             }
           />
           <SocialButton
-            onClick={() => {}}
+            onClick={() => void socialLogin.signIn("x")}
             icon={
               <Image
                 style={{ width: 28, height: 28 }}

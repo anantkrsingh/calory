@@ -1,6 +1,12 @@
 import { Controller, Get } from '@nestjs/common';
+import { ApiOperation, ApiTags } from '@nestjs/swagger';
+
+import {
+  healthResponseSchema,
+} from '@fitness/validation';
 
 import { Public } from '../common/decorators';
+import { ApiZodResponse } from '../common/swagger';
 import { PrismaService } from '../prisma/prisma.service';
 
 interface HealthResponse {
@@ -10,12 +16,15 @@ interface HealthResponse {
   timestamp: string;
 }
 
+@ApiTags('health')
 @Controller('health')
 export class HealthController {
   constructor(private readonly prisma: PrismaService) {}
 
   @Public()
   @Get()
+  @ApiOperation({ summary: 'Liveness probe — reports API uptime and database reachability' })
+  @ApiZodResponse(healthResponseSchema, { description: 'Service health', name: 'HealthStatus' })
   async check(): Promise<HealthResponse> {
     const database = await this.pingDatabase();
 

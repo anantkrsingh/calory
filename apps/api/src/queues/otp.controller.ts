@@ -1,7 +1,18 @@
 import { Body, Controller, HttpCode, HttpStatus, Post } from '@nestjs/common';
+import {
+  ApiOperation,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 import { z } from 'zod';
 
+import {
+  otpSendResponseSchema,
+  otpVerifyResponseSchema,
+} from '@fitness/validation';
+
 import { Public } from '../common/decorators';
+import { ApiZodBody, ApiZodResponse } from '../common/swagger';
 import { zodPipe } from '../common/zod-validation.pipe';
 import { OtpService } from './otp.service';
 
@@ -40,6 +51,7 @@ type ResendOtpInput = z.infer<typeof resendOtpSchema>;
 /**
  * OTP Controller - handles OTP-related API endpoints
  */
+@ApiTags('otp')
 @Controller('otp')
 export class OtpController {
   constructor(private readonly otpService: OtpService) {}
@@ -50,6 +62,9 @@ export class OtpController {
   @Public()
   @Post('send')
   @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Queue a one-time code to an email address' })
+  @ApiZodBody(sendOtpSchema)
+  @ApiZodResponse(otpSendResponseSchema, { description: 'Code queued', name: 'OtpSendResult' })
   async sendOtp(
     @Body(zodPipe(sendOtpSchema)) body: SendOtpInput,
   ): Promise<{ success: boolean; jobId: string; message?: string }> {
@@ -67,6 +82,10 @@ export class OtpController {
   @Public()
   @Post('verify')
   @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Verify a one-time code' })
+  @ApiZodBody(verifyOtpSchema)
+  @ApiResponse({ status: 400, description: 'Validation failed' })
+  @ApiZodResponse(otpVerifyResponseSchema, { description: 'Verification outcome', name: 'OtpVerifyResult' })
   async verifyOtp(
     @Body(zodPipe(verifyOtpSchema)) body: VerifyOtpInput,
   ): Promise<{ success: boolean; message?: string; userId?: string }> {
@@ -84,6 +103,9 @@ export class OtpController {
   @Public()
   @Post('resend')
   @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Queue a fresh one-time code, invalidating the previous one' })
+  @ApiZodBody(resendOtpSchema)
+  @ApiZodResponse(otpSendResponseSchema, { description: 'Fresh code queued', name: 'OtpSendResult' })
   async resendOtp(
     @Body(zodPipe(resendOtpSchema)) body: ResendOtpInput,
   ): Promise<{ success: boolean; jobId: string; message?: string }> {
