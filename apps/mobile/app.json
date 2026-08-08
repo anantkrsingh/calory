@@ -9,7 +9,8 @@
     "userInterfaceStyle": "automatic",
     "ios": {
       "icon": "./assets/expo.icon",
-      "bundleIdentifier": "com.calory.fitness"
+      "bundleIdentifier": "com.calory.fitness",
+      "googleServicesFile": "./GoogleService-Info.plist"
     },
     "android": {
       "adaptiveIcon": {
@@ -21,7 +22,6 @@
       "predictiveBackGestureEnabled": false,
       "package": "com.calory.fitness",
       "googleServicesFile": "./google-services.json"
-
     },
     "web": {
       "output": "static",
@@ -45,7 +45,15 @@
       ],
       "@react-native-google-signin/google-signin",
       "@react-native-firebase/app",
-      "@react-native-firebase/auth"
+      "@react-native-firebase/auth",
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "useFrameworks": "static"
+          }
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
