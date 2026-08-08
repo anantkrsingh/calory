@@ -4,11 +4,11 @@ packages:
 
 # Prisma downloads its query engine, unrs-resolver builds a native binding.
 allowBuilds:
-  '@firebase/util': set this to true or false
+  '@firebase/util': true
   '@prisma/client': true
   '@prisma/engines': true
   '@scarf/scarf': false
   msgpackr-extract: true
   prisma: true
-  protobufjs: set this to true or false
+  protobufjs: true
   unrs-resolver: true
