@@ -58,8 +58,6 @@
       ],
       "@react-native-google-signin/google-signin",
       "@react-native-firebase/app",
-      "./with-rnfirebase",
-
       [
         "expo-build-properties",
         {

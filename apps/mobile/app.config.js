@@ -1,6 +1,7 @@
 const { withPodfile } = require('@expo/config-plugins');
+const appJson = require('./app.json');
 
-module.exports = function withRNFirebase(config) {
+function withRNFirebase(config) {
   return withPodfile(config, (config) => {
     const podfile = config.modResults.contents;
 
@@ -11,4 +12,12 @@ module.exports = function withRNFirebase(config) {
 
     return config;
   });
+}
+
+module.exports = () => {
+  let config = appJson.expo;
+
+  config = withRNFirebase(config);
+
+  return config;
 };
