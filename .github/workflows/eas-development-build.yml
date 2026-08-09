@@ -41,10 +41,13 @@ jobs:
       # preinstall script needs Node >=22.5 for node:sqlite — never install.
       - name: Install dependencies
         run: pnpm install --frozen-lockfile --filter "@fitness/mobile..."
-        
+
       - name: Validate Expo config
         working-directory: apps/mobile
-        run: npx expo config --json
+        run: |
+          set -x
+          pnpm exec expo --version
+          pnpm exec expo config --json
 
       - name: Install EAS CLI
         run: npm install --global eas-cli
