@@ -1,7 +1,10 @@
-import { BadRequestException, NotImplementedException } from '@nestjs/common';
+import { BadRequestException, Logger, NotImplementedException } from '@nestjs/common';
 import type { Env } from '@fitness/config/server';
 import { AuthProvider, type SocialProfile } from '@fitness/types';
 import type { SocialLoginInput } from '@fitness/validation';
+import { OAuth2Client } from 'google-auth-library';
+
+const logger = new Logger('SocialProviders');
 
 function reject(provider: AuthProvider): never {
   throw new BadRequestException(`Could not verify your ${provider} sign-in`);
@@ -22,6 +25,10 @@ async function getJson(url: string, init?: RequestInit): Promise<unknown> {
   return response.json();
 }
 
+// No client secret needed: verifying an ID token only checks its signature
+// against Google's published JWKS (cached and refreshed by the library).
+const googleClient = new OAuth2Client();
+
 export async function verifyGoogle(
   input: SocialLoginInput,
   env: Env,
@@ -31,28 +38,33 @@ export async function verifyGoogle(
     .map((id) => id.trim())
     .filter(Boolean);
 
-  const data = (await getJson(
-    `https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(input.token)}`,
-  )) as {
-    aud?: string;
-    sub?: string;
-    email?: string;
-    email_verified?: string | boolean;
-    name?: string;
-    picture?: string;
-  } | null;
-
-  if (!data?.sub || !data.aud || !audiences.includes(data.aud)) {
+  let payload;
+  try {
+    const ticket = await googleClient.verifyIdToken({
+      idToken: input.token,
+      audience: audiences,
+    });
+    payload = ticket.getPayload();
+  } catch (error) {
+    logger.error(
+      `Google ID token verification failed: ${error instanceof Error ? error.message : String(error)}`,
+    );
     reject(AuthProvider.Google);
   }
 
+  if (!payload?.sub) {
+    logger.warn(`Google ID token verified but payload had no subject: ${JSON.stringify(payload)}`);
+    reject(AuthProvider.Google);
+  }
+
+
   return {
     provider: AuthProvider.Google,
-    subject: data.sub,
-    email: data.email,
-    displayName: data.name,
-    avatarUrl: data.picture,
-    emailVerified: data.email_verified === true || data.email_verified === 'true',
+    subject: payload.sub,
+    email: payload.email,
+    displayName: payload.name,
+    avatarUrl: payload.picture,
+    emailVerified: payload.email_verified === true,
   };
 }
 

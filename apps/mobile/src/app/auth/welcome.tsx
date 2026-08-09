@@ -1,8 +1,9 @@
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import {
+  Alert,
   Pressable,
   StyleSheet,
   View,
@@ -32,6 +33,13 @@ export default function WelcomeScreen() {
   const loginSheetRef = useRef<LoginSheetRef>(null);
 
   const socialLogin = useSocialLogin();
+
+  useEffect(() => {
+    if (!socialLogin.error) return;
+    Alert.alert("Sign in failed", socialLogin.error, [
+      { text: "OK", onPress: socialLogin.clearError },
+    ]);
+  }, [socialLogin.error, socialLogin.clearError]);
 
   const isDark = scheme === "dark";
   const heroHeight = Math.round(height * 0.62);

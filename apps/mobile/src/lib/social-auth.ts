@@ -1,5 +1,5 @@
-import type { AuthProvider } from '@fitness/types';
-import type { SocialLoginInput } from '@fitness/validation';
+import type { AuthProvider } from "@fitness/types";
+import type { SocialLoginInput } from "@fitness/validation";
 import {
   AuthRequest,
   CodeChallengeMethod,
@@ -7,28 +7,28 @@ import {
   makeRedirectUri,
   type AuthRequestConfig,
   type DiscoveryDocument,
-} from 'expo-auth-session';
-import * as WebBrowser from 'expo-web-browser';
+} from "expo-auth-session";
+import * as WebBrowser from "expo-web-browser";
 
 WebBrowser.maybeCompleteAuthSession();
 
 export class SocialAuthCancelledError extends Error {
   constructor() {
-    super('Sign-in was cancelled');
-    this.name = 'SocialAuthCancelledError';
+    super("Sign-in was cancelled");
+    this.name = "SocialAuthCancelledError";
   }
 }
 
 export class SocialAuthUnavailableError extends Error {
   constructor(provider: AuthProvider) {
     super(`${provider} sign-in is not configured in this build`);
-    this.name = 'SocialAuthUnavailableError';
+    this.name = "SocialAuthUnavailableError";
   }
 }
 
 const X_DISCOVERY: DiscoveryDocument = {
-  authorizationEndpoint: 'https://x.com/i/oauth2/authorize',
-  tokenEndpoint: 'https://api.x.com/2/oauth2/token',
+  authorizationEndpoint: "https://x.com/i/oauth2/authorize",
+  tokenEndpoint: "https://api.x.com/2/oauth2/token",
 };
 
 const CLIENT_IDS: Record<AuthProvider, string | undefined> = {
@@ -37,7 +37,7 @@ const CLIENT_IDS: Record<AuthProvider, string | undefined> = {
   x: process.env.EXPO_PUBLIC_X_CLIENT_ID,
 };
 
-const redirectUri = (): string => makeRedirectUri({ scheme: 'mobile' });
+const redirectUri = (): string => makeRedirectUri({ scheme: "mobile" });
 
 function clientId(provider: AuthProvider): string {
   const id = CLIENT_IDS[provider];
@@ -46,14 +46,12 @@ function clientId(provider: AuthProvider): string {
 }
 
 export async function authorizeGoogle(): Promise<SocialLoginInput> {
-  const { GoogleSignin, isCancelledResponse, isSuccessResponse } = await import(
-    '@react-native-google-signin/google-signin'
-  );
+  const { GoogleSignin, isCancelledResponse, isSuccessResponse } =
+    await import("@react-native-google-signin/google-signin");
 
   GoogleSignin.configure({
-    webClientId: clientId('google'),
-    iosClientId: process.env.EXPO_PUBLIC_IOS_GOOGLE_CLIENT_ID,
-    scopes: ['profile', 'email'],
+    webClientId: clientId("google"),
+    scopes: ["profile", "email"],
   });
 
   await GoogleSignin.hasPlayServices();
@@ -68,24 +66,23 @@ export async function authorizeGoogle(): Promise<SocialLoginInput> {
   }
 
   const idToken = response.data.idToken;
-  if (!idToken) throw new SocialAuthUnavailableError('google');
+  if (!idToken) throw new SocialAuthUnavailableError("google");
 
   return { token: idToken };
 }
 
 export async function authorizeFacebook(): Promise<SocialLoginInput> {
-  const appId = clientId('facebook');
+  const appId = clientId("facebook");
 
-  const { AccessToken, LoginManager, Settings } = await import(
-    'react-native-fbsdk-next'
-  );
+  const { AccessToken, LoginManager, Settings } =
+    await import("react-native-fbsdk-next");
 
   Settings.setAppID(appId);
   Settings.initializeSDK();
 
   const result = await LoginManager.logInWithPermissions([
-    'public_profile',
-    'email',
+    "public_profile",
+    "email",
   ]);
 
   if (result.isCancelled) throw new SocialAuthCancelledError();
@@ -100,16 +97,16 @@ export async function authorizeX(): Promise<SocialLoginInput> {
   const uri = redirectUri();
 
   const request = new AuthRequest({
-    clientId: clientId('x'),
+    clientId: clientId("x"),
     redirectUri: uri,
     responseType: ResponseType.Code,
-    scopes: ['users.read', 'tweet.read', 'offline.access'],
+    scopes: ["users.read", "tweet.read", "offline.access"],
     codeChallengeMethod: CodeChallengeMethod.S256,
   } satisfies AuthRequestConfig);
 
   const result = await request.promptAsync(X_DISCOVERY);
 
-  if (result.type !== 'success') throw new SocialAuthCancelledError();
+  if (result.type !== "success") throw new SocialAuthCancelledError();
 
   const code = result.params.code;
   if (!code || !request.codeVerifier) throw new SocialAuthCancelledError();

@@ -43,9 +43,23 @@
           "fonts": ["./assets/fonts/lucon.ttf"]
         }
       ],
+      [
+        "react-native-fbsdk-next",
+        {
+          "appID": "1372271290911323",
+          "clientToken": "019df55c3dc93333046e2f4555e68901",
+          "displayName": "Calory",
+          "scheme": "fb1372271290911323",
+          "advertiserIDCollectionEnabled": false,
+          "autoLogAppEventsEnabled": false,
+          "isAutoInitEnabled": true,
+          "iosUserTrackingPermission": "This identifier will be used to deliver personalized ads to you."
+        }
+      ],
       "@react-native-google-signin/google-signin",
       "@react-native-firebase/app",
-      "@react-native-firebase/auth",
+      "./with-rnfirebase",
+
       [
         "expo-build-properties",
         {
