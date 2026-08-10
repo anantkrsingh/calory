@@ -1,4 +1,5 @@
 import type {
+  AppSettings,
   BodyMeasurement,
   Exercise,
   Goal,
@@ -19,8 +20,10 @@ export type WorkoutRow = Workout;
 export type RoutineRow = Routine;
 export type BodyMeasurementRow = BodyMeasurement;
 export type GoalRow = Goal;
+export type AppSettingsRow = AppSettings;
 
 export type {
+  AiPromptConfig as AiPromptConfigComposite,
   BodyMeasurements as BodyMeasurementsComposite,
   RoutineExercise as RoutineExerciseComposite,
   RoutineSet as RoutineSetComposite,

@@ -208,6 +208,13 @@ type RoutineExercise {
   notes        String?
 }
 
+/// A configurable prompt for one AI-driven feature (e.g. "workout_suggestion").
+type AiPromptConfig {
+  key    String
+  label  String
+  prompt String
+}
+
 /// Circumferences in centimetres.
 type BodyMeasurements {
   neck       Float?
@@ -375,4 +382,16 @@ model Goal {
 
   @@index([userId, status])
   @@map("goals")
+}
+
+/// App-wide configuration edited from the admin panel. Always exactly one row.
+model AppSettings {
+  id             String          @id @default(auto()) @map("_id") @db.ObjectId
+  freeChatsLimit Int             @default(5)
+  aiPrompts      AiPromptConfig[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("app_settings")
 }

@@ -1,13 +1,39 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { toUser } from '@fitness/db';
-import type { Id, User } from '@fitness/types';
-import type { UpdateUserInput } from '@fitness/validation';
+import { paginate, toSkipTake, toUser, type Prisma } from '@fitness/db';
+import type { Id, Paginated, User } from '@fitness/types';
+import type { ListUsersQueryInput, UpdateUserInput } from '@fitness/validation';
 
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
 export class UsersService {
   constructor(private readonly prisma: PrismaService) {}
+
+  /** Admin-only: every account, newest first, optionally filtered by email/name. */
+  async list(query: ListUsersQueryInput): Promise<Paginated<User>> {
+    const where: Prisma.UserWhereInput = query.search
+      ? {
+          OR: [
+            { email: { contains: query.search, mode: 'insensitive' } },
+            { profile: { displayName: { contains: query.search, mode: 'insensitive' } } },
+          ],
+        }
+      : {};
+
+    const { skip, take } = toSkipTake(query);
+
+    const [rows, total] = await Promise.all([
+      this.prisma.user.findMany({
+        where,
+        skip,
+        take,
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.prisma.user.count({ where }),
+    ]);
+
+    return paginate(rows.map(toUser), query, total);
+  }
 
   async findById(id: Id): Promise<User> {
     const user = await this.prisma.user.findUnique({ where: { id } });

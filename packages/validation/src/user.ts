@@ -2,7 +2,7 @@ import { LIMITS } from '@fitness/config';
 import { z } from 'zod';
 
 import { activityLevelSchema, fitnessGoalSchema, sexSchema, unitSystemSchema } from './enums';
-import { isoDateSchema } from './primitives';
+import { isoDateSchema, paginationQuerySchema } from './primitives';
 
 export const userProfileSchema = z.object({
   displayName: z.string().trim().min(LIMITS.name.min).max(LIMITS.name.max),
@@ -38,3 +38,10 @@ export type UserPreferencesInput = z.infer<typeof userPreferencesSchema>;
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
 export type UpdatePreferencesInput = z.infer<typeof updatePreferencesSchema>;
 export type UpdateUserInput = z.infer<typeof updateUserSchema>;
+
+/** Admin-only listing: search by email/display name on top of plain pagination. */
+export const listUsersQuerySchema = paginationQuerySchema.extend({
+  search: z.string().trim().min(1).optional(),
+});
+
+export type ListUsersQueryInput = z.infer<typeof listUsersQuerySchema>;

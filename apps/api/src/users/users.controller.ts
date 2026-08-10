@@ -5,18 +5,24 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  Param,
   Patch,
+  Query,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
-import type { AuthenticatedUser, User } from '@fitness/types';
+import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import type { AuthenticatedUser, Paginated, User } from '@fitness/types';
 import {
+  listUsersQuerySchema,
+  objectIdSchema,
   updateUserSchema,
   userSchema,
+  type ListUsersQueryInput,
   type UpdateUserInput,
 } from '@fitness/validation';
 
+import { Roles } from '../auth/roles.guard';
 import { CurrentUser } from '../common/decorators';
-import { ApiZodBody, ApiZodResponse } from '../common/swagger';
+import { ApiZodBody, ApiZodQuery, ApiZodResponse } from '../common/swagger';
 import { zodPipe } from '../common/zod-validation.pipe';
 import { UsersService } from './users.service';
 
@@ -25,6 +31,17 @@ import { UsersService } from './users.service';
 @Controller('users')
 export class UsersController {
   constructor(private readonly users: UsersService) {}
+
+  @Get()
+  @Roles('admin')
+  @ApiOperation({ summary: 'List all users (admin only)' })
+  @ApiZodQuery(listUsersQuerySchema)
+  @ApiZodResponse(userSchema, { paginated: true, description: 'Page of users', name: 'User' })
+  list(
+    @Query(zodPipe(listUsersQuerySchema)) query: ListUsersQueryInput,
+  ): Promise<Paginated<User>> {
+    return this.users.list(query);
+  }
 
   @Get('me')
   @ApiOperation({ summary: 'Get your profile and preferences' })
@@ -49,5 +66,16 @@ export class UsersController {
   @ApiOperation({ summary: 'Delete your account and all of its data' })
   remove(@CurrentUser() user: AuthenticatedUser): Promise<void> {
     return this.users.remove(user.id);
+  }
+
+  // Kept last: `:id` is a wildcard that would otherwise shadow the literal
+  // `me` routes above if Nest registered it first.
+  @Get(':id')
+  @Roles('admin')
+  @ApiOperation({ summary: 'Get one user by id (admin only)' })
+  @ApiResponse({ status: 404, description: 'Not found' })
+  @ApiZodResponse(userSchema, { description: 'The user', name: 'User' })
+  get(@Param('id', zodPipe(objectIdSchema)) id: string): Promise<User> {
+    return this.users.findById(id);
   }
 }

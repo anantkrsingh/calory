@@ -293,6 +293,14 @@ export const healthResponseSchema = z.object({
   timestamp: isoDateTimeSchema,
 });
 
+export const appSettingsSchema = z.object({
+  ...entityFields,
+  freeChatsLimit: z.number().int(),
+  aiPrompts: z.array(
+    z.object({ key: z.string(), label: z.string(), prompt: z.string() }),
+  ),
+});
+
 export const otpSendResponseSchema = z.object({
   success: z.boolean(),
   jobId: z.string(),

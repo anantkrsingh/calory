@@ -9,3 +9,4 @@ export * from './measurement';
 export * from './goal';
 export * from './stats';
 export * from './otp';
+export * from './settings';

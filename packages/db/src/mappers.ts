@@ -1,4 +1,5 @@
 import type {
+  AppSettings,
   BodyMeasurement,
   Exercise,
   Goal,
@@ -9,6 +10,7 @@ import type {
 } from '@fitness/types';
 
 import type {
+  AppSettingsRow,
   BodyMeasurementRow,
   ExerciseRow,
   GoalRow,
@@ -197,6 +199,20 @@ export function toBodyMeasurement(row: BodyMeasurementRow): BodyMeasurement {
     }) as BodyMeasurement['measurements'],
     photoUrls: row.photoUrls,
     notes: orUndefined(row.notes),
+    createdAt: iso(row.createdAt),
+    updatedAt: iso(row.updatedAt),
+  };
+}
+
+export function toAppSettings(row: AppSettingsRow): AppSettings {
+  return {
+    id: row.id,
+    freeChatsLimit: row.freeChatsLimit,
+    aiPrompts: row.aiPrompts.map((prompt) => ({
+      key: prompt.key,
+      label: prompt.label,
+      prompt: prompt.prompt,
+    })),
     createdAt: iso(row.createdAt),
     updatedAt: iso(row.updatedAt),
   };
