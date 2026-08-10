@@ -15,7 +15,8 @@ import SocialButton from '@/components/welcome/SocialButton';
 import { Brand, Spacing } from '@/constants/theme';
 import { useSocialLogin } from '@/hooks/use-social-login';
 import { useTheme } from '@/hooks/use-theme';
-import { authService } from '@/services/auth.service';
+import { hasCompletedOnboarding } from '@/lib/onboarding';
+import { useLogin } from '@/queries/auth.queries';
 
 export default function LoginScreen() {
   const theme = useTheme();
@@ -30,6 +31,7 @@ export default function LoginScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const socialLogin = useSocialLogin(isLoading);
+  const login = useLogin();
 
   const handleEmailChange = (text: string) => {
     setEmail(text);
@@ -77,12 +79,14 @@ export default function LoginScreen() {
     setFormError(null);
 
     try {
-      await authService.login({
+      const session = await login.mutateAsync({
         email: email.trim().toLowerCase(),
         password,
       });
 
-      router.replace('/');
+      router.replace(
+        hasCompletedOnboarding(session.user) ? '/' : '/auth/onboarding',
+      );
     } catch {
       setFormError('Invalid email or password. Please try again.');
     } finally {

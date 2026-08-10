@@ -43,7 +43,7 @@ export class AuthService {
     private readonly otp: OtpService,
     private readonly measurements: MeasurementsService,
     @Inject(ENV) private readonly env: Env,
-  ) {}
+  ) { }
 
   async register(input: RegisterInput): Promise<PendingVerification> {
     const existing = await this.prisma.user.findUnique({
@@ -195,20 +195,23 @@ export class AuthService {
           ...(alreadyLinked
             ? {}
             : {
-                linkedAccounts: {
-                  push: {
-                    provider: profile.provider,
-                    subject: profile.subject,
-                    email: profile.email ?? null,
-                  },
+              linkedAccounts: {
+                push: {
+                  provider: profile.provider,
+                  subject: profile.subject,
+                  email: profile.email ?? null,
                 },
-              }),
+              },
+            }),
           ...(profile.emailVerified && !existing.emailVerified
             ? { emailVerified: true }
             : {}),
-          ...(existing.profile.avatarUrl || !profile.avatarUrl
-            ? {}
-            : { profile: { ...existing.profile, avatarUrl: profile.avatarUrl } }),
+          ...(profile.avatarUrl ?
+            {
+              profile: { ...(existing.profile ?? {}), avatarUrl: profile.avatarUrl },
+            }
+            : {}
+          )
         },
       });
 

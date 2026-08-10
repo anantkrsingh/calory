@@ -19,9 +19,21 @@ function requireConfig<T>(value: T | undefined, provider: AuthProvider): T {
   return value;
 }
 
-async function getJson(url: string, init?: RequestInit): Promise<unknown> {
+async function getJson(
+  url: string,
+  init?: RequestInit,
+  context?: string,
+): Promise<unknown> {
   const response = await fetch(url, init);
-  if (!response.ok) return null;
+  if (!response.ok) {
+    if (context) {
+      const body = await response.text().catch(() => '');
+      logger.error(
+        `${context} failed: ${response.status} ${response.statusText} ${body}`,
+      );
+    }
+    return null;
+  }
   return response.json();
 }
 
@@ -76,28 +88,54 @@ export async function verifyFacebook(
   const appSecret = requireConfig(env.FACEBOOK_APP_SECRET, AuthProvider.Facebook);
   const appToken = `${appId}|${appSecret}`;
 
-  const debug = (await getJson(
-    `https://graph.facebook.com/debug_token?input_token=${encodeURIComponent(input.token)}&access_token=${encodeURIComponent(appToken)}`,
-  )) as { data?: { app_id?: string; is_valid?: boolean; user_id?: string } } | null;
+  let debug: { data?: { app_id?: string; is_valid?: boolean; user_id?: string } } | null;
+  try {
+    debug = (await getJson(
+      `https://graph.facebook.com/debug_token?input_token=${encodeURIComponent(input.token)}&access_token=${encodeURIComponent(appToken)}`,
+      undefined,
+      'Facebook debug_token request',
+    )) as typeof debug;
+  } catch (error) {
+    logger.error(
+      `Facebook debug_token request threw: ${error instanceof Error ? error.message : String(error)}`,
+    );
+    reject(AuthProvider.Facebook);
+  }
 
   if (
     !debug?.data?.is_valid ||
     debug.data.app_id !== appId ||
     !debug.data.user_id
   ) {
+    logger.warn(
+      `Facebook token verification rejected: ${JSON.stringify(debug?.data ?? { reason: 'empty debug_token response' })}`,
+    );
     reject(AuthProvider.Facebook);
   }
 
-  const profile = (await getJson(
-    `https://graph.facebook.com/v21.0/me?fields=id,name,email,picture.type(large)&access_token=${encodeURIComponent(input.token)}`,
-  )) as {
+  let profile: {
     id?: string;
     name?: string;
     email?: string;
     picture?: { data?: { url?: string } };
   } | null;
+  try {
+    profile = (await getJson(
+      `https://graph.facebook.com/v21.0/me?fields=id,name,email,picture.type(large)&access_token=${encodeURIComponent(input.token)}`,
+      undefined,
+      'Facebook profile request',
+    )) as typeof profile;
+  } catch (error) {
+    logger.error(
+      `Facebook profile request threw: ${error instanceof Error ? error.message : String(error)}`,
+    );
+    reject(AuthProvider.Facebook);
+  }
 
-  if (!profile?.id) reject(AuthProvider.Facebook);
+  if (!profile?.id) {
+    logger.warn('Facebook profile request returned no id');
+    reject(AuthProvider.Facebook);
+  }
 
   return {
     provider: AuthProvider.Facebook,
