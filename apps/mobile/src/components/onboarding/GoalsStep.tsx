@@ -1,3 +1,4 @@
+import type { FitnessGoal } from '@fitness/types';
 import { BicepsFlexed, Check, Dumbbell, HeartPulse, Trophy, TrendingDown, type LucideIcon } from 'lucide-react-native';
 import { StyleSheet, View } from 'react-native';
 
@@ -8,11 +9,11 @@ import { Brand, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 interface GoalsStepProps {
-  fitnessGoals: string[] | undefined;
-  onChange: (data: { fitnessGoals?: string[] }) => void;
+  fitnessGoals: FitnessGoal[] | undefined;
+  onChange: (data: { fitnessGoals?: FitnessGoal[] }) => void;
 }
 
-const GOAL_OPTIONS: { id: string; label: string; Icon: LucideIcon }[] = [
+const GOAL_OPTIONS: { id: FitnessGoal; label: string; Icon: LucideIcon }[] = [
   { id: 'lose_weight', label: 'Lose Weight', Icon: TrendingDown },
   { id: 'build_muscle', label: 'Build Muscle', Icon: Dumbbell },
   { id: 'improve_fitness', label: 'Improve Fitness', Icon: BicepsFlexed },
@@ -25,7 +26,7 @@ export default function GoalsStep({ fitnessGoals = [], onChange }: GoalsStepProp
   const theme = useTheme();
   const selected = new Set(fitnessGoals);
 
-  const handleToggleGoal = (goalId: string) => {
+  const handleToggleGoal = (goalId: FitnessGoal) => {
     const next = selected.has(goalId)
       ? fitnessGoals.filter((goal) => goal !== goalId)
       : [...fitnessGoals, goalId];

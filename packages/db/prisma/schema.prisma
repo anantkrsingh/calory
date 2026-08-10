@@ -51,6 +51,15 @@ enum ActivityLevel {
   very_active
 }
 
+enum FitnessGoal {
+  lose_weight
+  build_muscle
+  improve_fitness
+  gain_strength
+  stay_healthy
+  train_sport
+}
+
 enum MuscleGroup {
   chest
   back
@@ -125,6 +134,7 @@ type UserProfile {
   sex           Sex?
   heightCm      Float?
   activityLevel ActivityLevel?
+  fitnessGoals  FitnessGoal[] @default([])
 }
 
 type LinkedAccount {
@@ -138,9 +148,7 @@ type UserPreferences {
   units                UnitSystem @default(metric)
   /// IANA zone; drives "today" boundaries in stats.
   timezone             String     @default("UTC")
-  weeklyWorkoutTarget  Int        @default(3)
-  restTimerSeconds     Int        @default(90)
-  notificationsEnabled Boolean    @default(true)
+  notificationsEnabled Boolean    @default(false)
 }
 
 /// One logged set. Which fields matter depends on the exercise's category.

@@ -33,6 +33,16 @@ export const ActivityLevel = {
 } as const;
 export type ActivityLevel = (typeof ActivityLevel)[keyof typeof ActivityLevel];
 
+export const FitnessGoal = {
+  LoseWeight: 'lose_weight',
+  BuildMuscle: 'build_muscle',
+  ImproveFitness: 'improve_fitness',
+  GainStrength: 'gain_strength',
+  StayHealthy: 'stay_healthy',
+  TrainForSport: 'train_sport',
+} as const;
+export type FitnessGoal = (typeof FitnessGoal)[keyof typeof FitnessGoal];
+
 export const UserRole = {
   User: 'user',
   Admin: 'admin',

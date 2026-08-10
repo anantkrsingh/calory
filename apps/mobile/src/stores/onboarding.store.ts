@@ -1,4 +1,4 @@
-import type { Sex, ActivityLevel, UnitSystem } from '@fitness/types';
+import type { ActivityLevel, FitnessGoal, Sex, UnitSystem } from '@fitness/types';
 import { create } from 'zustand';
 
 interface OnboardingUserData {
@@ -10,7 +10,7 @@ interface OnboardingUserData {
   heightCm?: number;
   weightKg?: number;
   activityLevel?: ActivityLevel;
-  fitnessGoals?: string[];
+  fitnessGoals?: FitnessGoal[];
   unitSystem?: UnitSystem;
 }
 

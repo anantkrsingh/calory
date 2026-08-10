@@ -63,6 +63,7 @@ export const authState = {
     useAuthStore.getState().setSession(session),
   setTokens: (tokens: AuthTokens | null) =>
     useAuthStore.getState().setTokens(tokens),
+  setUser: (user: User | null) => useAuthStore.getState().setUser(user),
   clear: () => useAuthStore.getState().clear(),
 };
 

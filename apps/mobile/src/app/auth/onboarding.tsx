@@ -1,7 +1,7 @@
 import { useRouter } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { SlideInLeft, SlideInRight, SlideOutLeft, SlideOutRight } from 'react-native-reanimated';
@@ -22,7 +22,7 @@ import {
 } from '@/components/onboarding';
 import { Brand, Pressed, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { useSendOtp } from '@/queries';
+import { useCreateMeasurement, useSendOtp, useUpdateProfile } from '@/queries';
 import { selectUser, useAuthStore } from '@/stores/auth.store';
 import { useOnboardingStore } from '@/stores/onboarding.store';
 
@@ -49,6 +49,9 @@ export default function OnboardingScreen() {
   const verifyEmailSheetRef = useRef<VerifyEmailSheetRef>(null);
   const [emailError, setEmailError] = useState<string | null>(null);
   const sendOtp = useSendOtp();
+  const updateProfile = useUpdateProfile();
+  const createMeasurement = useCreateMeasurement();
+  const isSavingProfile = updateProfile.isPending || createMeasurement.isPending;
 
   const canContinue = isStepComplete(currentStep, userData);
 
@@ -71,9 +74,8 @@ export default function OnboardingScreen() {
     }
 
     if (isLoggedIn) {
-      // Already has a verified account — the fitness profile alone is enough to finish.
-      resetOnboarding();
-      router.replace('/');
+      if (isSavingProfile) return;
+      void finishForLoggedInUser();
       return;
     }
 
@@ -85,6 +87,38 @@ export default function OnboardingScreen() {
         onError: () => setEmailError('Failed to send verification code. Please try again.'),
       },
     );
+  };
+
+  // Already has a verified account — persists the fitness profile collected
+  // here directly, instead of the email-OTP path new signups go through.
+  const finishForLoggedInUser = async () => {
+    try {
+      await updateProfile.mutateAsync({
+        profile: {
+          sex: userData.sex,
+          dateOfBirth: userData.dateOfBirth,
+          heightCm: userData.heightCm,
+          activityLevel: userData.activityLevel,
+          fitnessGoals: userData.fitnessGoals,
+        },
+      });
+
+      if (userData.weightKg != null) {
+        await createMeasurement.mutateAsync({
+          weightKg: userData.weightKg,
+          measurements: {},
+          photoUrls: [],
+        });
+      }
+
+      resetOnboarding();
+      router.replace('/');
+    } catch (cause) {
+      Alert.alert(
+        'Could not save your profile',
+        cause instanceof Error ? cause.message : 'Please try again.',
+      );
+    }
   };
 
   // Step 1 has no Back button — the close button in the top bar exits the flow instead.
@@ -204,7 +238,7 @@ export default function OnboardingScreen() {
         <CircleArrowButton
           onPress={handleNext}
           disabled={!canContinue}
-          loading={sendOtp.isPending}
+          loading={sendOtp.isPending || isSavingProfile}
           accessibilityLabel={currentStep < effectiveTotalSteps ? 'Continue' : 'Finish'}
           activeColor={Brand.accent}
           inactiveColor={theme.backgroundElement}

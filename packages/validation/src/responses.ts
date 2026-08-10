@@ -55,8 +55,6 @@ export const userProfileResponseSchema = z.object({
 export const userPreferencesResponseSchema = z.object({
   units: unitSystemSchema,
   timezone: z.string(),
-  weeklyWorkoutTarget: z.number().int(),
-  restTimerSeconds: z.number().int(),
   notificationsEnabled: z.boolean(),
 });
 

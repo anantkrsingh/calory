@@ -2,6 +2,7 @@ import type { AuthProvider } from '@fitness/types';
 import { useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 
+import { hasCompletedOnboarding } from '@/lib/onboarding';
 import { SocialAuthCancelledError } from '@/lib/social-auth';
 import { useSocialLogin as useSocialLoginMutation } from '@/queries/auth.queries';
 
@@ -14,23 +15,23 @@ interface UseSocialLoginResult {
 
 export function useSocialLogin(disabled = false): UseSocialLoginResult {
   const router = useRouter();
-  const mutation = useSocialLoginMutation();
+  const socialLogin = useSocialLoginMutation();
   const [error, setError] = useState<string | null>(null);
 
   const signIn = useCallback(
     async (provider: AuthProvider) => {
-      if (mutation.isPending || disabled) return;
+      if (socialLogin.isPending || disabled) return;
 
       setError(null);
 
       try {
-        await mutation.mutateAsync(provider);
-        router.replace('/');
+        const session = await socialLogin.mutateAsync(provider);
+        router.replace(
+          hasCompletedOnboarding(session.user) ? '/' : '/auth/onboarding',
+        );
       } catch (cause) {
         if (cause instanceof SocialAuthCancelledError) return;
-
         console.error(`[social-login:${provider}]`, cause);
-
         setError(
           cause instanceof Error
             ? cause.message
@@ -38,12 +39,12 @@ export function useSocialLogin(disabled = false): UseSocialLoginResult {
         );
       }
     },
-    [disabled, mutation, router],
+    [disabled, socialLogin, router],
   );
 
   return {
     signIn,
-    isPending: mutation.isPending,
+    isPending: socialLogin.isPending,
     error,
     clearError: useCallback(() => setError(null), []),
   };

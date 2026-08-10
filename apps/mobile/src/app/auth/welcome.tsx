@@ -44,7 +44,6 @@ export default function WelcomeScreen() {
   const isDark = scheme === "dark";
   const heroHeight = Math.round(height * 0.62);
 
-  /** Melts the artwork into the page background instead of cutting it off with a hard edge. */
   const fade = (alpha: number): ColorValue =>
     isDark ? `rgba(0, 0, 0, ${alpha})` : `rgba(255, 255, 255, ${alpha})`;
 
@@ -52,7 +51,6 @@ export default function WelcomeScreen() {
 
   return (
     <View style={[styles.root, { backgroundColor: theme.background }]}>
-      {/* The art is cream/orange at the top on both themes, so status bar icons stay dark. */}
       <StatusBar style="dark" />
 
       <View style={[styles.hero, { height: heroHeight }]} pointerEvents="none">
@@ -95,7 +93,6 @@ export default function WelcomeScreen() {
       >
         <View style={styles.accentRule} />
 
-        {/* The only lucon on the screen — it's the display face. Weight is ignored for it. */}
         <ThemedText family="ubuntu" style={styles.headline}>
           Train hard.{"\n"}Track everything.
         </ThemedText>

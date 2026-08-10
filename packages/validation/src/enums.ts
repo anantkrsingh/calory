@@ -2,6 +2,7 @@ import {
   ActivityLevel,
   Equipment,
   ExerciseCategory,
+  FitnessGoal,
   GoalStatus,
   GoalType,
   MEASUREMENT_SITES,
@@ -21,6 +22,7 @@ import { z } from 'zod';
 export const unitSystemSchema = z.enum(UnitSystem);
 export const sexSchema = z.enum(Sex);
 export const activityLevelSchema = z.enum(ActivityLevel);
+export const fitnessGoalSchema = z.enum(FitnessGoal);
 export const userRoleSchema = z.enum(UserRole);
 export const muscleGroupSchema = z.enum(MuscleGroup);
 export const equipmentSchema = z.enum(Equipment);

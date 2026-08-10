@@ -1,5 +1,5 @@
 import type { Entity, Id, IsoDate } from './common';
-import type { ActivityLevel, Sex, UnitSystem, UserRole } from './enums';
+import type { ActivityLevel, FitnessGoal, Sex, UnitSystem, UserRole } from './enums';
 
 export interface UserProfile {
   displayName: string;
@@ -8,18 +8,15 @@ export interface UserProfile {
   sex?: Sex;
   heightCm?: number;
   activityLevel?: ActivityLevel;
+  fitnessGoals?: FitnessGoal[];
 }
 
 export interface UserPreferences {
   units: UnitSystem;
-  /** IANA zone, e.g. `Europe/Berlin`. Drives "today" boundaries in stats. */
   timezone: string;
-  weeklyWorkoutTarget: number;
-  restTimerSeconds: number;
   notificationsEnabled: boolean;
 }
 
-/** A user as exposed by the API — never carries the password hash. */
 export interface User extends Entity {
   email: string;
   emailVerified: boolean;

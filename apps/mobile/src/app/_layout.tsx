@@ -16,7 +16,8 @@ import { KeyboardProvider } from 'react-native-keyboard-controller';
 
 import { setOnUnauthorized } from '@/api/http';
 import { queryClient } from '@/api/query-client';
-import { selectHydrated, selectIsAuthenticated, useAuthStore } from '@/stores/auth.store';
+import { hasCompletedOnboarding } from '@/lib/onboarding';
+import { selectHydrated, selectIsAuthenticated, selectUser, useAuthStore } from '@/stores/auth.store';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -24,6 +25,11 @@ export default function RootLayout() {
   const colorScheme = useColorScheme();
   const isHydrated = useAuthStore(selectHydrated);
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
+  const user = useAuthStore(selectUser);
+  // A social-login user is authenticated immediately, before onboarding runs —
+  // keep the `auth` group (which hosts /auth/onboarding) mounted for them
+  // instead of tearing it down the instant `isAuthenticated` flips true.
+  const needsOnboarding = isAuthenticated && user !== null && !hasCompletedOnboarding(user);
 
   // Registered under these exact keys — src/components/ui/Text.tsx maps weights onto them.
   const [fontsLoaded] = useFonts({
@@ -57,11 +63,11 @@ export default function RootLayout() {
       <KeyboardProvider>
         <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
           <Stack screenOptions={{ headerShown: false }}>
-            <Stack.Protected guard={isAuthenticated}>
+            <Stack.Protected guard={isAuthenticated && !needsOnboarding}>
               <Stack.Screen name="(app)" />
             </Stack.Protected>
 
-            <Stack.Protected guard={!isAuthenticated}>
+            <Stack.Protected guard={!isAuthenticated || needsOnboarding}>
               <Stack.Screen name="auth" />
             </Stack.Protected>
           </Stack>

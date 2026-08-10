@@ -71,8 +71,6 @@ const baseUser = {
   preferences: {
     units: 'metric',
     timezone: 'UTC',
-    weeklyWorkoutTarget: 3,
-    restTimerSeconds: 90,
     notificationsEnabled: true,
   },
   linkedAccounts: [],

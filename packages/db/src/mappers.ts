@@ -54,12 +54,13 @@ export function toUser(row: UserRow): User {
       sex: orUndefined(row.profile.sex),
       heightCm: orUndefined(row.profile.heightCm),
       activityLevel: orUndefined(row.profile.activityLevel),
+      fitnessGoals: row.profile.fitnessGoals?.length
+        ? row.profile.fitnessGoals
+        : undefined,
     }) as User['profile'],
     preferences: {
       units: row.preferences.units,
       timezone: row.preferences.timezone,
-      weeklyWorkoutTarget: row.preferences.weeklyWorkoutTarget,
-      restTimerSeconds: row.preferences.restTimerSeconds,
       notificationsEnabled: row.preferences.notificationsEnabled,
     },
     createdAt: iso(row.createdAt),

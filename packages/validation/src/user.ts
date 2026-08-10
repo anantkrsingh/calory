@@ -1,7 +1,7 @@
 import { LIMITS } from '@fitness/config';
 import { z } from 'zod';
 
-import { activityLevelSchema, sexSchema, unitSystemSchema } from './enums';
+import { activityLevelSchema, fitnessGoalSchema, sexSchema, unitSystemSchema } from './enums';
 import { isoDateSchema } from './primitives';
 
 export const userProfileSchema = z.object({
@@ -15,14 +15,13 @@ export const userProfileSchema = z.object({
     .max(LIMITS.heightCm.max)
     .optional(),
   activityLevel: activityLevelSchema.optional(),
+  fitnessGoals: z.array(fitnessGoalSchema).optional(),
 });
 
 export const userPreferencesSchema = z.object({
   units: unitSystemSchema.default('metric'),
   timezone: z.string().min(1).default('UTC'),
-  weeklyWorkoutTarget: z.number().int().min(0).max(21).default(3),
-  restTimerSeconds: z.number().int().min(0).max(600).default(90),
-  notificationsEnabled: z.boolean().default(true),
+  notificationsEnabled: z.boolean().default(false),
 });
 
 export const updateProfileSchema = userProfileSchema.partial();

@@ -476,6 +476,9 @@ importers:
         specifier: ^5.0.14
         version: 5.0.14(@types/react@19.2.18)(react@19.2.3)
     devDependencies:
+      '@expo/config-plugins':
+        specifier: ~57.0.7
+        version: 57.0.7(typescript@6.0.3)
       '@types/react':
         specifier: ~19.2.2
         version: 19.2.18

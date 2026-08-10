@@ -13,6 +13,8 @@ import type { DashboardQueryInput, StatsRangeInput } from '@fitness/validation';
 import { PrismaService } from '../prisma/prisma.service';
 
 const DAY_MS = 86_400_000;
+// Preferences no longer carry a per-user weekly workout target.
+const DEFAULT_WEEKLY_TARGET = 3;
 
 @Injectable()
 export class StatsService {
@@ -24,7 +26,7 @@ export class StatsService {
   ): Promise<DashboardStats> {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: { preferences: true },
+      select: { id: true },
     });
 
     if (!user) throw new NotFoundException('User not found');
@@ -49,7 +51,7 @@ export class StatsService {
       workoutsThisWeek: completed.filter(
         (workout) => workout.startedAt >= weekStart,
       ).length,
-      weeklyTarget: user.preferences.weeklyWorkoutTarget,
+      weeklyTarget: DEFAULT_WEEKLY_TARGET,
       totalWorkouts: completed.length,
       totalVolumeKg:
         Math.round(

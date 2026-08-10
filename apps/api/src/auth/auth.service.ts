@@ -71,6 +71,9 @@ export class AuthService {
       ...(input.profile?.activityLevel
         ? { activityLevel: input.profile.activityLevel }
         : {}),
+      ...(input.profile?.fitnessGoals?.length
+        ? { fitnessGoals: input.profile.fitnessGoals }
+        : {}),
     };
 
     const passwordHash = await hash(input.password, BCRYPT_ROUNDS);
