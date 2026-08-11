@@ -1,7 +1,7 @@
 "use client";
 
 import type { User } from "@fitness/types";
-import { Dumbbell, LogOut, Settings, Users as UsersIcon } from "lucide-react";
+import { Dumbbell, LogOut, Package, Settings, Users as UsersIcon } from "lucide-react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 
@@ -9,6 +9,7 @@ import { logoutAction } from "@/lib/logout-action";
 
 const NAV_ITEMS = [
   { href: "/users", label: "Users", icon: UsersIcon },
+  { href: "/plans", label: "Plans", icon: Package },
   { href: "/exercises", label: "Exercises", icon: Dumbbell },
   { href: "/settings", label: "Settings", icon: Settings },
 ];

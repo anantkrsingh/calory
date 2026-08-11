@@ -33,11 +33,22 @@ export const updateUserSchema = z.object({
   preferences: updatePreferencesSchema.optional(),
 });
 
+export const adminUpdateUserSchema = updateUserSchema.extend({
+  role: z.enum(['user', 'admin']).optional(),
+  emailVerified: z.boolean().optional(),
+  totalCredits: z.number().int().min(0).optional(),
+  remainingCredits: z.number().int().min(0).optional(),
+  planId: z.string().trim().optional().nullable(),
+  planName: z.string().trim().optional().nullable(),
+  planExpiresAt: z.string().trim().optional().nullable(),
+});
+
 export type UserProfileInput = z.infer<typeof userProfileSchema>;
 export type UserPreferencesInput = z.infer<typeof userPreferencesSchema>;
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
 export type UpdatePreferencesInput = z.infer<typeof updatePreferencesSchema>;
 export type UpdateUserInput = z.infer<typeof updateUserSchema>;
+export type AdminUpdateUserInput = z.infer<typeof adminUpdateUserSchema>;
 
 /** Admin-only listing: search by email/display name on top of plain pagination. */
 export const listUsersQuerySchema = paginationQuerySchema.extend({
@@ -45,3 +56,4 @@ export const listUsersQuerySchema = paginationQuerySchema.extend({
 });
 
 export type ListUsersQueryInput = z.infer<typeof listUsersQuerySchema>;
+

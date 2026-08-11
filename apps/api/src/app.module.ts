@@ -11,6 +11,7 @@ import { ExercisesModule } from './exercises/exercises.module';
 import { GoalsModule } from './goals/goals.module';
 import { HealthModule } from './health/health.module';
 import { MeasurementsModule } from './measurements/measurements.module';
+import { PlansModule } from './plans/plans.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { QueuesModule } from './queues/queues.module';
 import { RoutinesModule } from './routines/routines.module';
@@ -27,6 +28,7 @@ import { WorkoutsModule } from './workouts/workouts.module';
     AiModule,
     AuthModule,
     UsersModule,
+    PlansModule,
     ExercisesModule,
     WorkoutsModule,
     RoutinesModule,

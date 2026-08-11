@@ -3,6 +3,7 @@ import type {
   BodyMeasurement,
   Exercise,
   Goal,
+  Plan,
   Routine,
   User,
   Workout,
@@ -14,6 +15,7 @@ import type {
   BodyMeasurementRow,
   ExerciseRow,
   GoalRow,
+  PlanRow,
   RoutineRow,
   UserRow,
   WorkoutRow,
@@ -65,6 +67,28 @@ export function toUser(row: UserRow): User {
       timezone: row.preferences.timezone,
       notificationsEnabled: row.preferences.notificationsEnabled,
     },
+    totalCredits: row.totalCredits ?? 5,
+    remainingCredits: row.remainingCredits ?? 5,
+    planId: orUndefined(row.planId),
+    planName: orUndefined(row.planName),
+    planExpiresAt: isoOrUndefined(row.planExpiresAt),
+    createdAt: iso(row.createdAt),
+    updatedAt: iso(row.updatedAt),
+  };
+}
+
+export function toPlan(row: PlanRow): Plan {
+  return {
+    id: row.id,
+    name: row.name,
+    description: orUndefined(row.description),
+    duration: row.duration,
+    durationDays: orUndefined(row.durationDays),
+    price: row.price,
+    currency: row.currency,
+    benefits: row.benefits ?? [],
+    storeProductId: orUndefined(row.storeProductId),
+    isActive: row.isActive,
     createdAt: iso(row.createdAt),
     updatedAt: iso(row.updatedAt),
   };
