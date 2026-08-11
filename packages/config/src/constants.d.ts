@@ -32,6 +32,9 @@ export declare const LIMITS: {
         readonly min: 1;
         readonly max: 120;
     };
+    readonly exerciseImages: {
+        readonly max: 10;
+    };
     readonly setsPerExercise: {
         readonly max: 50;
     };

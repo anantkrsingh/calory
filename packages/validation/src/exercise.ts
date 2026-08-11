@@ -21,7 +21,8 @@ export const createExerciseSchema = z.object({
   secondaryMuscles: z.array(muscleGroupSchema).default([]),
   equipment: equipmentSchema,
   instructions: z.string().trim().max(LIMITS.notes.max).optional(),
-  imageUrl: z.url().optional(),
+  thumbnail: z.url().nullish(),
+  images: z.array(z.url()).max(LIMITS.exerciseImages.max).default([]),
 });
 
 export const updateExerciseSchema = createExerciseSchema.partial();
