@@ -8,7 +8,10 @@ export interface Exercise extends Entity {
   secondaryMuscles: MuscleGroup[];
   equipment: Equipment;
   instructions?: string;
-  imageUrl?: string;
+  /** Main / list thumbnail image (Cloudinary URL). */
+  thumbnail?: string;
+  /** Additional gallery images (Cloudinary URLs). */
+  images: string[];
   /** `null` for the built-in catalogue, a user id for custom exercises. */
   createdBy: Id | null;
   isCustom: boolean;

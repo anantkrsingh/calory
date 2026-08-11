@@ -295,7 +295,10 @@ model Exercise {
   secondaryMuscles MuscleGroup[]
   equipment        Equipment
   instructions     String?
-  imageUrl         String?
+  /// Main / list thumbnail image (Cloudinary URL).
+  thumbnail        String?
+  /// Additional gallery images (Cloudinary URLs).
+  images           String[] @default([])
 
   /// Null for the shared catalogue, set for user-authored exercises.
   createdById String? @db.ObjectId

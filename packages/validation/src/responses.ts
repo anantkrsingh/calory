@@ -93,7 +93,8 @@ export const exerciseSchema = z.object({
   secondaryMuscles: z.array(muscleGroupSchema),
   equipment: equipmentSchema,
   instructions: z.string().optional(),
-  imageUrl: z.string().optional(),
+  thumbnail: z.string().optional(),
+  images: z.array(z.string()),
   createdBy: objectIdSchema.nullable(),
   isCustom: z.boolean(),
 });

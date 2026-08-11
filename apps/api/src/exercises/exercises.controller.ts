@@ -79,18 +79,23 @@ export class ExercisesController {
   }
 
   @Post()
-  @ApiOperation({ summary: 'Create a custom exercise' })
+  @ApiOperation({
+    summary:
+      'Create an exercise — catalogue entry for admins, personal custom for users',
+  })
   @ApiZodBody(createExerciseSchema)
   @ApiZodResponse(exerciseSchema, { status: 201, description: 'Created exercise', name: 'Exercise' })
   create(
     @CurrentUser() user: AuthenticatedUser,
     @Body(zodPipe(createExerciseSchema)) body: CreateExerciseInput,
   ): Promise<Exercise> {
-    return this.exercises.create(user.id, body);
+    return this.exercises.create(user, body);
   }
 
   @Patch(':id')
-  @ApiOperation({ summary: 'Update a custom exercise' })
+  @ApiOperation({
+    summary: 'Update an exercise — catalogue for admins, own custom for users',
+  })
   @ApiZodBody(updateExerciseSchema)
   @ApiResponse({ status: 403, description: 'Not yours to modify' })
   @ApiResponse({ status: 404, description: 'Not found' })
@@ -100,18 +105,20 @@ export class ExercisesController {
     @Param('id', zodPipe(objectIdSchema)) id: string,
     @Body(zodPipe(updateExerciseSchema)) body: UpdateExerciseInput,
   ): Promise<Exercise> {
-    return this.exercises.update(user.id, id, body);
+    return this.exercises.update(user, id, body);
   }
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ summary: 'Delete a custom exercise' })
+  @ApiOperation({
+    summary: 'Delete an exercise — catalogue for admins, own custom for users',
+  })
   @ApiResponse({ status: 403, description: 'Not yours to modify' })
   @ApiResponse({ status: 404, description: 'Not found' })
   remove(
     @CurrentUser() user: AuthenticatedUser,
     @Param('id', zodPipe(objectIdSchema)) id: string,
   ): Promise<void> {
-    return this.exercises.remove(user.id, id);
+    return this.exercises.remove(user, id);
   }
 }

@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { Prisma, paginate, toExercise, toSkipTake } from '@fitness/db';
 import type {
+  AuthenticatedUser,
   Exercise,
   ExercisePersonalRecord,
   Id,
@@ -64,19 +65,31 @@ export class ExercisesService {
     return toExercise(exercise);
   }
 
-  async create(userId: Id, input: CreateExerciseInput): Promise<Exercise> {
+  /**
+   * Admins add to the shared catalogue (`createdById: null`).
+   * Regular users create personal custom exercises.
+   */
+  async create(
+    user: AuthenticatedUser,
+    input: CreateExerciseInput,
+  ): Promise<Exercise> {
+    const isAdmin = user.role === 'admin';
     const exercise = await this.prisma.exercise.create({
-      data: { ...input, createdById: userId, isCustom: true },
+      data: {
+        ...input,
+        createdById: isAdmin ? null : user.id,
+        isCustom: !isAdmin,
+      },
     });
     return toExercise(exercise);
   }
 
   async update(
-    userId: Id,
+    user: AuthenticatedUser,
     id: Id,
     input: UpdateExerciseInput,
   ): Promise<Exercise> {
-    await this.assertOwned(userId, id);
+    await this.assertCanModify(user, id);
     const exercise = await this.prisma.exercise.update({
       where: { id },
       data: input,
@@ -84,8 +97,8 @@ export class ExercisesService {
     return toExercise(exercise);
   }
 
-  async remove(userId: Id, id: Id): Promise<void> {
-    await this.assertOwned(userId, id);
+  async remove(user: AuthenticatedUser, id: Id): Promise<void> {
+    await this.assertCanModify(user, id);
     await this.prisma.exercise.delete({ where: { id } });
   }
 
@@ -168,19 +181,30 @@ export class ExercisesService {
     return record;
   }
 
-  /** Custom exercises are editable by their owner; the catalogue is not. */
-  private async assertOwned(userId: Id, id: Id): Promise<void> {
+  /**
+   * Catalogue exercises are editable by admins.
+   * Custom exercises are editable by their owner.
+   */
+  private async assertCanModify(
+    user: AuthenticatedUser,
+    id: Id,
+  ): Promise<void> {
     const exercise = await this.prisma.exercise.findUnique({
       where: { id },
       select: { createdById: true },
     });
 
     if (!exercise) throw new NotFoundException('Exercise not found');
-    if (exercise.createdById !== userId) {
-      throw new ForbiddenException(
-        'Only custom exercises you created can be modified',
-      );
-    }
+
+    const isCatalogue = exercise.createdById === null;
+    if (isCatalogue && user.role === 'admin') return;
+    if (exercise.createdById === user.id) return;
+
+    throw new ForbiddenException(
+      isCatalogue
+        ? 'Only admins can modify catalogue exercises'
+        : 'Only custom exercises you created can be modified',
+    );
   }
 }
 

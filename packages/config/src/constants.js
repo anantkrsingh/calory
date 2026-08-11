@@ -27,6 +27,7 @@ exports.LIMITS = {
     name: { min: 1, max: 120 },
     notes: { max: 2000 },
     exerciseName: { min: 1, max: 120 },
+    exerciseImages: { max: 10 },
     setsPerExercise: { max: 50 },
     exercisesPerWorkout: { max: 50 },
     reps: { min: 0, max: 1000 },
