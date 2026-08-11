@@ -12,10 +12,12 @@ import {
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import type { AuthenticatedUser, Paginated, User } from '@fitness/types';
 import {
+  adminUpdateUserSchema,
   listUsersQuerySchema,
   objectIdSchema,
   updateUserSchema,
   userSchema,
+  type AdminUpdateUserInput,
   type ListUsersQueryInput,
   type UpdateUserInput,
 } from '@fitness/validation';
@@ -77,5 +79,17 @@ export class UsersController {
   @ApiZodResponse(userSchema, { description: 'The user', name: 'User' })
   get(@Param('id', zodPipe(objectIdSchema)) id: string): Promise<User> {
     return this.users.findById(id);
+  }
+
+  @Patch(':id')
+  @Roles('admin')
+  @ApiOperation({ summary: 'Update user credits, plan, role, or profile (admin only)' })
+  @ApiZodBody(adminUpdateUserSchema)
+  @ApiZodResponse(userSchema, { description: 'Updated user', name: 'User' })
+  adminUpdate(
+    @Param('id', zodPipe(objectIdSchema)) id: string,
+    @Body(zodPipe(adminUpdateUserSchema)) body: AdminUpdateUserInput,
+  ): Promise<User> {
+    return this.users.adminUpdate(id, body);
   }
 }

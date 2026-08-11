@@ -78,6 +78,9 @@ export class AuthService {
 
     const passwordHash = await hash(input.password, BCRYPT_ROUNDS);
 
+    const appSettings = await this.prisma.appSettings.findFirst();
+    const defaultCredits = appSettings?.freeChatsLimit ?? 5;
+
     const user = await this.prisma.user.upsert({
       where: { email: input.email },
       create: {
@@ -86,6 +89,8 @@ export class AuthService {
         emailVerified: false,
         profile,
         preferences: {},
+        totalCredits: defaultCredits,
+        remainingCredits: defaultCredits,
       },
       update: {
         passwordHash,
@@ -226,6 +231,9 @@ export class AuthService {
     }
 
     const email = profile.email;
+    const appSettings = await this.prisma.appSettings.findFirst();
+    const defaultCredits = appSettings?.freeChatsLimit ?? 5;
+
     const user = await this.prisma.user.create({
       data: {
         email,
@@ -235,6 +243,8 @@ export class AuthService {
           avatarUrl: profile.avatarUrl ?? null,
         },
         preferences: {},
+        totalCredits: defaultCredits,
+        remainingCredits: defaultCredits,
         linkedAccounts: [
           {
             provider: profile.provider,

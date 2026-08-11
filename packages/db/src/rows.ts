@@ -3,6 +3,7 @@ import type {
   BodyMeasurement,
   Exercise,
   Goal,
+  Plan,
   Routine,
   User,
   Workout,
@@ -15,6 +16,7 @@ import type {
  * call site, and makes "this is a database shape" explicit.
  */
 export type UserRow = User;
+export type PlanRow = Plan;
 export type ExerciseRow = Exercise;
 export type WorkoutRow = Workout;
 export type RoutineRow = Routine;

@@ -23,6 +23,11 @@ export interface User extends Entity {
   role: UserRole;
   profile: UserProfile;
   preferences: UserPreferences;
+  totalCredits?: number;
+  remainingCredits?: number;
+  planId?: Id;
+  planName?: string;
+  planExpiresAt?: IsoDate;
 }
 
 export interface UserSummary {

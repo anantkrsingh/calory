@@ -249,6 +249,13 @@ model User {
   refreshTokenHash String?
   lastLoginAt      DateTime?
 
+  totalCredits     Int       @default(5)
+  remainingCredits Int       @default(5)
+  planId           String?   @db.ObjectId
+  planName         String?
+  planExpiresAt    DateTime?
+  plan             Plan?     @relation(fields: [planId], references: [id])
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -259,6 +266,25 @@ model User {
   goals        Goal[]
 
   @@map("users")
+}
+
+model Plan {
+  id             String   @id @default(auto()) @map("_id") @db.ObjectId
+  name           String   @unique
+  description    String?
+  duration       String   // e.g. "monthly", "yearly", "weekly", "lifetime"
+  durationDays   Int?     // e.g. 30, 365
+  price          Float    @default(0)
+  currency       String   @default("USD")
+  benefits       String[] // Array of feature bullet points
+  storeProductId String?  // RevenueCat / Play Store / App Store ID
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  users User[]
+
+  @@map("plans")
 }
 
 model Exercise {

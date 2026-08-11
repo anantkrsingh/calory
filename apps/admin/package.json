@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@fitness/types": "workspace:*",
+    "@fitness/validation": "workspace:*",
     "lucide-react": "^1.31.0",
     "next": "16.3.0",
     "react": "19.2.8",
