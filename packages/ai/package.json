@@ -22,6 +22,7 @@
   },
   "dependencies": {
     "@ai-sdk/google": "^2.0.0",
+    "@ai-sdk/openai": "^2.0.117",
     "@fitness/config": "workspace:*",
     "@fitness/types": "workspace:*",
     "ai": "^5.0.0",

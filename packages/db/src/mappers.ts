@@ -1,23 +1,27 @@
 import type {
   AppSettings,
   BodyMeasurement,
+  DailyQuote,
   Exercise,
   Goal,
   Plan,
   Routine,
   User,
   Workout,
+  WorkoutRoutine,
   WorkoutSummary,
 } from '@fitness/types';
 
 import type {
   AppSettingsRow,
   BodyMeasurementRow,
+  DailyQuoteRow,
   ExerciseRow,
   GoalRow,
   PlanRow,
   RoutineRow,
   UserRow,
+  WorkoutRoutineRow,
   WorkoutRow,
 } from './rows';
 
@@ -238,6 +242,44 @@ export function toAppSettings(row: AppSettingsRow): AppSettings {
       label: prompt.label,
       prompt: prompt.prompt,
     })),
+    createdAt: iso(row.createdAt),
+    updatedAt: iso(row.updatedAt),
+  };
+}
+
+export function toDailyQuote(row: DailyQuoteRow): DailyQuote {
+  return {
+    id: row.id,
+    date: row.date,
+    quoteOfTheDay: row.quoteOfTheDay,
+    createdAt: iso(row.createdAt),
+    updatedAt: iso(row.updatedAt),
+  };
+}
+
+export function toWorkoutRoutine(row: WorkoutRoutineRow): WorkoutRoutine {
+  return {
+    id: row.id,
+    userId: row.userId,
+    status: row.status,
+    dailyCalorieTarget: orUndefined(row.dailyCalorieTarget),
+    summary: orUndefined(row.summary),
+    days: row.days.map((day) => ({
+      dayOfWeek: day.dayOfWeek,
+      isRestDay: day.isRestDay,
+      targetCaloriesBurned: day.targetCaloriesBurned,
+      focus: day.focus,
+      exercises: day.exercises.map((exercise) => ({
+        exerciseId: exercise.exerciseId,
+        exerciseName: exercise.exerciseName,
+        sets: exercise.sets,
+        reps: orUndefined(exercise.reps),
+        durationSec: orUndefined(exercise.durationSec),
+        restSeconds: orUndefined(exercise.restSeconds),
+      })),
+    })),
+    error: orUndefined(row.error),
+    generatedAt: isoOrUndefined(row.generatedAt),
     createdAt: iso(row.createdAt),
     updatedAt: iso(row.updatedAt),
   };

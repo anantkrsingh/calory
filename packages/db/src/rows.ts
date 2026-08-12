@@ -7,6 +7,8 @@ import type {
   Routine,
   User,
   Workout,
+  DailyQuote,
+  WorkoutRoutine,
 } from '@prisma/client';
 
 /**
@@ -23,6 +25,8 @@ export type RoutineRow = Routine;
 export type BodyMeasurementRow = BodyMeasurement;
 export type GoalRow = Goal;
 export type AppSettingsRow = AppSettings;
+export type DailyQuoteRow = DailyQuote;
+export type WorkoutRoutineRow = WorkoutRoutine;
 
 export type {
   AiPromptConfig as AiPromptConfigComposite,

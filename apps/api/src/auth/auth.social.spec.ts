@@ -32,11 +32,15 @@ function makeService(user: Record<string, unknown> | null) {
       create: jest.fn().mockImplementation(({ data }) => ({
         id: 'new-id',
         role: 'user',
+        planExpiresAt: null,
         createdAt: new Date(),
         updatedAt: new Date(),
         ...data,
         preferences: { ...baseUser.preferences, ...data.preferences },
       })),
+    },
+    appSettings: {
+      findFirst: jest.fn().mockResolvedValue({ freeChatsLimit: 5 }),
     },
   };
 
@@ -50,16 +54,18 @@ function makeService(user: Record<string, unknown> | null) {
     verifyOtp: jest.fn().mockResolvedValue({ success: true }),
   };
   const measurements = { create: jest.fn() };
+  const workoutRoutines = { requestGeneration: jest.fn() };
 
   const service = new AuthService(
     prisma as never,
     jwt as never,
     otp as never,
     measurements as never,
+    workoutRoutines as never,
     { JWT_EXPIRES_IN: '7d' } as never,
   );
 
-  return { service, prisma, otp, measurements };
+  return { service, prisma, otp, measurements, workoutRoutines };
 }
 
 const baseUser = {
@@ -74,6 +80,7 @@ const baseUser = {
     notificationsEnabled: true,
   },
   linkedAccounts: [],
+  planExpiresAt: null,
   createdAt: new Date(),
   updatedAt: new Date(),
 };
@@ -205,6 +212,31 @@ describe('AuthService.verifyRegistration', () => {
       'registration',
     );
     expect(prisma.user.update.mock.calls[0][0].data.emailVerified).toBe(true);
+    expect(session.tokens.accessToken).toBe('token');
+  });
+
+  it('requests routine generation once the email is verified', async () => {
+    const { service, workoutRoutines } = makeService(baseUser);
+
+    await service.verifyRegistration({
+      email: 'ada@example.com',
+      code: '123456',
+    });
+
+    expect(workoutRoutines.requestGeneration).toHaveBeenCalledWith(
+      'existing-id',
+    );
+  });
+
+  it('still returns a session when routine generation cannot be queued', async () => {
+    const { service, workoutRoutines } = makeService(baseUser);
+    workoutRoutines.requestGeneration.mockResolvedValue(null);
+
+    const session = await service.verifyRegistration({
+      email: 'ada@example.com',
+      code: '123456',
+    });
+
     expect(session.tokens.accessToken).toBe('token');
   });
 
