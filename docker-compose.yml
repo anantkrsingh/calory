@@ -1,89 +1,78 @@
-version: '3.8'
-
 services:
-  # Redis for BullMQ background jobs
   redis:
     image: redis:7-alpine
     container_name: fitness_redis
-    ports:
-      - "6379:6379"
+    command: redis-server --appendonly yes
     volumes:
       - redis_data:/data
-    command: redis-server --appendonly yes
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 5s
       retries: 3
+    networks:
+      - fitness
 
-  # MongoDB for data storage
-  mongodb:
-    image: mongo:7
-    container_name: fitness_mongodb
-    ports:
-      - "27017:27017"
-    volumes:
-      - mongodb_data:/data/db
-    environment:
-      MONGO_INITDB_DATABASE: fitness
-    restart: unless-stopped
-    healthcheck:
-      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet | grep 1
-      interval: 10s
-      timeout: 5s
-      retries: 3
-
-  # API Server
   api:
     build:
       context: .
       dockerfile: apps/api/Dockerfile
     container_name: fitness_api
     ports:
-      - "3000:3000"
+      - "${PORT:-3000}:3000"
+    env_file:
+      - path: .env
+        required: true
     environment:
-      NODE_ENV: development
+      NODE_ENV: production
       PORT: 3000
-      MONGODB_URI: mongodb://mongodb:27017/fitness
+      # Always talk to the compose Redis service; password still comes from .env
       REDIS_HOST: redis
       REDIS_PORT: 6379
-      JWT_SECRET: your-dev-jwt-secret-change-in-production
-      CORS_ORIGIN: *
     depends_on:
-      mongodb:
-        condition: service_healthy
       redis:
         condition: service_healthy
     restart: unless-stopped
-    volumes:
-      - ./apps/api/src:/app/src
-      - /app/node_modules
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/api/v1/health').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - fitness
 
-  # BullMQ Worker for background jobs
   worker:
     build:
       context: .
       dockerfile: apps/worker/Dockerfile
     container_name: fitness_worker
+    env_file:
+      - path: .env
+        required: true
     environment:
-      NODE_ENV: development
-      MONGODB_URI: mongodb://mongodb:27017/fitness
+      NODE_ENV: production
       REDIS_HOST: redis
       REDIS_PORT: 6379
-      JWT_SECRET: your-dev-jwt-secret-change-in-production
     depends_on:
-      mongodb:
-        condition: service_healthy
       redis:
         condition: service_healthy
       api:
-        condition: service_started
+        condition: service_healthy
     restart: unless-stopped
-    volumes:
-      - ./apps/worker/src:/app/src
-      - /app/node_modules
+    networks:
+      - fitness
 
 volumes:
   redis_data:
-  mongodb_data:
+
+networks:
+  fitness:
+    name: fitness_network

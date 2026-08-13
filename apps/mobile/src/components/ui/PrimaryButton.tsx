@@ -2,6 +2,8 @@ import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'rea
 
 import { ThemedText } from '@/components/themed-text';
 import { Brand, Pressed } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useTheme } from '@/hooks/use-theme';
 
 type PrimaryButtonTone = 'default' | 'danger';
 
@@ -28,7 +30,12 @@ export default function PrimaryButton({
   tone = 'default',
   style,
 }: PrimaryButtonProps) {
+  const theme = useTheme();
+  const isDark = useColorScheme() === 'dark';
   const colors = TONE_COLORS[tone];
+  // The near-black ink ring reads as invisible on a dark background, so danger
+  // buttons swap it for a light ring there instead.
+  const frameColor = tone === 'danger' && isDark ? theme.backgroundSelected : colors.frame;
 
   return (
     <Pressable
@@ -39,7 +46,7 @@ export default function PrimaryButton({
       disabled={disabled}
       style={({ pressed }) => [
         styles.frame,
-        { backgroundColor: colors.frame },
+        { backgroundColor: frameColor },
         disabled && styles.disabled,
         pressed && !disabled && Pressed,
         style,

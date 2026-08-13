@@ -1,0 +1,32 @@
+# Git / IDE
+.git
+.github
+.agents
+.claude
+.cursor
+.turbo
+.pnpm-store
+**/.DS_Store
+
+# Dependencies & build outputs (rebuilt in image)
+**/node_modules
+**/dist
+**/.next
+**/.expo
+**/coverage
+**/*.tsbuildinfo
+
+# Env & secrets — injected at runtime via compose / CI
+.env
+.env.*
+!.env.example
+
+# Heavy app trees not needed to build api/worker (package.json still copied in Dockerfiles)
+apps/mobile/**
+!apps/mobile/package.json
+apps/admin/**
+!apps/admin/package.json
+
+# Docs & misc
+docs
+skills-lock.json

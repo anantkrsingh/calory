@@ -1,0 +1,146 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch: {}
+
+concurrency:
+  group: ci-cd-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Typecheck & lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.10.0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Lint
+        run: pnpm lint
+
+  deploy:
+    name: Deploy (self-hosted)
+    needs: validate
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    runs-on: self-hosted
+    timeout-minutes: 30
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Write .env from GitHub secrets
+        env:
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          JWT_EXPIRES_IN: ${{ secrets.JWT_EXPIRES_IN }}
+          CORS_ORIGIN: ${{ secrets.CORS_ORIGIN }}
+          API_PREFIX: ${{ secrets.API_PREFIX }}
+          SWAGGER_ENABLED: ${{ secrets.SWAGGER_ENABLED }}
+          REDIS_PASSWORD: ${{ secrets.REDIS_PASSWORD }}
+          OTP_EXPIRY_MINUTES: ${{ secrets.OTP_EXPIRY_MINUTES }}
+          OTP_LENGTH: ${{ secrets.OTP_LENGTH }}
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_SECURE: ${{ secrets.SMTP_SECURE }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          SMTP_FROM: ${{ secrets.SMTP_FROM }}
+          GOOGLE_CLIENT_IDS: ${{ secrets.GOOGLE_CLIENT_IDS }}
+          FACEBOOK_APP_ID: ${{ secrets.FACEBOOK_APP_ID }}
+          FACEBOOK_APP_SECRET: ${{ secrets.FACEBOOK_APP_SECRET }}
+          X_CLIENT_ID: ${{ secrets.X_CLIENT_ID }}
+          X_CLIENT_SECRET: ${{ secrets.X_CLIENT_SECRET }}
+          GOOGLE_GENERATIVE_AI_API_KEY: ${{ secrets.GOOGLE_GENERATIVE_AI_API_KEY }}
+          GEMINI_MODEL: ${{ secrets.GEMINI_MODEL }}
+          CLOUDINARY_CLOUD_NAME: ${{ secrets.CLOUDINARY_CLOUD_NAME }}
+          CLOUDINARY_API_KEY: ${{ secrets.CLOUDINARY_API_KEY }}
+          CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET }}
+          DEFAULT_PAGE_SIZE: ${{ secrets.DEFAULT_PAGE_SIZE }}
+        run: |
+          set -euo pipefail
+          if [ -z "${MONGODB_URI:-}" ] || [ -z "${JWT_SECRET:-}" ]; then
+            echo "MONGODB_URI and JWT_SECRET secrets are required" >&2
+            exit 1
+          fi
+
+          umask 077
+          : > .env
+          append() {
+            # Writes KEY=value without shell-expanding the value further.
+            printf '%s=%s\n' "$1" "$2" >> .env
+          }
+
+          append NODE_ENV production
+          append PORT 3000
+          append API_PREFIX "${API_PREFIX:-api}"
+          append CORS_ORIGIN "${CORS_ORIGIN:-*}"
+          append MONGODB_URI "$MONGODB_URI"
+          append JWT_SECRET "$JWT_SECRET"
+          append JWT_EXPIRES_IN "${JWT_EXPIRES_IN:-7d}"
+          append SWAGGER_ENABLED "${SWAGGER_ENABLED:-false}"
+          append DEFAULT_PAGE_SIZE "${DEFAULT_PAGE_SIZE:-20}"
+          append REDIS_PASSWORD "${REDIS_PASSWORD:-}"
+          append OTP_EXPIRY_MINUTES "${OTP_EXPIRY_MINUTES:-10}"
+          append OTP_LENGTH "${OTP_LENGTH:-6}"
+          append SMTP_HOST "${SMTP_HOST:-localhost}"
+          append SMTP_PORT "${SMTP_PORT:-587}"
+          append SMTP_SECURE "${SMTP_SECURE:-false}"
+          append SMTP_USER "${SMTP_USER:-}"
+          append SMTP_PASSWORD "${SMTP_PASSWORD:-}"
+          append SMTP_FROM "${SMTP_FROM:-no-reply@fitness.app}"
+          append GOOGLE_CLIENT_IDS "${GOOGLE_CLIENT_IDS:-}"
+          append FACEBOOK_APP_ID "${FACEBOOK_APP_ID:-}"
+          append FACEBOOK_APP_SECRET "${FACEBOOK_APP_SECRET:-}"
+          append X_CLIENT_ID "${X_CLIENT_ID:-}"
+          append X_CLIENT_SECRET "${X_CLIENT_SECRET:-}"
+          append GOOGLE_GENERATIVE_AI_API_KEY "${GOOGLE_GENERATIVE_AI_API_KEY:-}"
+          append GEMINI_MODEL "${GEMINI_MODEL:-gemini-2.5-flash}"
+          append CLOUDINARY_CLOUD_NAME "${CLOUDINARY_CLOUD_NAME:-}"
+          append CLOUDINARY_API_KEY "${CLOUDINARY_API_KEY:-}"
+          append CLOUDINARY_API_SECRET "${CLOUDINARY_API_SECRET:-}"
+
+      - name: Deploy with Docker Compose
+        run: |
+          set -euo pipefail
+          docker compose pull redis
+          docker compose up -d --build --remove-orphans
+          docker compose ps
+
+      - name: Smoke-check API health
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 30); do
+            if curl -fsS "http://127.0.0.1:${PORT:-3000}/api/v1/health" >/dev/null; then
+              echo "API healthy"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "API health check failed" >&2
+          docker compose logs --tail=100 api worker
+          exit 1
