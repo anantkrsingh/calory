@@ -2,12 +2,22 @@ import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'rea
 
 import { ThemedText } from '@/components/themed-text';
 import { Brand, Pressed } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useTheme } from '@/hooks/use-theme';
+
+type PrimaryButtonTone = 'default' | 'danger';
+
+const TONE_COLORS: Record<PrimaryButtonTone, { frame: string; fill: string; text: string }> = {
+  default: { frame: Brand.ctaOutline, fill: Brand.ctaFill, text: Brand.ctaOutline },
+  danger: { frame: Brand.ctaOutline, fill: Brand.accent, text: '#FFFFFF' },
+};
 
 type PrimaryButtonProps = {
   label: string;
   onPress: () => void;
   disabled?: boolean;
   accessibilityLabel?: string;
+  tone?: PrimaryButtonTone;
   style?: StyleProp<ViewStyle>;
 };
 
@@ -17,8 +27,16 @@ export default function PrimaryButton({
   onPress,
   disabled = false,
   accessibilityLabel,
+  tone = 'default',
   style,
 }: PrimaryButtonProps) {
+  const theme = useTheme();
+  const isDark = useColorScheme() === 'dark';
+  const colors = TONE_COLORS[tone];
+  // The near-black ink ring reads as invisible on a dark background, so danger
+  // buttons swap it for a light ring there instead.
+  const frameColor = tone === 'danger' && isDark ? theme.backgroundSelected : colors.frame;
+
   return (
     <Pressable
       accessibilityRole="button"
@@ -28,12 +46,13 @@ export default function PrimaryButton({
       disabled={disabled}
       style={({ pressed }) => [
         styles.frame,
+        { backgroundColor: frameColor },
         disabled && styles.disabled,
         pressed && !disabled && Pressed,
         style,
       ]}>
-      <View style={styles.fill}>
-        <ThemedText fontWeight="bold" style={styles.text}>
+      <View style={[styles.fill, { backgroundColor: colors.fill }]}>
+        <ThemedText fontWeight="bold" style={[styles.text, { color: colors.text }]}>
           {label}
         </ThemedText>
       </View>
@@ -44,7 +63,6 @@ export default function PrimaryButton({
 const styles = StyleSheet.create({
   frame: {
     borderRadius: 999,
-    backgroundColor: Brand.ctaOutline,
     padding: 3,
     paddingBottom: 6,
     paddingHorizontal: 4,
@@ -57,10 +75,8 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Brand.ctaFill,
   },
   text: {
-    color: Brand.ctaOutline,
     fontSize: 20,
     lineHeight: 26,
     letterSpacing: -0.2,
