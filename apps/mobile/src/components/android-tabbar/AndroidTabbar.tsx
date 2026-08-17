@@ -1,3 +1,4 @@
+import { BlurView } from 'expo-blur';
 import { Tabs } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useState, type ComponentProps } from 'react';
@@ -13,7 +14,9 @@ import Animated, {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { TabBarButton } from '@/components/android-tabbar/TabBarButton';
+import { useTabBlurTarget } from '@/components/android-tabbar/tab-blur-target';
 import { Brand } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useTheme } from '@/hooks/use-theme';
 
 type BottomTabBarProps = Parameters<
@@ -26,9 +29,14 @@ const TAB_BAR_HEIGHT = 70;
 const HORIZONTAL_PADDING = 16;
 const VERTICAL_PADDING = 8;
 const PILL_TOP = 5;
+
 export function AndroidTabbar({ state, descriptors, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
   const theme = useTheme();
+  const scheme = useColorScheme();
+  const blurTarget = useTabBlurTarget();
+  const isDark = scheme === 'dark';
+
   const [dimensions, setDimensions] = useState({
     height: TAB_BAR_HEIGHT,
     width: DeviceWidth - 32,
@@ -138,15 +146,19 @@ export function AndroidTabbar({ state, descriptors, navigation }: BottomTabBarPr
       />
 
       <GestureDetector gesture={panGesture}>
-        <View
+        <BlurView
           onLayout={onTabbarLayout}
+          blurTarget={blurTarget ?? undefined}
+          blurMethod="dimezisBlurViewSdk31Plus"
+          intensity={75}
+          tint={isDark ? 'dark' : 'light'}
+          blurReductionFactor={3}
           style={[
             styles.tabbar,
             {
               height: TAB_BAR_HEIGHT,
               paddingHorizontal: HORIZONTAL_PADDING,
               paddingVertical: VERTICAL_PADDING,
-              backgroundColor: theme.surface,
               borderColor: theme.border,
             },
           ]}>
@@ -211,7 +223,7 @@ export function AndroidTabbar({ state, descriptors, navigation }: BottomTabBarPr
               />
             );
           })}
-        </View>
+        </BlurView>
       </GestureDetector>
     </View>
   );

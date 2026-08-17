@@ -1,11 +1,11 @@
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from "react-native";
 
-import { TabScreen } from '@/components/tab-screen';
-import { ThemedText } from '@/components/themed-text';
-import { CircularProgressRing } from '@/components/ui/CircularProgressRing';
-import { Spacing } from '@/constants/theme';
-import { useTodayQuote } from '@/queries/quotes.queries';
-import { useTodayCalories } from '@/queries/workout-routines.queries';
+import { TabScreen } from "@/components/tab-screen";
+import { ThemedText } from "@/components/themed-text";
+import { CircularProgressRing } from "@/components/ui/CircularProgressRing";
+import { Spacing } from "@/constants/theme";
+import { useTodayQuote } from "@/queries/quotes.queries";
+import { useTodayCalories } from "@/queries/workout-routines.queries";
 
 export default function HomeScreen() {
   const { data: quote } = useTodayQuote();
@@ -33,25 +33,25 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   content: {
-    alignItems: 'flex-start',
+    alignItems: "flex-start",
     paddingTop: Spacing.three,
     gap: Spacing.four,
   },
   quote: {
-    alignSelf: 'stretch',
-    alignItems: 'flex-start',
+    alignSelf: "stretch",
+    alignItems: "flex-start",
     gap: Spacing.one,
-    maxWidth: '90%',
+    maxWidth: "90%",
   },
   text: {
-    textAlign: 'left',
+    textAlign: "left",
     fontSize: 18,
     lineHeight: 26,
   },
   ringRow: {
-    alignSelf: 'stretch',
-    width: '50%',
-    marginLeft: '50%',
-    alignItems: 'flex-end',
+    alignSelf: "stretch",
+    width: "50%",
+    marginLeft: "50%",
+    alignItems: "flex-end",
   },
 });
