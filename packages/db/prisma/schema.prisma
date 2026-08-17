@@ -122,6 +122,19 @@ enum GoalStatus {
   abandoned
 }
 
+/// Which AI feature a configured system prompt belongs to.
+enum PromptCategory {
+  quote_of_the_day
+  workout_routine
+}
+
+enum WorkoutRoutineStatus {
+  generating
+  active
+  failed
+  superseded
+}
+
 // ---------------------------------------------------------------------------
 // Composite types
 // ---------------------------------------------------------------------------
@@ -208,11 +221,29 @@ type RoutineExercise {
   notes        String?
 }
 
-/// A configurable prompt for one AI-driven feature (e.g. "workout_suggestion").
+/// A configurable prompt for one AI-driven feature.
 type AiPromptConfig {
-  key    String
-  label  String
-  prompt String
+  promptCategory PromptCategory
+  prompt         String
+}
+
+/// One planned exercise inside an AI-generated routine day.
+type RoutinePlanExercise {
+  exerciseId   String @db.ObjectId
+  exerciseName String
+  sets         Int
+  reps         Int?
+  durationSec  Int?
+  restSeconds  Int?
+}
+
+/// One day of an AI-generated weekly routine. 1 = Monday .. 7 = Sunday.
+type RoutinePlanDay {
+  dayOfWeek            Int
+  isRestDay            Boolean
+  targetCaloriesBurned Int
+  focus                String
+  exercises            RoutinePlanExercise[]
 }
 
 /// Circumferences in centimetres.
@@ -264,6 +295,7 @@ model User {
   routines     Routine[]
   measurements BodyMeasurement[]
   goals        Goal[]
+  workoutRoutines WorkoutRoutine[]
 
   @@map("users")
 }
@@ -411,6 +443,40 @@ model Goal {
 
   @@index([userId, status])
   @@map("goals")
+}
+
+/// One AI-generated motivational quote per calendar day.
+model DailyQuote {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+  /// ISO calendar date, YYYY-MM-DD. Unique so a day can only have one quote.
+  date          String @unique
+  quoteOfTheDay String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("daily_quotes")
+}
+
+/// AI-generated weekly plan. Created as `generating` when a user registers.
+model WorkoutRoutine {
+  id     String @id @default(auto()) @map("_id") @db.ObjectId
+  userId String @db.ObjectId
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  status              WorkoutRoutineStatus @default(generating)
+  dailyCalorieTarget  Int?
+  summary             String?
+  days                RoutinePlanDay[]
+  /// Set when status is `failed`, for admin debugging.
+  error               String?
+  generatedAt         DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, status])
+  @@map("workout_routines")
 }
 
 /// App-wide configuration edited from the admin panel. Always exactly one row.

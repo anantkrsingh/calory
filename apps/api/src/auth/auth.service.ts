@@ -30,6 +30,7 @@ import { ENV } from '../config/env.module';
 import { MeasurementsService } from '../measurements/measurements.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { OtpService } from '../queues/otp.service';
+import { WorkoutRoutineService } from '../routines/workout-routine.service';
 import { SOCIAL_VERIFIERS } from './social-providers';
 
 const BCRYPT_ROUNDS = 12;
@@ -42,6 +43,7 @@ export class AuthService {
     private readonly jwt: JwtService,
     private readonly otp: OtpService,
     private readonly measurements: MeasurementsService,
+    private readonly workoutRoutines: WorkoutRoutineService,
     @Inject(ENV) private readonly env: Env,
   ) { }
 
@@ -140,6 +142,8 @@ export class AuthService {
       where: { email: input.email },
       data: { emailVerified: true, lastLoginAt: new Date() },
     });
+
+    await this.workoutRoutines.requestGeneration(user.id);
 
     return this.startSession(user.id, toUser(user));
   }
@@ -255,6 +259,8 @@ export class AuthService {
         lastLoginAt: new Date(),
       },
     });
+
+    await this.workoutRoutines.requestGeneration(user.id);
 
     return this.startSession(user.id, toUser(user));
   }

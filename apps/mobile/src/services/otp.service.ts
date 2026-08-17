@@ -4,7 +4,6 @@ export type OtpPurpose = 'registration' | 'login' | 'password_reset';
 
 interface SendOtpResponse {
   success: boolean;
-  jobId: string;
   message?: string;
 }
 
@@ -24,14 +23,18 @@ class OTPService {
     return data;
   }
 
-  async verifyOTP(email: string, code: string, purpose: OtpPurpose = 'registration'): Promise<boolean> {
+  async verifyOTP(
+    email: string,
+    code: string,
+    purpose: OtpPurpose = 'registration',
+  ): Promise<VerifyOtpResponse> {
     const { data } = await http.post<VerifyOtpResponse>(
       '/otp/verify',
       { type: 'email', contact: email, code, purpose },
       { skipAuth: true },
     );
 
-    return data.success;
+    return data;
   }
 
   async resendOTP(email: string, purpose: OtpPurpose = 'registration'): Promise<SendOtpResponse> {

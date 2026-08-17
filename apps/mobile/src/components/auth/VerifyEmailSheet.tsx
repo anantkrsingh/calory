@@ -6,9 +6,10 @@ import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 
 import { ThemedText } from '@/components/themed-text';
 import PrimaryButton from '@/components/ui/PrimaryButton';
+import { getErrorMessage } from '@/api';
 import { Brand, Pressed, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { useSendOtp, useVerifyOtp } from '@/queries';
+import { useResendOtp, useVerifyRegistration } from '@/queries';
 import { useOnboardingStore } from '@/stores/onboarding.store';
 
 export type VerifyEmailSheetRef = {
@@ -30,9 +31,9 @@ export default forwardRef<VerifyEmailSheetRef>(function VerifyEmailSheet(_props,
   const router = useRouter();
   const sheetRef = useRef<TrueSheet>(null);
   const email = useOnboardingStore((state) => state.userData.email);
-  const setVerified = useOnboardingStore((state) => state.setVerified);
-  const sendOtp = useSendOtp();
-  const verifyOtp = useVerifyOtp();
+  const resetOnboarding = useOnboardingStore((state) => state.resetOnboarding);
+  const resendOtp = useResendOtp();
+  const verifyRegistration = useVerifyRegistration();
 
   const [otpDigits, setOtpDigits] = useState<string[]>(Array(OTP_LENGTH).fill(''));
   const [resendTimer, setResendTimer] = useState(RESEND_SECONDS);
@@ -46,11 +47,11 @@ export default forwardRef<VerifyEmailSheetRef>(function VerifyEmailSheet(_props,
     setResendTimer(RESEND_SECONDS);
 
     try {
-      await sendOtp.mutateAsync({ email });
-    } catch {
-      setError('Failed to send verification code');
+      await resendOtp.mutateAsync({ email });
+    } catch (cause) {
+      setError(getErrorMessage(cause, 'Failed to send verification code'));
     }
-  }, [email, sendOtp]);
+  }, [email, resendOtp]);
 
   useEffect(() => {
     if (resendTimer === 0) return;
@@ -61,7 +62,7 @@ export default forwardRef<VerifyEmailSheetRef>(function VerifyEmailSheet(_props,
 
   useImperativeHandle(ref, () => ({
     present: () => {
-      // The code was already sent by the caller before presenting — just reset UI state.
+      // The code was already sent by register — just reset UI state.
       setOtpDigits(Array(OTP_LENGTH).fill(''));
       setError(null);
       setResendTimer(RESEND_SECONDS);
@@ -109,17 +110,12 @@ export default forwardRef<VerifyEmailSheetRef>(function VerifyEmailSheet(_props,
     setError(null);
 
     try {
-      const isValid = await verifyOtp.mutateAsync({ email, code: otp });
-
-      if (isValid) {
-        setVerified(true);
-        await sheetRef.current?.dismiss();
-        router.push('/auth/create-password');
-      } else {
-        setError('Invalid verification code. Please try again.');
-      }
-    } catch {
-      setError('Verification failed. Please try again.');
+      await verifyRegistration.mutateAsync({ email, code: otp });
+      await sheetRef.current?.dismiss();
+      resetOnboarding();
+      router.replace('/');
+    } catch (cause) {
+      setError(getErrorMessage(cause, 'Verification failed. Please try again.'));
     }
   };
 
@@ -190,9 +186,9 @@ export default forwardRef<VerifyEmailSheetRef>(function VerifyEmailSheet(_props,
             ) : null}
 
             <PrimaryButton
-              label={verifyOtp.isPending ? 'Verifying...' : 'Verify'}
+              label={verifyRegistration.isPending ? 'Verifying...' : 'Verify'}
               onPress={handleVerify}
-              disabled={otp.length !== OTP_LENGTH || verifyOtp.isPending}
+              disabled={otp.length !== OTP_LENGTH || verifyRegistration.isPending}
               style={styles.verifyButton}
             />
 

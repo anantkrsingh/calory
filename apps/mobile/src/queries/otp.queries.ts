@@ -24,7 +24,22 @@ export function useSendOtp(): UseMutationResult<
   });
 }
 
-export function useVerifyOtp(): UseMutationResult<boolean, Error, VerifyOtpInput> {
+export function useResendOtp(): UseMutationResult<
+  Awaited<ReturnType<typeof otpService.resendOTP>>,
+  Error,
+  SendOtpInput
+> {
+  return useMutation({
+    mutationFn: ({ email, purpose = 'registration' }: SendOtpInput) =>
+      otpService.resendOTP(email, purpose),
+  });
+}
+
+export function useVerifyOtp(): UseMutationResult<
+  Awaited<ReturnType<typeof otpService.verifyOTP>>,
+  Error,
+  VerifyOtpInput
+> {
   return useMutation({
     mutationFn: ({ email, code, purpose = 'registration' }: VerifyOtpInput) =>
       otpService.verifyOTP(email, code, purpose),

@@ -49,8 +49,14 @@ export const envSchema = z.object({
   X_CLIENT_ID: z.string().optional(),
   X_CLIENT_SECRET: z.string().optional(),
 
+  LLM_PROVIDER: z.enum(['openai', 'gemini']).default('openai'),
+  /** Overrides the provider's default model when set. */
+  LLM_MODEL: z.string().optional(),
+  OPENAI_API_KEY: z.string().optional(),
   GOOGLE_GENERATIVE_AI_API_KEY: z.string().optional(),
-  GEMINI_MODEL: z.string().default('gemini-2.5-flash'),
+
+  QUOTE_CRON: z.string().default('0 3 * * *'),
+  QUOTE_TIMEZONE: z.string().default('UTC'),
 
   DEFAULT_PAGE_SIZE: z.coerce
     .number()

@@ -8,6 +8,7 @@ import {
   goalTypeSchema,
   measurementSiteSchema,
   muscleGroupSchema,
+  promptCategorySchema,
   setTypeSchema,
   sexSchema,
   unitSystemSchema,
@@ -287,6 +288,40 @@ export const dashboardStatsSchema = z.object({
   recentActivity: z.array(dailyActivitySchema),
 });
 
+export const dailyQuoteSchema = z.object({
+  ...entityFields,
+  date: isoDateSchema,
+  quoteOfTheDay: z.string(),
+});
+
+export const workoutRoutineSchema = z.object({
+  ...entityFields,
+  userId: objectIdSchema,
+  status: z.enum(['generating', 'active', 'failed', 'superseded']),
+  dailyCalorieTarget: z.number().int().optional(),
+  summary: z.string().optional(),
+  days: z.array(
+    z.object({
+      dayOfWeek: z.number().int(),
+      isRestDay: z.boolean(),
+      targetCaloriesBurned: z.number().int(),
+      focus: z.string(),
+      exercises: z.array(
+        z.object({
+          exerciseId: objectIdSchema,
+          exerciseName: z.string(),
+          sets: z.number().int(),
+          reps: z.number().int().optional(),
+          durationSec: z.number().int().optional(),
+          restSeconds: z.number().int().optional(),
+        }),
+      ),
+    }),
+  ),
+  error: z.string().optional(),
+  generatedAt: isoDateTimeSchema.optional(),
+});
+
 export const healthResponseSchema = z.object({
   status: z.enum(['ok', 'degraded']),
   uptimeSec: z.number().int(),
@@ -298,13 +333,15 @@ export const appSettingsSchema = z.object({
   ...entityFields,
   freeChatsLimit: z.number().int(),
   aiPrompts: z.array(
-    z.object({ key: z.string(), label: z.string(), prompt: z.string() }),
+    z.object({
+      promptCategory: promptCategorySchema,
+      prompt: z.string(),
+    }),
   ),
 });
 
 export const otpSendResponseSchema = z.object({
   success: z.boolean(),
-  jobId: z.string(),
   message: z.string().optional(),
 });
 

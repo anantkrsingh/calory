@@ -1,8 +1,8 @@
 import type { Entity } from './common';
+import type { PromptCategory } from './enums';
 
 export interface AiPromptConfig {
-  key: string;
-  label: string;
+  promptCategory: PromptCategory;
   prompt: string;
 }
 

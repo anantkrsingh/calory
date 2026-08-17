@@ -5,6 +5,7 @@ import { BULL_QUEUE_PROVIDER, QueueProvider } from './queues.constants';
 import { OtpController } from './otp.controller';
 import { OtpQueue } from './otp.queue';
 import { OtpService } from './otp.service';
+import { RoutineQueue } from './routine.queue';
 
 const queueProvider: QueueProvider = (name: string) => {
   return new Queue(name, {
@@ -41,8 +42,9 @@ const queueProvider: QueueProvider = (name: string) => {
     },
     OtpQueue,
     OtpService,
+    RoutineQueue
   ],
   controllers: [OtpController],
-  exports: [BULL_QUEUE_PROVIDER, OtpQueue, OtpService],
+  exports: [BULL_QUEUE_PROVIDER, OtpQueue, OtpService, RoutineQueue],
 })
 export class QueuesModule {}

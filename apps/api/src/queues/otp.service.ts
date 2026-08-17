@@ -45,7 +45,7 @@ export class OtpService {
     contact: string,
     purpose: 'registration' | 'login' | 'password_reset',
     userId?: string,
-  ): Promise<{ success: boolean; jobId: string; message?: string }> {
+  ): Promise<{ success: boolean; message?: string }> {
     if (purpose === 'registration') {
       const existing = await this.prisma.user.findUnique({
         where: { email: contact.toLowerCase() },
@@ -91,10 +91,8 @@ export class OtpService {
 
     this.cleanupExpiredOtps();
 
-
     return {
       success: true,
-      jobId,
       message: `OTP sent to ${type}`,
     };
   }
@@ -174,7 +172,7 @@ export class OtpService {
     contact: string,
     purpose: 'registration' | 'login' | 'password_reset',
     userId?: string,
-  ): Promise<{ success: boolean; jobId: string; message?: string }> {
+  ): Promise<{ success: boolean; message?: string }> {
     // Invalidate any existing OTP for this contact/purpose
     const otpKey = this.getOtpKey(type, contact, purpose);
     this.otpStore.delete(otpKey);
