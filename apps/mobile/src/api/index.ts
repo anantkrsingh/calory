@@ -2,6 +2,7 @@ export {
   ApiError,
   NetworkError,
   TimeoutError,
+  getErrorMessage,
   isApiError,
   isNetworkError,
   isTimeoutError,

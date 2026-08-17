@@ -1,9 +1,10 @@
-import type { AuthProvider, AuthSession, User } from '@fitness/types';
+import type { AuthProvider, AuthSession, PendingVerification, User } from '@fitness/types';
 import type {
   ChangePasswordInput,
   LoginInput,
   RegisterInput,
   SocialLoginInput,
+  VerifyRegistrationInput,
 } from '@fitness/validation';
 import {
   queryOptions,
@@ -88,14 +89,25 @@ const SOCIAL_LOGINS: Record<
 };
 
 export function useRegister(): UseMutationResult<
-  AuthSession,
+  PendingVerification,
   Error,
   RegisterInput
+> {
+  return useMutation({
+    mutationFn: (input: RegisterInput) => authService.register(input),
+  });
+}
+
+export function useVerifyRegistration(): UseMutationResult<
+  AuthSession,
+  Error,
+  VerifyRegistrationInput
 > {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (input: RegisterInput) => authService.register(input),
+    mutationFn: (input: VerifyRegistrationInput) =>
+      authService.verifyRegistration(input),
     onSuccess: (session) => {
       queryClient.setQueryData(AuthQueries.keys.me(), session.user);
     },

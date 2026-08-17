@@ -50,7 +50,7 @@ function makeService(user: Record<string, unknown> | null) {
   };
 
   const otp = {
-    sendOtp: jest.fn().mockResolvedValue({ success: true, jobId: 'job-1' }),
+    sendOtp: jest.fn().mockResolvedValue({ success: true }),
     verifyOtp: jest.fn().mockResolvedValue({ success: true }),
   };
   const measurements = { create: jest.fn() };

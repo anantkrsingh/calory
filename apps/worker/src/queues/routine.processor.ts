@@ -185,7 +185,7 @@ export class RoutineProcessor implements OnModuleInit, OnModuleDestroy {
     }
 
     const settings = await this.prisma.appSettings.findFirst();
-    const prompt = resolvePrompt('workoutRoutine', settings?.aiPrompts);
+    const prompt = resolvePrompt('workout_routine', settings?.aiPrompts);
 
     // generateObject takes no tools, so gather context first, then structure it.
     const research = await generateText({

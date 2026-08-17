@@ -124,6 +124,14 @@ export const GoalStatus = {
 } as const;
 export type GoalStatus = (typeof GoalStatus)[keyof typeof GoalStatus];
 
+/** Which AI feature a configured system prompt belongs to. */
+export const PromptCategory = {
+  QuoteOfTheDay: 'quote_of_the_day',
+  WorkoutRoutine: 'workout_routine',
+} as const;
+export type PromptCategory =
+  (typeof PromptCategory)[keyof typeof PromptCategory];
+
 export const MEASUREMENT_SITES = [
   'neck',
   'chest',

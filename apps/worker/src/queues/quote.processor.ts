@@ -131,7 +131,7 @@ export class QuoteProcessor implements OnModuleInit, OnModuleDestroy {
     }
 
     const settings = await this.prisma.appSettings.findFirst();
-    const prompt = resolvePrompt('quoteOfTheDay', settings?.aiPrompts);
+    const prompt = resolvePrompt('quote_of_the_day', settings?.aiPrompts);
 
     const { object } = await generateObject({
       model: this.model,

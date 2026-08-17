@@ -122,6 +122,12 @@ enum GoalStatus {
   abandoned
 }
 
+/// Which AI feature a configured system prompt belongs to.
+enum PromptCategory {
+  quote_of_the_day
+  workout_routine
+}
+
 enum WorkoutRoutineStatus {
   generating
   active
@@ -215,11 +221,10 @@ type RoutineExercise {
   notes        String?
 }
 
-/// A configurable prompt for one AI-driven feature (e.g. "workout_suggestion").
+/// A configurable prompt for one AI-driven feature.
 type AiPromptConfig {
-  key    String
-  label  String
-  prompt String
+  promptCategory PromptCategory
+  prompt         String
 }
 
 /// One planned exercise inside an AI-generated routine day.

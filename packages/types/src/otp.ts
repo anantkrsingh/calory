@@ -1,4 +1,3 @@
-/** BullMQ queue name for OTP delivery jobs. Shared so the API (producer) and the worker (consumer) agree on it. */
 export const OTP_QUEUE_NAME = 'otp';
 
 export interface OtpJobData {

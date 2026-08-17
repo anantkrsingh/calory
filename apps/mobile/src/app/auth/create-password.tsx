@@ -1,16 +1,19 @@
 import { AUTH } from '@fitness/config';
+import type { RegisterInput } from '@fitness/validation';
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import VerifyEmailSheet, { type VerifyEmailSheetRef } from '@/components/auth/VerifyEmailSheet';
 import { ThemedText } from '@/components/themed-text';
 import CloseButton from '@/components/ui/CloseButton';
 import PrimaryButton from '@/components/ui/PrimaryButton';
+import { getErrorMessage } from '@/api';
 import { Pressed, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { authService } from '@/services/auth.service';
+import { useRegister } from '@/queries';
 import { selectError, selectIsLoading, useOnboardingStore } from '@/stores/onboarding.store';
 
 export default function CreatePasswordScreen() {
@@ -22,6 +25,8 @@ export default function CreatePasswordScreen() {
   const setLoading = useOnboardingStore((state) => state.setLoading);
   const setError = useOnboardingStore((state) => state.setError);
   const resetOnboarding = useOnboardingStore((state) => state.resetOnboarding);
+  const register = useRegister();
+  const verifyEmailSheetRef = useRef<VerifyEmailSheetRef>(null);
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [errors, setErrors] = useState({
@@ -76,16 +81,34 @@ export default function CreatePasswordScreen() {
     setError(null);
 
     try {
-      await authService.register({
+      const payload: RegisterInput = {
         email: userData.email,
         password,
         displayName: userData.displayName,
-      });
+        profile: {
+          ...(userData.dateOfBirth ? { dateOfBirth: userData.dateOfBirth } : {}),
+          ...(userData.sex ? { sex: userData.sex } : {}),
+          ...(userData.heightCm != null ? { heightCm: userData.heightCm } : {}),
+          ...(userData.activityLevel ? { activityLevel: userData.activityLevel } : {}),
+          ...(userData.fitnessGoals?.length
+            ? { fitnessGoals: userData.fitnessGoals }
+            : {}),
+        },
+        ...(userData.weightKg != null
+          ? {
+              measurement: {
+                weightKg: userData.weightKg,
+                measurements: {},
+                photoUrls: [],
+              },
+            }
+          : {}),
+      };
 
-      resetOnboarding();
-      router.replace('/');
-    } catch {
-      setError('Registration failed. Please try again.');
+      await register.mutateAsync(payload);
+      verifyEmailSheetRef.current?.present();
+    } catch (cause) {
+      setError(getErrorMessage(cause, 'Registration failed. Please try again.'));
     } finally {
       setLoading(false);
     }
@@ -95,6 +118,8 @@ export default function CreatePasswordScreen() {
     resetOnboarding();
     router.dismissTo('/auth/welcome');
   };
+
+  const submitting = isLoading || register.isPending;
 
   return (
     <SafeAreaView
@@ -126,7 +151,7 @@ export default function CreatePasswordScreen() {
             <TextInput
               style={[
                 styles.passwordInput,
-                { 
+                {
                   backgroundColor: theme.backgroundElement,
                   color: theme.text,
                   borderColor: errors.password ? '#ff3b30' : theme.textSecondary,
@@ -144,7 +169,10 @@ export default function CreatePasswordScreen() {
             <Pressable
               style={({ pressed }) => [
                 styles.eyeIcon,
-                pressed && { opacity: Pressed.opacity, transform: [{ translateY: -12 }, { scale: 0.99 }] },
+                pressed && {
+                  opacity: Pressed.opacity,
+                  transform: [{ translateY: -12 }, { scale: 0.99 }],
+                },
               ]}
               onPress={() => setShowPassword(!showPassword)}>
               <ThemedText type="default" style={styles.eyeIconText}>
@@ -153,7 +181,9 @@ export default function CreatePasswordScreen() {
             </Pressable>
           </View>
           {errors.password ? (
-            <ThemedText type="small" style={styles.errorText}>{errors.password}</ThemedText>
+            <ThemedText type="small" style={styles.errorText}>
+              {errors.password}
+            </ThemedText>
           ) : null}
         </View>
         <View style={styles.inputContainer}>
@@ -164,7 +194,7 @@ export default function CreatePasswordScreen() {
             <TextInput
               style={[
                 styles.passwordInput,
-                { 
+                {
                   backgroundColor: theme.backgroundElement,
                   color: theme.text,
                   borderColor: errors.confirmPassword ? '#ff3b30' : theme.textSecondary,
@@ -182,7 +212,10 @@ export default function CreatePasswordScreen() {
             <Pressable
               style={({ pressed }) => [
                 styles.eyeIcon,
-                pressed && { opacity: Pressed.opacity, transform: [{ translateY: -12 }, { scale: 0.99 }] },
+                pressed && {
+                  opacity: Pressed.opacity,
+                  transform: [{ translateY: -12 }, { scale: 0.99 }],
+                },
               ]}
               onPress={() => setShowConfirmPassword(!showConfirmPassword)}>
               <ThemedText type="default" style={styles.eyeIconText}>
@@ -191,7 +224,9 @@ export default function CreatePasswordScreen() {
             </Pressable>
           </View>
           {errors.confirmPassword ? (
-            <ThemedText type="small" style={styles.errorText}>{errors.confirmPassword}</ThemedText>
+            <ThemedText type="small" style={styles.errorText}>
+              {errors.confirmPassword}
+            </ThemedText>
           ) : null}
         </View>
 
@@ -202,12 +237,20 @@ export default function CreatePasswordScreen() {
         ) : null}
 
         <PrimaryButton
-          label={isLoading ? 'Continue...' : 'Continue'}
+          label={submitting ? 'Creating account...' : 'Continue'}
           onPress={handleSubmit}
-          disabled={!password || !confirmPassword || password !== confirmPassword || !!errors.password || isLoading}
+          disabled={
+            !password ||
+            !confirmPassword ||
+            password !== confirmPassword ||
+            !!errors.password ||
+            submitting
+          }
           style={styles.submitButton}
         />
       </KeyboardAwareScrollView>
+
+      <VerifyEmailSheet ref={verifyEmailSheetRef} />
     </SafeAreaView>
   );
 }

@@ -1,15 +1,21 @@
-import { useRouter } from 'expo-router';
-import { SymbolView } from 'expo-symbols';
-import { useRef, useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
-import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import Animated, { SlideInLeft, SlideInRight, SlideOutLeft, SlideOutRight } from 'react-native-reanimated';
+import { useRouter } from "expo-router";
+import { SymbolView } from "expo-symbols";
+import { useRef, useState } from "react";
+import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
+import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
+import { SafeAreaView } from "react-native-safe-area-context";
+import Animated, {
+  SlideInLeft,
+  SlideInRight,
+  SlideOutLeft,
+  SlideOutRight,
+} from "react-native-reanimated";
 
-import VerifyEmailSheet, { type VerifyEmailSheetRef } from '@/components/auth/VerifyEmailSheet';
-import CircleArrowButton from '@/components/ui/CircleArrowButton';
-import CloseButton from '@/components/ui/CloseButton';
-import DateOfBirthPicker, { type DateOfBirthPickerRef } from '@/components/ui/DateOfBirthPicker';
+import CircleArrowButton from "@/components/ui/CircleArrowButton";
+import CloseButton from "@/components/ui/CloseButton";
+import DateOfBirthPicker, {
+  type DateOfBirthPickerRef,
+} from "@/components/ui/DateOfBirthPicker";
 import {
   ActivityStep,
   BodyMetricsStep,
@@ -19,12 +25,12 @@ import {
   NameStep,
   SegmentedProgressBar,
   SexStep,
-} from '@/components/onboarding';
-import { Brand, Pressed, Spacing } from '@/constants/theme';
-import { useTheme } from '@/hooks/use-theme';
-import { useCreateMeasurement, useSendOtp, useUpdateProfile } from '@/queries';
-import { selectUser, useAuthStore } from '@/stores/auth.store';
-import { useOnboardingStore } from '@/stores/onboarding.store';
+} from "@/components/onboarding";
+import { Brand, Pressed, Spacing } from "@/constants/theme";
+import { useTheme } from "@/hooks/use-theme";
+import { useCreateMeasurement, useUpdateProfile } from "@/queries";
+import { selectUser, useAuthStore } from "@/stores/auth.store";
+import { useOnboardingStore } from "@/stores/onboarding.store";
 
 const STEPS_WITH_ACCOUNT = 5; // Sex, BodyMetrics, Dob, Goals, Activity — skips Email/Name.
 
@@ -41,17 +47,15 @@ export default function OnboardingScreen() {
   const prevStep = useOnboardingStore((state) => state.prevStep);
   const updateUserData = useOnboardingStore((state) => state.updateUserData);
   const resetOnboarding = useOnboardingStore((state) => state.resetOnboarding);
-  const [direction, setDirection] = useState<'forward' | 'backward'>('forward');
+  const [direction, setDirection] = useState<"forward" | "backward">("forward");
   // Tracks the incoming step's measured height so the (position: absolute)
   // step frame below has real height to scroll — see stepViewport/stepContent.
   const [stepHeight, setStepHeight] = useState<number | undefined>(undefined);
   const dobPickerRef = useRef<DateOfBirthPickerRef>(null);
-  const verifyEmailSheetRef = useRef<VerifyEmailSheetRef>(null);
-  const [emailError, setEmailError] = useState<string | null>(null);
-  const sendOtp = useSendOtp();
   const updateProfile = useUpdateProfile();
   const createMeasurement = useCreateMeasurement();
-  const isSavingProfile = updateProfile.isPending || createMeasurement.isPending;
+  const isSavingProfile =
+    updateProfile.isPending || createMeasurement.isPending;
 
   const canContinue = isStepComplete(currentStep, userData);
 
@@ -62,14 +66,17 @@ export default function OnboardingScreen() {
   // side and collide. Committing the direction flip on its own frame first lets the
   // still-mounted current step re-render with the correct exiting animation before
   // the step index changes and actually removes it.
-  const goToStep = (nextDirection: 'forward' | 'backward', advance: () => void) => {
+  const goToStep = (
+    nextDirection: "forward" | "backward",
+    advance: () => void,
+  ) => {
     setDirection(nextDirection);
     requestAnimationFrame(advance);
   };
 
   const handleNext = () => {
     if (currentStep < effectiveTotalSteps) {
-      goToStep('forward', nextStep);
+      goToStep("forward", nextStep);
       return;
     }
 
@@ -79,14 +86,8 @@ export default function OnboardingScreen() {
       return;
     }
 
-    setEmailError(null);
-    sendOtp.mutate(
-      { email: userData.email },
-      {
-        onSuccess: () => verifyEmailSheetRef.current?.present(),
-        onError: () => setEmailError('Failed to send verification code. Please try again.'),
-      },
-    );
+    // Password comes next; register + OTP happen after that.
+    router.push("/auth/create-password");
   };
 
   // Already has a verified account — persists the fitness profile collected
@@ -112,23 +113,23 @@ export default function OnboardingScreen() {
       }
 
       resetOnboarding();
-      router.replace('/');
+      router.replace("/");
     } catch (cause) {
       Alert.alert(
-        'Could not save your profile',
-        cause instanceof Error ? cause.message : 'Please try again.',
+        "Could not save your profile",
+        cause instanceof Error ? cause.message : "Please try again.",
       );
     }
   };
 
   // Step 1 has no Back button — the close button in the top bar exits the flow instead.
   const handleBack = () => {
-    goToStep('backward', prevStep);
+    goToStep("backward", prevStep);
   };
 
   const handleClose = () => {
     resetOnboarding();
-    router.dismissTo('/auth/welcome');
+    router.dismissTo("/auth/welcome");
   };
 
   const renderStep = () => {
@@ -140,7 +141,7 @@ export default function OnboardingScreen() {
           <BodyMetricsStep
             heightCm={userData.heightCm}
             weightKg={userData.weightKg}
-            unitSystem={userData.unitSystem ?? 'metric'}
+            unitSystem={userData.unitSystem ?? "metric"}
             onChange={updateUserData}
           />
         );
@@ -166,15 +167,14 @@ export default function OnboardingScreen() {
           />
         );
       case 6:
-        return <NameStep displayName={userData.displayName} onChange={updateUserData} />;
-      case 7:
         return (
-          <EmailStep
-            email={userData.email}
+          <NameStep
+            displayName={userData.displayName}
             onChange={updateUserData}
-            submitError={emailError}
           />
         );
+      case 7:
+        return <EmailStep email={userData.email} onChange={updateUserData} />;
       default:
         return null;
     }
@@ -183,12 +183,19 @@ export default function OnboardingScreen() {
   return (
     <SafeAreaView
       style={[styles.safeArea, { backgroundColor: theme.background }]}
-      edges={['top', 'bottom']}>
+      edges={["top", "bottom"]}
+    >
       <View style={styles.topBar}>
-        <CloseButton onPress={handleClose} accessibilityLabel="Cancel sign up" />
+        <CloseButton
+          onPress={handleClose}
+          accessibilityLabel="Cancel sign up"
+        />
       </View>
 
-      <SegmentedProgressBar currentStep={currentStep} totalSteps={effectiveTotalSteps} />
+      <SegmentedProgressBar
+        currentStep={currentStep}
+        totalSteps={effectiveTotalSteps}
+      />
 
       <KeyboardAwareScrollView
         style={styles.scrollView}
@@ -196,17 +203,27 @@ export default function OnboardingScreen() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="interactive"
-        bottomOffset={Spacing.four}>
+        bottomOffset={Spacing.four}
+      >
         {/* relative frame — outgoing/incoming steps overlay it absolutely instead of
             sharing normal flow, so one slides fully off left while the other slides
             in from the right in the same spot, with no stacking/collision between them. */}
         <View style={[styles.stepViewport, { minHeight: stepHeight }]}>
           <Animated.View
             key={currentStep}
-            entering={direction === 'forward' ? SlideInRight.duration(280) : SlideInLeft.duration(280)}
-            exiting={direction === 'forward' ? SlideOutLeft.duration(280) : SlideOutRight.duration(280)}
+            entering={
+              direction === "forward"
+                ? SlideInRight.duration(280)
+                : SlideInLeft.duration(280)
+            }
+            exiting={
+              direction === "forward"
+                ? SlideOutLeft.duration(280)
+                : SlideOutRight.duration(280)
+            }
             onLayout={(event) => setStepHeight(event.nativeEvent.layout.height)}
-            style={styles.content}>
+            style={styles.content}
+          >
             {renderStep()}
           </Animated.View>
         </View>
@@ -224,13 +241,20 @@ export default function OnboardingScreen() {
             ]}
             onPress={handleBack}
             accessibilityRole="button"
-            accessibilityLabel="Back">
+            accessibilityLabel="Back"
+          >
             <SymbolView
               name="arrow.left"
               size={20}
               weight="semibold"
               tintColor={theme.text}
-              fallback={<Text style={[styles.backButtonFallback, { color: theme.text }]}>←</Text>}
+              fallback={
+                <Text
+                  style={[styles.backButtonFallback, { color: theme.text }]}
+                >
+                  ←
+                </Text>
+              }
             />
           </Pressable>
         ) : null}
@@ -238,28 +262,27 @@ export default function OnboardingScreen() {
         <CircleArrowButton
           onPress={handleNext}
           disabled={!canContinue}
-          loading={sendOtp.isPending || isSavingProfile}
-          accessibilityLabel={currentStep < effectiveTotalSteps ? 'Continue' : 'Finish'}
+          loading={isSavingProfile}
+          accessibilityLabel={
+            currentStep < effectiveTotalSteps ? "Continue" : "Finish"
+          }
           activeColor={Brand.accent}
           inactiveColor={theme.backgroundElement}
         />
       </View>
 
-      {/* Rendered here, outside the animated/absolute step viewport, so the native
-          sheet's auto-height measurement isn't broken by flex/overflow ancestors —
-          see https://sheet.lodev09.com/troubleshooting ("Weird Layout Render"). */}
       <DateOfBirthPicker
         ref={dobPickerRef}
         value={userData.dateOfBirth}
         onChange={(isoDate) => updateUserData({ dateOfBirth: isoDate })}
       />
-
-      {!isLoggedIn ? <VerifyEmailSheet ref={verifyEmailSheetRef} /> : null}
     </SafeAreaView>
   );
 }
 
-type OnboardingUserData = ReturnType<typeof useOnboardingStore.getState>['userData'];
+type OnboardingUserData = ReturnType<
+  typeof useOnboardingStore.getState
+>["userData"];
 
 function isStepComplete(step: number, userData: OnboardingUserData): boolean {
   switch (step) {
@@ -268,15 +291,15 @@ function isStepComplete(step: number, userData: OnboardingUserData): boolean {
     case 2:
       return userData.heightCm !== undefined && userData.weightKg !== undefined;
     case 3:
-      return (userData.dateOfBirth ?? '').trim() !== '';
+      return (userData.dateOfBirth ?? "").trim() !== "";
     case 4:
       return (userData.fitnessGoals?.length ?? 0) > 0;
     case 5:
       return userData.activityLevel !== undefined;
     case 6:
-      return userData.displayName.trim() !== '';
+      return userData.displayName.trim() !== "";
     case 7:
-      return userData.email.trim() !== '';
+      return userData.email.trim() !== "";
     default:
       return false;
   }
@@ -294,45 +317,45 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.four,
   },
   topBar: {
-    alignItems: 'flex-start',
+    alignItems: "flex-start",
     paddingHorizontal: Spacing.four,
     paddingTop: Spacing.four,
     paddingBottom: Spacing.three,
   },
   stepViewport: {
     flex: 1,
-    position: 'relative',
-    overflow: 'hidden',
+    position: "relative",
+    overflow: "hidden",
   },
   content: {
-    position: 'absolute',
+    position: "absolute",
     top: 0,
     left: 0,
     right: 0,
-    alignItems: 'flex-start',
+    alignItems: "flex-start",
     paddingBottom: Spacing.four,
   },
   buttonContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-    width: '100%',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "flex-end",
+    width: "100%",
     paddingHorizontal: Spacing.four,
     paddingTop: Spacing.three,
     paddingBottom: Spacing.three,
     gap: Spacing.two,
   },
   backButton: {
-    marginRight: 'auto',
+    marginRight: "auto",
     width: 56,
     height: 56,
     borderRadius: 28,
-    borderCurve: 'continuous',
-    alignItems: 'center',
-    justifyContent: 'center',
+    borderCurve: "continuous",
+    alignItems: "center",
+    justifyContent: "center",
   },
   backButtonFallback: {
     fontSize: 22,
-    fontWeight: '600',
+    fontWeight: "600",
   },
 });

@@ -67,7 +67,7 @@ export class OtpController {
   @ApiZodResponse(otpSendResponseSchema, { description: 'Code queued', name: 'OtpSendResult' })
   async sendOtp(
     @Body(zodPipe(sendOtpSchema)) body: SendOtpInput,
-  ): Promise<{ success: boolean; jobId: string; message?: string }> {
+  ): Promise<{ success: boolean; message?: string }> {
     return this.otpService.sendOtp(
       body.type,
       body.contact,
@@ -108,7 +108,7 @@ export class OtpController {
   @ApiZodResponse(otpSendResponseSchema, { description: 'Fresh code queued', name: 'OtpSendResult' })
   async resendOtp(
     @Body(zodPipe(resendOtpSchema)) body: ResendOtpInput,
-  ): Promise<{ success: boolean; jobId: string; message?: string }> {
+  ): Promise<{ success: boolean; message?: string }> {
     return this.otpService.resendOtp(
       body.type,
       body.contact,

@@ -68,6 +68,15 @@ export const isNetworkError = (error: unknown): error is NetworkError =>
 export const isTimeoutError = (error: unknown): error is TimeoutError =>
   error instanceof TimeoutError;
 
+/** Prefer the server/error message; fall back when nothing useful is present. */
+export function getErrorMessage(error: unknown, fallback: string): string {
+  if (error instanceof Error) {
+    const message = error.message.trim();
+    if (message.length > 0) return message;
+  }
+  return fallback;
+}
+
 function messageFromBody(body: unknown, status: number, url: string): string {
   if (body !== null && typeof body === 'object' && 'message' in body) {
     const { message } = body as ApiErrorBody;

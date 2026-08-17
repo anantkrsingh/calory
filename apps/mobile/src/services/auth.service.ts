@@ -1,9 +1,16 @@
-import type { AuthProvider, AuthSession, AuthTokens, User } from '@fitness/types';
+import type {
+  AuthProvider,
+  AuthSession,
+  AuthTokens,
+  PendingVerification,
+  User,
+} from '@fitness/types';
 import type {
   ChangePasswordInput,
   LoginInput,
   RegisterInput,
   SocialLoginInput,
+  VerifyRegistrationInput,
 } from '@fitness/validation';
 
 import type { AxiosInstance } from 'axios';
@@ -18,10 +25,23 @@ export class AuthService extends BaseService {
     super('/auth', client);
   }
 
-  /** Registers, persists the returned session, and returns it. */
-  async register(input: RegisterInput): Promise<AuthSession> {
-    const { data: session } = await this.client.post<AuthSession>(
+  /**
+   * Creates the account and emails a verification code.
+   * No session is issued until `verifyRegistration` succeeds.
+   */
+  async register(input: RegisterInput): Promise<PendingVerification> {
+    const { data } = await this.client.post<PendingVerification>(
       this.url('register'),
+      input,
+      { skipAuth: true },
+    );
+    return data;
+  }
+
+  /** Verifies the emailed code and persists the returned session. */
+  async verifyRegistration(input: VerifyRegistrationInput): Promise<AuthSession> {
+    const { data: session } = await this.client.post<AuthSession>(
+      this.url('verify-registration'),
       input,
       { skipAuth: true },
     );

@@ -8,6 +8,7 @@ import {
   goalTypeSchema,
   measurementSiteSchema,
   muscleGroupSchema,
+  promptCategorySchema,
   setTypeSchema,
   sexSchema,
   unitSystemSchema,
@@ -332,13 +333,15 @@ export const appSettingsSchema = z.object({
   ...entityFields,
   freeChatsLimit: z.number().int(),
   aiPrompts: z.array(
-    z.object({ key: z.string(), label: z.string(), prompt: z.string() }),
+    z.object({
+      promptCategory: promptCategorySchema,
+      prompt: z.string(),
+    }),
   ),
 });
 
 export const otpSendResponseSchema = z.object({
   success: z.boolean(),
-  jobId: z.string(),
   message: z.string().optional(),
 });
 

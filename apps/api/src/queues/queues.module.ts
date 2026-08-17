@@ -42,6 +42,7 @@ const queueProvider: QueueProvider = (name: string) => {
     },
     OtpQueue,
     OtpService,
+    RoutineQueue
   ],
   controllers: [OtpController],
   exports: [BULL_QUEUE_PROVIDER, OtpQueue, OtpService, RoutineQueue],

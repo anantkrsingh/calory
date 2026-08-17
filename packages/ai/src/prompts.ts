@@ -1,13 +1,20 @@
-export const PROMPT_KEYS = ['quoteOfTheDay', 'workoutRoutine'] as const;
-export type PromptKey = (typeof PROMPT_KEYS)[number];
+import { PromptCategory } from '@fitness/types';
 
-export const DEFAULT_PROMPTS: Record<PromptKey, string> = {
-  quoteOfTheDay:
+export const PROMPT_CATEGORIES = Object.values(PromptCategory);
+
+export const PROMPT_CATEGORY_LABELS: Record<PromptCategory, string> = {
+  [PromptCategory.QuoteOfTheDay]: 'Quote of the day',
+  [PromptCategory.WorkoutRoutine]: 'Workout routine',
+};
+
+/** Built-in fallbacks used when no DB prompt is configured for a category. */
+export const DEFAULT_PROMPTS: Record<PromptCategory, string> = {
+  [PromptCategory.QuoteOfTheDay]:
     'Write one short, original motivational quote for a fitness app to show ' +
-    'as the quote of the day. Keep it under 140 characters, uplifting and ' +
+    'as the quote of the day. Keep it under 50 characters, uplifting and ' +
     'specific to training or discipline. Do not use quotation marks, hashtags ' +
     'or attributions.',
-  workoutRoutine:
+  [PromptCategory.WorkoutRoutine]:
     'You are a certified strength and conditioning coach. Design a one-week ' +
     'workout routine for the user.\n\n' +
     'First call getUserDetails to read their profile, then call listExercises ' +
@@ -21,11 +28,11 @@ export const DEFAULT_PROMPTS: Record<PromptKey, string> = {
     'likely to have.',
 };
 
-/** Admin-configured prompt for `key`, falling back to the built-in default. */
+/** Admin-configured prompt for `category`, falling back to the built-in default. */
 export function resolvePrompt(
-  key: PromptKey,
-  configured: { key: string; prompt: string }[] | undefined,
+  category: PromptCategory,
+  configured: { promptCategory: string; prompt: string }[] | undefined,
 ): string {
-  const match = configured?.find((entry) => entry.key === key);
-  return match?.prompt?.trim() || DEFAULT_PROMPTS[key];
+  const match = configured?.find((entry) => entry.promptCategory === category);
+  return match?.prompt?.trim() || DEFAULT_PROMPTS[category];
 }

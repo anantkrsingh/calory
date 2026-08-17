@@ -237,11 +237,15 @@ export function toAppSettings(row: AppSettingsRow): AppSettings {
   return {
     id: row.id,
     freeChatsLimit: row.freeChatsLimit,
-    aiPrompts: row.aiPrompts.map((prompt) => ({
-      key: prompt.key,
-      label: prompt.label,
-      prompt: prompt.prompt,
-    })),
+    aiPrompts: row.aiPrompts
+      .filter(
+        (prompt): prompt is typeof prompt & { promptCategory: NonNullable<typeof prompt.promptCategory> } =>
+          Boolean(prompt.promptCategory),
+      )
+      .map((prompt) => ({
+        promptCategory: prompt.promptCategory,
+        prompt: prompt.prompt,
+      })),
     createdAt: iso(row.createdAt),
     updatedAt: iso(row.updatedAt),
   };
