@@ -1,6 +1,5 @@
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
-import { StatusBar } from "expo-status-bar";
 import { useEffect, useRef } from "react";
 import {
   Alert,
@@ -51,8 +50,6 @@ export default function WelcomeScreen() {
 
   return (
     <View style={[styles.root, { backgroundColor: theme.background }]}>
-      <StatusBar style="dark" />
-
       <View style={[styles.hero, { height: heroHeight }]} pointerEvents="none">
         <Image
           source={heroArt}

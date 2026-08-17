@@ -10,6 +10,7 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { useFonts } from 'expo-font';
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
+import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { useColorScheme } from 'react-native';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
@@ -62,6 +63,8 @@ export default function RootLayout() {
     <QueryClientProvider client={queryClient}>
       <KeyboardProvider>
         <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+          {/* Dark icons on light bg, light icons on dark bg. */}
+          <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
           <Stack screenOptions={{ headerShown: false }}>
             <Stack.Protected guard={isAuthenticated && !needsOnboarding}>
               <Stack.Screen name="(app)" />

@@ -56,4 +56,6 @@ export const QUERY_KEYS = {
   routines: ['routines'] as const,
   measurements: ['measurements'] as const,
   goals: ['goals'] as const,
+  quotes: ['quotes'] as const,
+  workoutRoutines: ['workout-routines'] as const,
 } as const;

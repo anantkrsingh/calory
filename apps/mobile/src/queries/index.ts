@@ -9,4 +9,9 @@ export {
 } from './auth.queries';
 export { useCreateMeasurement } from './measurements.queries';
 export { useSendOtp, useResendOtp, useVerifyOtp } from './otp.queries';
+export { QuotesQueries, useTodayQuote } from './quotes.queries';
 export { useUpdateProfile } from './users.queries';
+export {
+  WorkoutRoutinesQueries,
+  useTodayCalories,
+} from './workout-routines.queries';

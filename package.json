@@ -17,11 +17,12 @@
   },
   "scripts": {
     "build": "turbo run build",
-    "dev": "turbo run dev",
+    "dev": "turbo run dev --filter=@fitness/api --filter=@fitness/admin --filter=@fitness/worker",
     "dev:api": "turbo run dev --filter=@fitness/api",
     "dev:worker": "turbo run dev --filter=@fitness/worker",
     "dev:admin": "turbo run dev --filter=@fitness/admin",
     "dev:mobile": "turbo run start --filter=@fitness/mobile",
+    "dev:all": "turbo run dev",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",

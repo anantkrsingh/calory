@@ -32,7 +32,7 @@ export function AppBar({ style, ...rest }: ViewProps) {
       style={[
         styles.bar,
         {
-          backgroundColor: theme.backgroundElement,
+          backgroundColor: theme.surface,
           paddingTop: insets.top + Spacing.two,
         },
         style,

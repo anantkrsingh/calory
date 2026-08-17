@@ -49,6 +49,6 @@ const styles = StyleSheet.create({
     flex: 1,
     maxWidth: MaxContentWidth,
     paddingHorizontal: Spacing.four,
-    // paddingBottom: BottomTabInset + Spacing.three,
+    paddingBottom: BottomTabInset + Spacing.three,
   },
 });
