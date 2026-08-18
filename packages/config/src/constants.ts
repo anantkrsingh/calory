@@ -41,6 +41,10 @@ export const LIMITS = {
   heightCm: { min: 50, max: 300 },
   bodyWeightKg: { min: 20, max: 500 },
   bodyFatPercentage: { min: 1, max: 75 },
+  chatTitle: { min: 1, max: 120 },
+  chatMessage: { min: 1, max: 4000 },
+  /** How many prior messages to send to the model as context. */
+  chatContextMessages: 40,
 } as const;
 
 export const UNIT_CONVERSION = {
@@ -58,4 +62,5 @@ export const QUERY_KEYS = {
   goals: ['goals'] as const,
   quotes: ['quotes'] as const,
   workoutRoutines: ['workout-routines'] as const,
+  chats: ['chats'] as const,
 } as const;

@@ -9,6 +9,7 @@ export * from './measurement';
 export * from './goal';
 export * from './stats';
 export * from './settings';
+export * from './chat';
 export * from './responses';
 export * from './plan';
 export * from './upload';

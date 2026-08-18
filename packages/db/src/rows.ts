@@ -1,6 +1,8 @@
 import type {
   AppSettings,
   BodyMeasurement,
+  ChatConversation,
+  ChatMessage,
   Exercise,
   Goal,
   Plan,
@@ -27,6 +29,8 @@ export type GoalRow = Goal;
 export type AppSettingsRow = AppSettings;
 export type DailyQuoteRow = DailyQuote;
 export type WorkoutRoutineRow = WorkoutRoutine;
+export type ChatConversationRow = ChatConversation;
+export type ChatMessageRow = ChatMessage;
 
 export type {
   AiPromptConfig as AiPromptConfigComposite,
