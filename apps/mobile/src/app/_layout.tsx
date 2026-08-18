@@ -12,11 +12,12 @@ import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
-import { useColorScheme } from "react-native";
 import { KeyboardProvider } from "react-native-keyboard-controller";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 
 import { setOnUnauthorized } from "@/api/http";
 import { queryClient } from "@/api/query-client";
+import { useColorScheme } from "@/hooks/use-color-scheme";
 import { hasCompletedOnboarding } from "@/lib/onboarding";
 import {
   selectHydrated,
@@ -24,13 +25,14 @@ import {
   selectUser,
   useAuthStore,
 } from "@/stores/auth.store";
-import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { selectThemeHydrated, useThemeStore } from "@/stores/theme.store";
 
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
   const isHydrated = useAuthStore(selectHydrated);
+  const isThemeHydrated = useThemeStore(selectThemeHydrated);
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
   const user = useAuthStore(selectUser);
   const needsOnboarding =
@@ -53,12 +55,12 @@ export default function RootLayout() {
   }, []);
 
   useEffect(() => {
-    if (isHydrated && fontsLoaded) {
+    if (isHydrated && isThemeHydrated && fontsLoaded) {
       SplashScreen.hideAsync();
     }
-  }, [isHydrated, fontsLoaded]);
+  }, [isHydrated, isThemeHydrated, fontsLoaded]);
 
-  if (!isHydrated || !fontsLoaded) {
+  if (!isHydrated || !isThemeHydrated || !fontsLoaded) {
     return null;
   }
 

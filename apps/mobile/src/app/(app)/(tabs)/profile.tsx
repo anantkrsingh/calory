@@ -6,6 +6,7 @@ import {
   FileText,
   LifeBuoy,
   type LucideIcon,
+  Moon,
   ShieldCheck,
   SlidersHorizontal,
   Target,
@@ -18,6 +19,7 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
+  Switch,
   View,
 } from "react-native";
 
@@ -29,6 +31,10 @@ import { BottomTabInset, Brand, Pressed, Spacing } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
 import { displayNameOf, initialsOf } from "@/lib/user";
 import { selectUser, useAuthStore } from "@/stores/auth.store";
+import {
+  selectIsDarkMode,
+  useThemeStore,
+} from "@/stores/theme.store";
 
 // TODO: point these at the real legal pages once they exist.
 const PRIVACY_POLICY_URL = "https://example.com/privacy-policy";
@@ -48,6 +54,8 @@ export default function ProfileScreen() {
   const theme = useTheme();
   const user = useAuthStore(selectUser);
   const clearAuth = useAuthStore((state) => state.clear);
+  const isDarkMode = useThemeStore(selectIsDarkMode);
+  const setThemePreference = useThemeStore((s) => s.setPreference);
 
   const handleDeleteAccount = () => {
     Alert.alert(
@@ -167,6 +175,32 @@ export default function ProfileScreen() {
             ))}
           </View>
         ) : null}
+
+        <View style={cardStyle}>
+          <View style={styles.row}>
+            <Moon size={20} color={theme.text} strokeWidth={1.75} />
+            <ThemedText
+              fontWeight="regular"
+              style={styles.rowLabel}
+              numberOfLines={1}
+            >
+              Dark mode
+            </ThemedText>
+            <Switch
+              accessibilityLabel="Toggle dark mode"
+              value={isDarkMode}
+              onValueChange={(enabled) =>
+                setThemePreference(enabled ? "dark" : "light")
+              }
+              trackColor={{
+                false: theme.backgroundSelected,
+                true: Brand.accent,
+              }}
+              thumbColor="#FFFFFF"
+              ios_backgroundColor={theme.backgroundSelected}
+            />
+          </View>
+        </View>
 
         <View style={cardStyle}>
           {legalOptions.map((option, index) => (
