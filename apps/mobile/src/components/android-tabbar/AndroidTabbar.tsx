@@ -1,8 +1,14 @@
 import { BlurView } from 'expo-blur';
 import { Tabs } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useEffect, useState, type ComponentProps } from 'react';
-import { Dimensions, StyleSheet, View, type LayoutChangeEvent } from 'react-native';
+import { useEffect, useState, type ComponentProps, type RefObject } from 'react';
+import {
+  Dimensions,
+  StyleSheet,
+  View,
+  type LayoutChangeEvent,
+  type View as RNView,
+} from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   runOnJS,
@@ -14,7 +20,6 @@ import Animated, {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { TabBarButton } from '@/components/android-tabbar/TabBarButton';
-import { useTabBlurTarget } from '@/components/android-tabbar/tab-blur-target';
 import { Brand } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useTheme } from '@/hooks/use-theme';
@@ -23,6 +28,10 @@ type BottomTabBarProps = Parameters<
   NonNullable<ComponentProps<typeof Tabs>['tabBar']>
 >[0];
 
+type AndroidTabbarProps = BottomTabBarProps & {
+  blurTarget: RefObject<RNView | null>;
+};
+
 const DeviceWidth = Dimensions.get('window').width;
 
 const TAB_BAR_HEIGHT = 70;
@@ -30,11 +39,15 @@ const HORIZONTAL_PADDING = 16;
 const VERTICAL_PADDING = 8;
 const PILL_TOP = 5;
 
-export function AndroidTabbar({ state, descriptors, navigation }: BottomTabBarProps) {
+export function AndroidTabbar({
+  state,
+  descriptors,
+  navigation,
+  blurTarget,
+}: AndroidTabbarProps) {
   const insets = useSafeAreaInsets();
   const theme = useTheme();
   const scheme = useColorScheme();
-  const blurTarget = useTabBlurTarget();
   const isDark = scheme === 'dark';
 
   const [dimensions, setDimensions] = useState({
@@ -42,6 +55,8 @@ export function AndroidTabbar({ state, descriptors, navigation }: BottomTabBarPr
     width: DeviceWidth - 32,
   });
   const [isDraggingState, setIsDraggingState] = useState(false);
+  // Remount BlurView once the target has a native node (findNodeHandle needs it).
+  const [blurReady, setBlurReady] = useState(false);
 
   const buttonWidth = (dimensions.width + 50) / state.routes.length;
   const pillHeight = TAB_BAR_HEIGHT - VERTICAL_PADDING * 1.5;
@@ -49,6 +64,17 @@ export function AndroidTabbar({ state, descriptors, navigation }: BottomTabBarPr
   const tabPositionX = useSharedValue(buttonWidth * state.index);
   const dragX = useSharedValue(0);
   const isDragging = useSharedValue(0);
+
+  useEffect(() => {
+    if (blurTarget.current) {
+      setBlurReady(true);
+      return;
+    }
+    const id = requestAnimationFrame(() => {
+      if (blurTarget.current) setBlurReady(true);
+    });
+    return () => cancelAnimationFrame(id);
+  }, [blurTarget]);
 
   const onTabbarLayout = (e: LayoutChangeEvent) => {
     setDimensions({
@@ -135,8 +161,85 @@ export function AndroidTabbar({ state, descriptors, navigation }: BottomTabBarPr
     };
   });
 
+  const tabButtons = state.routes.map((route, index) => {
+    const { options } = descriptors[route.key];
+    const label =
+      typeof options.tabBarLabel === 'string'
+        ? options.tabBarLabel
+        : typeof options.title === 'string'
+          ? options.title
+          : route.name;
+
+    const isFocused = state.index === index;
+
+    const onPress = () => {
+      tabPositionX.set(
+        withSpring(buttonWidth * index, {
+          damping: 20,
+          stiffness: 300,
+        }),
+      );
+
+      const event = navigation.emit({
+        type: 'tabPress',
+        target: route.key,
+        canPreventDefault: true,
+      });
+
+      if (!isFocused && !event.defaultPrevented) {
+        navigation.navigate(route.name, route.params);
+      }
+    };
+
+    const onLongPress = () => {
+      navigation.emit({
+        type: 'tabLongPress',
+        target: route.key,
+      });
+    };
+
+    return (
+      <TabBarButton
+        key={route.key}
+        onPress={onPress}
+        onLongPress={onLongPress}
+        isFocused={isFocused}
+        routeName={route.name}
+        label={label}
+        style={styles.tabBarItem}
+      />
+    );
+  });
+
+  const barBody = (
+    <>
+      <Animated.View
+        style={[
+          styles.backgroundPill,
+          {
+            width: buttonWidth,
+            height: pillHeight,
+            backgroundColor: Brand.cream,
+          },
+          animatedBackgroundStyle,
+        ]}
+      />
+      {tabButtons}
+    </>
+  );
+
+  const barStyle = [
+    styles.tabbar,
+    {
+      height: TAB_BAR_HEIGHT,
+      paddingHorizontal: HORIZONTAL_PADDING,
+      paddingVertical: VERTICAL_PADDING,
+      borderColor: theme.border,
+    },
+  ];
+
   return (
-    <View style={[styles.container, { paddingBottom: insets.bottom }]}>
+    <View style={[styles.container, { paddingBottom: insets.bottom }]} pointerEvents="box-none">
       <LinearGradient
         colors={['rgba(0, 0, 0, 0.35)', 'rgba(0, 0, 0, 0)']}
         start={{ x: 0.5, y: 1 }}
@@ -146,84 +249,23 @@ export function AndroidTabbar({ state, descriptors, navigation }: BottomTabBarPr
       />
 
       <GestureDetector gesture={panGesture}>
-        <BlurView
-          onLayout={onTabbarLayout}
-          blurTarget={blurTarget ?? undefined}
-          blurMethod="dimezisBlurViewSdk31Plus"
-          intensity={75}
-          tint={isDark ? 'dark' : 'light'}
-          blurReductionFactor={3}
-          style={[
-            styles.tabbar,
-            {
-              height: TAB_BAR_HEIGHT,
-              paddingHorizontal: HORIZONTAL_PADDING,
-              paddingVertical: VERTICAL_PADDING,
-              borderColor: theme.border,
-            },
-          ]}>
-          <Animated.View
-            style={[
-              styles.backgroundPill,
-              {
-                width: buttonWidth,
-                height: pillHeight,
-                backgroundColor: Brand.cream,
-              },
-              animatedBackgroundStyle,
-            ]}
-          />
-
-          {state.routes.map((route, index) => {
-            const { options } = descriptors[route.key];
-            const label =
-              typeof options.tabBarLabel === 'string'
-                ? options.tabBarLabel
-                : typeof options.title === 'string'
-                  ? options.title
-                  : route.name;
-
-            const isFocused = state.index === index;
-
-            const onPress = () => {
-              tabPositionX.set(
-                withSpring(buttonWidth * index, {
-                  damping: 20,
-                  stiffness: 300,
-                }),
-              );
-
-              const event = navigation.emit({
-                type: 'tabPress',
-                target: route.key,
-                canPreventDefault: true,
-              });
-
-              if (!isFocused && !event.defaultPrevented) {
-                navigation.navigate(route.name, route.params);
-              }
-            };
-
-            const onLongPress = () => {
-              navigation.emit({
-                type: 'tabLongPress',
-                target: route.key,
-              });
-            };
-
-            return (
-              <TabBarButton
-                key={route.key}
-                onPress={onPress}
-                onLongPress={onLongPress}
-                isFocused={isFocused}
-                routeName={route.name}
-                label={label}
-                style={styles.tabBarItem}
-              />
-            );
-          })}
-        </BlurView>
+        {blurReady ? (
+          <BlurView
+            key="blurred-tabbar"
+            onLayout={onTabbarLayout}
+            blurTarget={blurTarget}
+            blurMethod="dimezisBlurViewSdk31Plus"
+            intensity={100}
+            tint={isDark ? 'systemMaterialDark' : 'systemMaterialLight'}
+            blurReductionFactor={2}
+            style={barStyle}>
+            {barBody}
+          </BlurView>
+        ) : (
+          <View onLayout={onTabbarLayout} style={[barStyle, { backgroundColor: theme.surface }]}>
+            {barBody}
+          </View>
+        )}
       </GestureDetector>
     </View>
   );
