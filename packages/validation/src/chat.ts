@@ -35,5 +35,8 @@ export const chatMessageQuerySchema = paginationQuerySchema;
 export type CreateChatInput = z.infer<typeof createChatSchema>;
 export type UpdateChatInput = z.infer<typeof updateChatSchema>;
 export type SendChatMessageInput = z.infer<typeof sendChatMessageSchema>;
-export type ChatQueryInput = z.infer<typeof chatQuerySchema>;
-export type ChatMessageQueryInput = z.infer<typeof chatMessageQuerySchema>;
+/** page/limit optional — server zod pipe applies defaults. */
+export type ChatQueryInput = Partial<z.output<typeof chatQuerySchema>>;
+export type ChatMessageQueryInput = Partial<
+  z.output<typeof chatMessageQuerySchema>
+>;

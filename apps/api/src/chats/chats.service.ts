@@ -142,11 +142,7 @@ export class ChatsService {
     await this.prisma.chatConversation.delete({ where: { id } });
   }
 
-  /**
-   * Persists the user message, then returns an AI SDK text stream for the
-   * assistant reply. The caller pipes the stream to the HTTP response.
-   * On successful finish the assistant message is saved and one credit spent.
-   */
+
   async streamReply(
     userId: Id,
     conversationId: Id,

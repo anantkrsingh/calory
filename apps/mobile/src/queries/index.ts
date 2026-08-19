@@ -7,6 +7,15 @@ export {
   useRegister,
   useVerifyRegistration,
 } from './auth.queries';
+export {
+  ChatsQueries,
+  useChat,
+  useChats,
+  useCreateChat,
+  useDeleteChat,
+  useStreamChatMessage,
+  useUpdateChat,
+} from './chats.queries';
 export { useCreateMeasurement } from './measurements.queries';
 export { useSendOtp, useResendOtp, useVerifyOtp } from './otp.queries';
 export { QuotesQueries, useTodayQuote } from './quotes.queries';
