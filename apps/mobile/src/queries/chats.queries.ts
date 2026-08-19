@@ -8,7 +8,6 @@ import type {
   ChatMessageQueryInput,
   ChatQueryInput,
   CreateChatInput,
-  SendChatMessageInput,
   UpdateChatInput,
 } from '@fitness/validation';
 import {
@@ -71,12 +70,15 @@ export function useChats(
   return useQuery(ChatsQueries.list(isAuthenticated, query));
 }
 
-export function useChat(
+export function useChatDetail(
   id: string,
 ): UseQueryResult<ChatConversationDetail> {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
   return useQuery(ChatsQueries.detail(isAuthenticated, id));
 }
+
+/** @deprecated Use `useChatDetail` — `useChat` is reserved for AI SDK. */
+export const useChat = useChatDetail;
 
 export function useCreateChat(): UseMutationResult<
   ChatConversation,
@@ -119,38 +121,6 @@ export function useDeleteChat(): UseMutationResult<void, Error, string> {
     onSuccess: (_data, id) => {
       void queryClient.invalidateQueries({ queryKey: ChatsQueries.keys.all });
       queryClient.removeQueries({ queryKey: ChatsQueries.keys.detail(id) });
-    },
-  });
-}
-
-export type StreamChatVariables = {
-  conversationId: string;
-  input: SendChatMessageInput;
-  onUserMessageId?: (id: string) => void;
-  onChunk: (text: string) => void;
-};
-
-export function useStreamChatMessage(): UseMutationResult<
-  string,
-  Error,
-  StreamChatVariables
-> {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({ conversationId, input, onUserMessageId, onChunk }) =>
-      chatsService.streamMessage(conversationId, input, {
-        onUserMessageId,
-        onChunk,
-      }),
-    onSuccess: (_text, { conversationId }) => {
-      void queryClient.invalidateQueries({ queryKey: ChatsQueries.keys.all });
-      void queryClient.invalidateQueries({
-        queryKey: ChatsQueries.keys.detail(conversationId),
-      });
-      void queryClient.invalidateQueries({
-        queryKey: [...ChatsQueries.root, 'messages', conversationId],
-      });
     },
   });
 }

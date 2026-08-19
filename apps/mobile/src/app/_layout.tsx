@@ -1,3 +1,5 @@
+import '@/polyfills';
+
 import { Ubuntu_300Light } from "@expo-google-fonts/ubuntu/300Light";
 import { Ubuntu_300Light_Italic } from "@expo-google-fonts/ubuntu/300Light_Italic";
 import { Ubuntu_400Regular } from "@expo-google-fonts/ubuntu/400Regular";

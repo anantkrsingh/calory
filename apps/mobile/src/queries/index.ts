@@ -10,10 +10,10 @@ export {
 export {
   ChatsQueries,
   useChat,
+  useChatDetail,
   useChats,
   useCreateChat,
   useDeleteChat,
-  useStreamChatMessage,
   useUpdateChat,
 } from './chats.queries';
 export { useCreateMeasurement } from './measurements.queries';

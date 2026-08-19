@@ -1,4 +1,5 @@
-import type { ChatMessage } from '@fitness/types';
+import { useChat } from '@ai-sdk/react';
+import type { UIMessage } from 'ai';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -12,6 +13,7 @@ import {
 } from 'react-native';
 import { KeyboardStickyView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useQueryClient } from '@tanstack/react-query';
 
 import { getErrorMessage, isApiError } from '@/api/errors';
 import { ChatComposer } from '@/components/chat/ChatComposer';
@@ -21,59 +23,81 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Brand, MaxContentWidth, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { useChat, useStreamChatMessage } from '@/queries/chats.queries';
-
-type ThreadMessage = {
-  id: string;
-  role: 'user' | 'assistant';
-  content: string;
-  streaming?: boolean;
-};
-
-function toThreadMessage(message: ChatMessage): ThreadMessage | null {
-  if (message.role === 'system') return null;
-  return {
-    id: message.id,
-    role: message.role,
-    content: message.content,
-  };
-}
+import {
+  isMessageStreaming,
+  textFromUIMessage,
+  toUIMessages,
+} from '@/lib/chat-messages';
+import { createCoachChatTransport } from '@/lib/chat-transport';
+import { ChatsQueries, useChatDetail } from '@/queries/chats.queries';
 
 export default function ChatThreadScreen() {
   const router = useRouter();
   const theme = useTheme();
   const insets = useSafeAreaInsets();
+  const queryClient = useQueryClient();
   const params = useLocalSearchParams<{ id: string }>();
   const conversationId = Array.isArray(params.id) ? params.id[0] : params.id;
 
-  const { data, isLoading, isError, error } = useChat(conversationId);
-  const streamMessage = useStreamChatMessage();
+  const { data, isLoading, isError, error } = useChatDetail(
+    conversationId ?? '',
+  );
 
   const [draft, setDraft] = useState('');
-  const [localMessages, setLocalMessages] = useState<ThreadMessage[]>([]);
-  const listRef = useRef<FlatList<ThreadMessage>>(null);
+  const listRef = useRef<FlatList<UIMessage>>(null);
   const seededRef = useRef<string | null>(null);
+
+  const transport = useMemo(
+    () =>
+      conversationId
+        ? createCoachChatTransport(conversationId)
+        : createCoachChatTransport('000000000000000000000000'),
+    [conversationId],
+  );
+
+  const {
+    messages,
+    sendMessage,
+    setMessages,
+    status,
+    clearError,
+  } = useChat({
+    id: conversationId,
+    transport,
+    onFinish: () => {
+      if (!conversationId) return;
+      void queryClient.invalidateQueries({ queryKey: ChatsQueries.keys.all });
+      void queryClient.invalidateQueries({
+        queryKey: ChatsQueries.keys.detail(conversationId),
+      });
+    },
+    onError: (err) => {
+      const message = getErrorMessage(err, 'Couldn’t send that message.');
+      const isCredits =
+        /credit/i.test(message) ||
+        (isApiError(err) && err.isPaymentRequired);
+      Alert.alert(isCredits ? 'Out of credits' : 'Send failed', message);
+    },
+  });
 
   useEffect(() => {
     seededRef.current = null;
-    setLocalMessages([]);
+    setMessages([]);
     setDraft('');
-  }, [conversationId]);
+    clearError();
+  }, [conversationId, setMessages, clearError]);
 
   useEffect(() => {
     if (!data || !conversationId) return;
     if (seededRef.current === conversationId) return;
-    if (streamMessage.isPending) return;
+    if (status !== 'ready') return;
 
     seededRef.current = conversationId;
-    setLocalMessages(
-      data.messages
-        .map(toThreadMessage)
-        .filter((message): message is ThreadMessage => message !== null),
-    );
-  }, [conversationId, data, streamMessage.isPending]);
+    setMessages(toUIMessages(data.messages));
+  }, [conversationId, data, setMessages, status]);
 
   const title = data?.title?.trim() || 'Coach';
+  const sending = status === 'submitted' || status === 'streaming';
 
   const scrollToEnd = useCallback(() => {
     requestAnimationFrame(() => {
@@ -83,88 +107,28 @@ export default function ChatThreadScreen() {
 
   useEffect(() => {
     scrollToEnd();
-  }, [localMessages, scrollToEnd]);
+  }, [messages, scrollToEnd]);
 
   const send = useCallback(async () => {
     const content = draft.trim();
-    if (!content || !conversationId || streamMessage.isPending) return;
-
-    const tempUserId = `local-user-${Date.now()}`;
-    const tempAssistantId = `local-assistant-${Date.now()}`;
+    if (!content || !conversationId || sending) return;
 
     setDraft('');
-    setLocalMessages((prev) => [
-      ...prev,
-      { id: tempUserId, role: 'user', content },
-      {
-        id: tempAssistantId,
-        role: 'assistant',
-        content: '',
-        streaming: true,
-      },
-    ]);
+    await sendMessage({ text: content });
+  }, [conversationId, draft, sendMessage, sending]);
 
-    try {
-      await streamMessage.mutateAsync({
-        conversationId,
-        input: { content },
-        onUserMessageId: (id) => {
-          setLocalMessages((prev) =>
-            prev.map((message) =>
-              message.id === tempUserId ? { ...message, id } : message,
-            ),
-          );
-        },
-        onChunk: (text) => {
-          setLocalMessages((prev) =>
-            prev.map((message) =>
-              message.id === tempAssistantId
-                ? { ...message, content: text, streaming: true }
-                : message,
-            ),
-          );
-        },
-      });
+  const keyExtractor = useCallback((item: UIMessage) => item.id, []);
 
-      setLocalMessages((prev) =>
-        prev.map((message) =>
-          message.id === tempAssistantId
-            ? { ...message, streaming: false }
-            : message,
-        ),
-      );
-    } catch (err) {
-      setLocalMessages((prev) =>
-        prev.filter(
-          (message) =>
-            message.id !== tempUserId && message.id !== tempAssistantId,
-        ),
-      );
-      setDraft(content);
-
-      Alert.alert(
-        isApiError(err) && err.isPaymentRequired
-          ? 'Out of credits'
-          : 'Send failed',
-        isApiError(err)
-          ? err.message
-          : getErrorMessage(err, 'Couldn’t send that message.'),
-      );
-    }
-  }, [conversationId, draft, streamMessage]);
-
-  const keyExtractor = useCallback((item: ThreadMessage) => item.id, []);
-
-  const renderItem = useCallback(
-    ({ item }: { item: ThreadMessage }) => (
+  const renderItem = useCallback(({ item }: { item: UIMessage }) => {
+    if (item.role !== 'user' && item.role !== 'assistant') return null;
+    return (
       <MessageBubble
         role={item.role}
-        content={item.content}
-        streaming={item.streaming}
+        content={textFromUIMessage(item)}
+        streaming={isMessageStreaming(item)}
       />
-    ),
-    [],
-  );
+    );
+  }, []);
 
   const listEmpty = useMemo(() => {
     if (isLoading) return null;
@@ -199,13 +163,13 @@ export default function ChatThreadScreen() {
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={0}>
-        {isLoading && localMessages.length === 0 ? (
+        {isLoading && messages.length === 0 ? (
           <View style={styles.centered}>
             <ActivityIndicator color={Brand.accent} />
           </View>
         ) : null}
 
-        {isError && localMessages.length === 0 ? (
+        {isError && messages.length === 0 ? (
           <View style={styles.centered}>
             <ThemedText style={styles.errorTitle}>
               Couldn’t open chat
@@ -219,12 +183,12 @@ export default function ChatThreadScreen() {
         ) : (
           <FlatList
             ref={listRef}
-            data={localMessages}
+            data={messages}
             keyExtractor={keyExtractor}
             renderItem={renderItem}
             contentContainerStyle={[
               styles.list,
-              localMessages.length === 0 && styles.listEmpty,
+              messages.length === 0 && styles.listEmpty,
             ]}
             ListEmptyComponent={listEmpty}
             showsVerticalScrollIndicator={false}
@@ -250,8 +214,8 @@ export default function ChatThreadScreen() {
                 onSend={() => {
                   void send();
                 }}
-                sending={streamMessage.isPending}
-                disabled={isLoading && localMessages.length === 0}
+                sending={sending}
+                disabled={isLoading && messages.length === 0}
               />
             </View>
           </View>
