@@ -86,9 +86,7 @@ export default function AndroidTabLayout() {
           </Tabs>
         </BlurTargetView>
 
-        {tabBarProps ? (
-          <AndroidTabbar {...tabBarProps} blurTarget={blurTargetRef} />
-        ) : null}
+        {tabBarProps ? <AndroidTabbar {...tabBarProps} blurTarget={blurTargetRef} /> : null}
       </View>
     </TabBarPropsProvider>
   );

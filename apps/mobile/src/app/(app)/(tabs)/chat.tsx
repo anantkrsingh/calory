@@ -1,245 +1,180 @@
-import type { ChatConversation } from '@fitness/types';
-import { useRouter, type Href } from 'expo-router';
-import { Plus } from 'lucide-react-native';
-import { useCallback } from 'react';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { History, Plus } from 'lucide-react-native';
+import { useCallback, useEffect, useRef } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  FlatList,
+  BackHandler,
+  Platform,
   Pressable,
   StyleSheet,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { getErrorMessage, isApiError } from '@/api/errors';
-import { ConversationRow } from '@/components/chat/ConversationRow';
-import { ScreenAppBar } from '@/components/screen-app-bar';
-import { TabScreen } from '@/components/tab-screen';
+import { getErrorMessage } from '@/api/errors';
+import { ChatThread } from '@/components/chat/ChatThread';
 import { ThemedText } from '@/components/themed-text';
-import PrimaryButton from '@/components/ui/PrimaryButton';
-import { BottomTabInset, Brand, Spacing } from '@/constants/theme';
+import { ThemedView } from '@/components/themed-view';
+import { Brand, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { useChats, useCreateChat } from '@/queries/chats.queries';
 import {
-  useChats,
-  useCreateChat,
-  useDeleteChat,
-} from '@/queries/chats.queries';
-
-const dateFormatter = new Intl.DateTimeFormat(undefined, {
-  month: 'short',
-  day: 'numeric',
-  hour: 'numeric',
-  minute: '2-digit',
-});
-
-function chatHref(id: string): Href {
-  return `/chat/${id}` as Href;
-}
-
-function subtitleFor(conversation: ChatConversation): string {
-  if (conversation.lastMessageAt) {
-    return dateFormatter.format(new Date(conversation.lastMessageAt));
-  }
-  return 'New conversation';
-}
+  selectActiveConversationId,
+  selectChatSessionHydrated,
+  useChatSessionStore,
+} from '@/stores/chat-session.store';
 
 export default function ChatScreen() {
   const router = useRouter();
   const theme = useTheme();
-  const { data, isLoading, isError, error, refetch, isRefetching } = useChats();
+  const insets = useSafeAreaInsets();
+  const hydrated = useChatSessionStore(selectChatSessionHydrated);
+  const activeId = useChatSessionStore(selectActiveConversationId);
+  const setActiveId = useChatSessionStore((s) => s.setActiveConversationId);
+
+  const { data: chats, isLoading: listing } = useChats();
   const createChat = useCreateChat();
-  const deleteChat = useDeleteChat();
+  const ensuringRef = useRef(false);
 
-  const conversations = data?.items ?? [];
+  // Ensure there is always an active conversation for the tab.
+  useEffect(() => {
+    if (!hydrated || ensuringRef.current) return;
 
-  const openConversation = useCallback(
-    (id: string) => {
-      router.push(chatHref(id));
-    },
-    [router],
+    const items = chats?.items;
+    if (activeId) return;
+    if (listing && items === undefined) return;
+
+    ensuringRef.current = true;
+    void (async () => {
+      try {
+        const latest = items?.[0];
+        if (latest) {
+          setActiveId(latest.id);
+          return;
+        }
+        const created = await createChat.mutateAsync({});
+        setActiveId(created.id);
+      } catch (err) {
+        Alert.alert(
+          'Couldn’t start chat',
+          getErrorMessage(err, 'Something went wrong. Try again.'),
+        );
+      } finally {
+        ensuringRef.current = false;
+      }
+    })();
+  }, [
+    activeId,
+    chats?.items,
+    createChat,
+    hydrated,
+    listing,
+    setActiveId,
+  ]);
+
+  // Android back from chat goes to Home instead of exiting the app.
+  useFocusEffect(
+    useCallback(() => {
+      const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+        router.navigate('/');
+        return true;
+      });
+      return () => sub.remove();
+    }, [router]),
   );
 
-  const startChat = useCallback(async () => {
+  const startNewChat = useCallback(async () => {
     try {
-      const conversation = await createChat.mutateAsync({});
-      router.push(chatHref(conversation.id));
+      const created = await createChat.mutateAsync({});
+      setActiveId(created.id);
     } catch (err) {
       Alert.alert(
         'Couldn’t start chat',
         getErrorMessage(err, 'Something went wrong. Try again.'),
       );
     }
-  }, [createChat, router]);
-
-  const confirmDelete = useCallback(
-    (id: string) => {
-      Alert.alert(
-        'Delete conversation?',
-        'This removes the thread and all messages.',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Delete',
-            style: 'destructive',
-            onPress: () => {
-              void deleteChat.mutateAsync(id).catch((err) => {
-                Alert.alert(
-                  'Couldn’t delete',
-                  getErrorMessage(err, 'Something went wrong.'),
-                );
-              });
-            },
-          },
-        ],
-      );
-    },
-    [deleteChat],
-  );
-
-  const renderItem = useCallback(
-    ({ item }: { item: ChatConversation }) => (
-      <ConversationRow
-        id={item.id}
-        title={item.title?.trim() || 'New chat'}
-        subtitle={subtitleFor(item)}
-        onPress={openConversation}
-        onLongPress={confirmDelete}
-      />
-    ),
-    [confirmDelete, openConversation],
-  );
-
-  const keyExtractor = useCallback((item: ChatConversation) => item.id, []);
+  }, [createChat, setActiveId]);
 
   return (
-    <TabScreen
-      appBar={false}
-      header={
-        <ScreenAppBar
-          title="Chat"
-          showBack={false}
-          right={
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="New chat"
-              hitSlop={8}
-              disabled={createChat.isPending}
-              onPress={() => {
-                void startChat();
-              }}
-              style={styles.newButton}>
-              {createChat.isPending ? (
-                <ActivityIndicator color={Brand.accent} />
-              ) : (
-                <Plus color={theme.text} size={24} />
-              )}
-            </Pressable>
-          }
-        />
-      }
-      contentStyle={styles.content}>
-      {isLoading ? (
-        <View style={styles.centered}>
-          <ActivityIndicator color={Brand.accent} />
-        </View>
-      ) : null}
+    <ThemedView style={styles.screen}>
+      <View
+        style={[
+          styles.topBar,
+          { paddingTop: Math.max(insets.top, Platform.OS === 'android' ? 8 : 0) },
+        ]}>
+        <View style={styles.topBarRow}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Chat history"
+            hitSlop={8}
+            onPress={() => router.push('/chat/history')}
+            style={[
+              styles.pillButton,
+              { backgroundColor: theme.surface, borderColor: theme.border },
+            ]}>
+            <History color={theme.text} size={20} strokeWidth={2.2} />
+          </Pressable>
 
-      {isError ? (
-        <View style={styles.centered}>
-          <ThemedText style={styles.errorTitle}>Couldn’t load chats</ThemedText>
-          <ThemedText themeColor="textSecondary" style={styles.errorBody}>
-            {isApiError(error)
-              ? error.message
-              : getErrorMessage(error, 'Check your connection and try again.')}
-          </ThemedText>
-          <PrimaryButton label="Retry" onPress={() => void refetch()} />
-        </View>
-      ) : null}
-
-      {!isLoading && !isError && conversations.length === 0 ? (
-        <View style={styles.centered}>
-          <ThemedText fontWeight="700" style={styles.emptyTitle}>
-            Ask your coach
-          </ThemedText>
-          <ThemedText themeColor="textSecondary" style={styles.emptyBody}>
-            Form tips, recovery, nutrition basics — start a chat anytime.
-          </ThemedText>
-          <PrimaryButton
-            label={createChat.isPending ? 'Starting…' : 'New chat'}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="New chat"
+            hitSlop={8}
             disabled={createChat.isPending}
             onPress={() => {
-              void startChat();
+              void startNewChat();
             }}
-          />
+            style={[
+              styles.pillButton,
+              { backgroundColor: theme.surface, borderColor: theme.border },
+            ]}>
+            {createChat.isPending ? (
+              <ActivityIndicator color={Brand.accent} />
+            ) : (
+              <Plus color={theme.text} size={22} strokeWidth={2.2} />
+            )}
+          </Pressable>
         </View>
-      ) : null}
+      </View>
 
-      {!isLoading && !isError && conversations.length > 0 ? (
-        <FlatList
-          data={conversations}
-          keyExtractor={keyExtractor}
-          renderItem={renderItem}
-          contentContainerStyle={styles.list}
-          ItemSeparatorComponent={ListSeparator}
-          refreshing={isRefetching}
-          onRefresh={() => {
-            void refetch();
-          }}
-          showsVerticalScrollIndicator={false}
-        />
-      ) : null}
-    </TabScreen>
+      {!activeId ? (
+        <View style={styles.centered}>
+          <ActivityIndicator color={Brand.accent} />
+          <ThemedText themeColor="textSecondary">Opening coach…</ThemedText>
+        </View>
+      ) : (
+        <ChatThread key={activeId} conversationId={activeId} />
+      )}
+    </ThemedView>
   );
-}
-
-function ListSeparator() {
-  return <View style={styles.separator} />;
 }
 
 const styles = StyleSheet.create({
-  content: {
-    paddingHorizontal: 0,
+  screen: {
+    flex: 1,
   },
-  newButton: {
+  topBar: {
+    paddingHorizontal: Spacing.three,
+  },
+  topBarRow: {
     alignItems: 'center',
+    flexDirection: 'row',
+    height: 52,
+    justifyContent: 'space-between',
+  },
+  pillButton: {
+    alignItems: 'center',
+    borderCurve: 'continuous',
+    borderRadius: 22,
+    borderWidth: StyleSheet.hairlineWidth || 1,
     height: 44,
     justifyContent: 'center',
     width: 44,
-  },
-  list: {
-    paddingBottom: BottomTabInset + Spacing.four,
-    paddingHorizontal: Spacing.four,
-    paddingTop: Spacing.three,
-  },
-  separator: {
-    height: Spacing.two,
   },
   centered: {
     alignItems: 'center',
     flex: 1,
     gap: Spacing.three,
     justifyContent: 'center',
-    paddingHorizontal: Spacing.four,
-  },
-  emptyTitle: {
-    fontSize: 22,
-    lineHeight: 28,
-    textAlign: 'center',
-  },
-  emptyBody: {
-    fontSize: 15,
-    lineHeight: 22,
-    marginBottom: Spacing.two,
-    textAlign: 'center',
-  },
-  errorTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    textAlign: 'center',
-  },
-  errorBody: {
-    fontSize: 14,
-    lineHeight: 20,
-    textAlign: 'center',
   },
 });
