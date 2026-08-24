@@ -44,6 +44,12 @@
         }
       ],
       [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow $(PRODUCT_NAME) to access your photos to set a profile picture."
+        }
+      ],
+      [
         "react-native-fbsdk-next",
         {
           "appID": "1372271290911323",
