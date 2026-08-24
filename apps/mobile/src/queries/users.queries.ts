@@ -6,7 +6,7 @@ import {
   type UseMutationResult,
 } from '@tanstack/react-query';
 
-import { usersService } from '@/services/users.service';
+import { usersService, type LocalImageFile } from '@/services/users.service';
 import { authState } from '@/stores/auth.store';
 
 import { AuthQueries } from './auth.queries';
@@ -24,6 +24,22 @@ export function useUpdateProfile(): UseMutationResult<
       queryClient.setQueryData(AuthQueries.keys.me(), user);
       // Keeps the navigation guard's onboarding-completeness check current —
       // it reads off this store, not the query cache.
+      authState.setUser(user);
+    },
+  });
+}
+
+export function useUploadAvatar(): UseMutationResult<
+  User,
+  Error,
+  LocalImageFile
+> {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (file: LocalImageFile) => usersService.uploadAvatar(file),
+    onSuccess: (user) => {
+      queryClient.setQueryData(AuthQueries.keys.me(), user);
       authState.setUser(user);
     },
   });

@@ -9,7 +9,7 @@ import { Readable } from 'node:stream';
 
 import { ENV, type Env } from '../config/env.module';
 
-const ALLOWED_MIME_TYPES = new Set([
+export const ALLOWED_MIME_TYPES = new Set([
   'image/jpeg',
   'image/jpg',
   'image/png',

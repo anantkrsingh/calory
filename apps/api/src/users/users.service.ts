@@ -4,10 +4,16 @@ import type { Id, Paginated, User } from '@fitness/types';
 import type { AdminUpdateUserInput, ListUsersQueryInput, UpdateUserInput } from '@fitness/validation';
 
 import { PrismaService } from '../prisma/prisma.service';
+import { UploadsService } from '../uploads/uploads.service';
+
+const AVATAR_FOLDER = 'fitness-tracker/avatars';
 
 @Injectable()
 export class UsersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly uploads: UploadsService,
+  ) {}
 
   /** Admin-only: every account, newest first, optionally filtered by email/name. */
   async list(query: ListUsersQueryInput): Promise<Paginated<User>> {
@@ -57,6 +63,21 @@ export class UsersService {
           ? { preferences: { ...current.preferences, ...input.preferences } }
           : {}),
       },
+    });
+
+    return toUser(user);
+  }
+
+  /** Uploads the image to Cloudinary and points `profile.avatarUrl` at it. */
+  async updateAvatar(id: Id, file: Express.Multer.File): Promise<User> {
+    const current = await this.prisma.user.findUnique({ where: { id } });
+    if (!current) throw new NotFoundException('User not found');
+
+    const uploaded = await this.uploads.uploadImage(file, AVATAR_FOLDER);
+
+    const user = await this.prisma.user.update({
+      where: { id },
+      data: { profile: { ...current.profile, avatarUrl: uploaded.url } },
     });
 
     return toUser(user);
