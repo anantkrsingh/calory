@@ -4,6 +4,7 @@ import type {
   ChatConversation,
   ChatMessage,
   DailyQuote,
+  DailySteps,
   Exercise,
   Goal,
   Plan,
@@ -20,6 +21,7 @@ import type {
   ChatConversationRow,
   ChatMessageRow,
   DailyQuoteRow,
+  DailyStepsRow,
   ExerciseRow,
   GoalRow,
   PlanRow,
@@ -232,6 +234,17 @@ export function toBodyMeasurement(row: BodyMeasurementRow): BodyMeasurement {
     }) as BodyMeasurement['measurements'],
     photoUrls: row.photoUrls,
     notes: orUndefined(row.notes),
+    createdAt: iso(row.createdAt),
+    updatedAt: iso(row.updatedAt),
+  };
+}
+
+export function toDailySteps(row: DailyStepsRow): DailySteps {
+  return {
+    id: row.id,
+    userId: row.userId,
+    date: row.date,
+    steps: row.steps,
     createdAt: iso(row.createdAt),
     updatedAt: iso(row.updatedAt),
   };

@@ -50,6 +50,12 @@
         }
       ],
       [
+        "expo-sensors",
+        {
+          "motionPermission": "Allow $(PRODUCT_NAME) to access your motion data to count your daily steps."
+        }
+      ],
+      [
         "react-native-fbsdk-next",
         {
           "appID": "1372271290911323",

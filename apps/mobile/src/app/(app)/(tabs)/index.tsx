@@ -4,12 +4,17 @@ import { TabScreen } from "@/components/tab-screen";
 import { ThemedText } from "@/components/themed-text";
 import { CircularProgressRing } from "@/components/ui/CircularProgressRing";
 import { Spacing } from "@/constants/theme";
+import { useStepsTracker } from "@/hooks/use-steps-tracker";
 import { useTodayQuote } from "@/queries/quotes.queries";
 import { useTodayCalories } from "@/queries/workout-routines.queries";
+
+const RING_SIZE = 96;
+const RING_STROKE = 12;
 
 export default function HomeScreen() {
   const { data: quote } = useTodayQuote();
   const { data: calories } = useTodayCalories();
+  const { steps, goal: stepsGoal } = useStepsTracker();
 
   const burned = calories?.burned ?? 0;
   const target = calories?.target ?? 0;
@@ -24,8 +29,20 @@ export default function HomeScreen() {
         </View>
       ) : null}
 
-      <View style={styles.ringRow}>
-        <CircularProgressRing value={burned} target={target} />
+      <View style={styles.ringsRow}>
+        <CircularProgressRing
+          value={steps}
+          target={stepsGoal}
+          unit="steps"
+          size={RING_SIZE}
+          strokeWidth={RING_STROKE}
+        />
+        <CircularProgressRing
+          value={burned}
+          target={target}
+          size={RING_SIZE}
+          strokeWidth={RING_STROKE}
+        />
       </View>
     </TabScreen>
   );
@@ -48,10 +65,9 @@ const styles = StyleSheet.create({
     fontSize: 18,
     lineHeight: 26,
   },
-  ringRow: {
+  ringsRow: {
     alignSelf: "stretch",
-    width: "50%",
-    marginLeft: "50%",
-    alignItems: "flex-end",
+    flexDirection: "row",
+    justifyContent: "space-between",
   },
 });

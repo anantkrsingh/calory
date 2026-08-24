@@ -19,7 +19,13 @@ export {
 export { useCreateMeasurement } from './measurements.queries';
 export { useSendOtp, useResendOtp, useVerifyOtp } from './otp.queries';
 export { QuotesQueries, useTodayQuote } from './quotes.queries';
-export { useUpdateProfile } from './users.queries';
+export {
+  StepsQueries,
+  useDailySteps,
+  useStepsRange,
+  useUpsertSteps,
+} from './steps.queries';
+export { useUpdateProfile, useUploadAvatar } from './users.queries';
 export {
   WorkoutRoutinesQueries,
   useTodayCalories,

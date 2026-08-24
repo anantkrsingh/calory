@@ -223,6 +223,19 @@ export const bodyMeasurementSchema = z.object({
   notes: z.string().optional(),
 });
 
+export const dailyStepsSchema = z.object({
+  ...entityFields,
+  userId: objectIdSchema,
+  date: isoDateSchema,
+  steps: z.number().int(),
+});
+
+export const stepsSummarySchema = z.object({
+  date: isoDateSchema,
+  steps: z.number().int(),
+  goal: z.number().int(),
+});
+
 export const measurementTrendSchema = z.object({
   metric: z.union([
     z.literal('weightKg'),

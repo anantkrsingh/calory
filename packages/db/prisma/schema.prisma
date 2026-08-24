@@ -304,6 +304,7 @@ model User {
   goals           Goal[]
   workoutRoutines WorkoutRoutine[]
   chatConversations ChatConversation[]
+  dailySteps      DailySteps[]
 
   @@map("users")
 }
@@ -423,6 +424,24 @@ model BodyMeasurement {
 
   @@index([userId, recordedAt])
   @@map("body_measurements")
+}
+
+/// One day's step count, upserted by (userId, date) as the pedometer reading
+/// on-device climbs through the day.
+model DailySteps {
+  id     String @id @default(auto()) @map("_id") @db.ObjectId
+  userId String @db.ObjectId
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// ISO calendar date, YYYY-MM-DD, in the device's local timezone.
+  date  String
+  steps Int
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, date])
+  @@map("daily_steps")
 }
 
 model Goal {
