@@ -16,7 +16,6 @@ export function requireModel(model: LanguageModel | null): LanguageModel {
   return model;
 }
 
-/** Null when the selected provider has no API key, so the app still boots. */
 export function modelFromEnv(env: Env): LanguageModel | null {
   const apiKey =
     env.LLM_PROVIDER === 'gemini'

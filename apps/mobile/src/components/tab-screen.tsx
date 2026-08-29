@@ -1,10 +1,10 @@
-import type { PropsWithChildren } from 'react';
-import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import type { PropsWithChildren, ReactNode } from "react";
+import { StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
-import { AppBar } from '@/components/app-bar';
-import { ThemedView } from '@/components/themed-view';
-import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
+import { AppBar } from "@/components/app-bar";
+import { ThemedView } from "@/components/themed-view";
+import { BottomTabInset, MaxContentWidth, Spacing } from "@/constants/theme";
 
 type TabScreenProps = PropsWithChildren<{
   /**
@@ -12,6 +12,8 @@ type TabScreenProps = PropsWithChildren<{
    * With no bar, the content column takes the top inset itself.
    */
   appBar?: boolean;
+  /** Full-bleed header (e.g. ScreenAppBar). Takes the top safe area when set. */
+  header?: ReactNode;
   contentStyle?: StyleProp<ViewStyle>;
 }>;
 
@@ -22,16 +24,21 @@ type TabScreenProps = PropsWithChildren<{
  * The bar has to live outside that column — inside it, the column's horizontal
  * padding and top inset would leave the bar floating in from all three edges.
  */
-export function TabScreen({ children, appBar = true, contentStyle }: TabScreenProps) {
+export function TabScreen({
+  children,
+  appBar = true,
+  header,
+  contentStyle,
+}: TabScreenProps) {
+  const topChrome = appBar ? <AppBar /> : header ? header : null;
+
   return (
     <ThemedView style={styles.screen}>
-      {appBar ? <AppBar /> : null}
+      {topChrome}
 
-      <SafeAreaView
-        edges={appBar ? ['left', 'right'] : ['top', 'left', 'right']}
-        style={styles.row}>
+      <View style={styles.row}>
         <View style={[styles.content, contentStyle]}>{children}</View>
-      </SafeAreaView>
+      </View>
     </ThemedView>
   );
 }
@@ -42,13 +49,12 @@ const styles = StyleSheet.create({
   },
   row: {
     flex: 1,
-    flexDirection: 'row',
-    justifyContent: 'center',
+    flexDirection: "row",
+    justifyContent: "center",
   },
   content: {
     flex: 1,
     maxWidth: MaxContentWidth,
     paddingHorizontal: Spacing.four,
-    // paddingBottom: BottomTabInset + Spacing.three,
   },
 });

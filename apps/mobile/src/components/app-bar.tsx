@@ -32,7 +32,7 @@ export function AppBar({ style, ...rest }: ViewProps) {
       style={[
         styles.bar,
         {
-          backgroundColor: theme.backgroundElement,
+          backgroundColor: theme.surface,
           paddingTop: insets.top + Spacing.two,
         },
         style,
@@ -91,7 +91,6 @@ export function AppBar({ style, ...rest }: ViewProps) {
 
 const styles = StyleSheet.create({
   bar: {
-    // backgroundElement color is light grey in light mode, dark grey in dark mode.
     zIndex: 1,
     boxShadow: [{ offsetX: 0, offsetY: 2, blurRadius: 8, color: 'rgba(0, 0, 0, 0.08)' }],
   },

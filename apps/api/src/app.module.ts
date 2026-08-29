@@ -5,6 +5,7 @@ import { AiModule } from './ai/ai.module';
 import { AuthModule } from './auth/auth.module';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import { RolesGuard } from './auth/roles.guard';
+import { ChatsModule } from './chats/chats.module';
 import { AllExceptionsFilter } from './common/all-exceptions.filter';
 import { EnvModule } from './config/env.module';
 import { ExercisesModule } from './exercises/exercises.module';
@@ -37,6 +38,7 @@ import { WorkoutsModule } from './workouts/workouts.module';
     MeasurementsModule,
     GoalsModule,
     QuotesModule,
+    ChatsModule,
     StatsModule,
     SettingsModule,
     HealthModule,

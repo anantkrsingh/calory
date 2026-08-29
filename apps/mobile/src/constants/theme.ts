@@ -1,16 +1,13 @@
-/**
- * Below are the colors that are used in the app. The colors are defined in the light and dark mode.
- * There are many other ways to style your app. For example, [Nativewind](https://www.nativewind.dev/), [Tamagui](https://tamagui.dev/), [unistyles](https://reactnativeunistyles.vercel.app), etc.
- */
-
 import '@/global.css';
 
 import { Platform } from 'react-native';
 
+/** Default palette — auth and any screen outside `(app)`. */
 export const Colors = {
   light: {
     text: '#000000',
     background: '#ffffff',
+    surface: '#ffffff',
     backgroundElement: '#F0F0F3',
     backgroundSelected: '#E0E1E6',
     textSecondary: '#60646C',
@@ -19,6 +16,7 @@ export const Colors = {
   dark: {
     text: '#ffffff',
     background: '#000000',
+    surface: '#212225',
     backgroundElement: '#212225',
     backgroundSelected: '#2E3135',
     textSecondary: '#B0B4BA',
@@ -26,7 +24,28 @@ export const Colors = {
   },
 } as const;
 
-export type ThemeColor = keyof typeof Colors.light & keyof typeof Colors.dark;
+/**
+ * Authenticated app shell only (`(app)` layout). Auth screens keep `Colors`.
+ * Warm page background + white surfaces (cards, app bar).
+ */
+export const AppColors = {
+  light: {
+    ...Colors.light,
+    background: '#FAFAF8',
+    surface: '#FFFFFF',
+    // Elevated chrome (app bar, cards) sits on the warm page bg.
+    backgroundElement: '#FFFFFF',
+  },
+  dark: {
+    ...Colors.dark,
+    background: '#121210',
+    surface: '#1C1C1A',
+    backgroundElement: '#242422',
+  },
+} as const;
+
+export type ThemeColor = keyof typeof Colors.light;
+export type ThemePalette = Record<ThemeColor, string>;
 
 export const Brand = {
   accent: '#EF5A24',
@@ -68,10 +87,9 @@ export const Spacing = {
   six: 64,
 } as const;
 
-export const BottomTabInset = Platform.select({ ios: 50, android: 80 }) ?? 0;
+export const BottomTabInset = Platform.select({ ios: 50, android: 96 }) ?? 0;
 export const MaxContentWidth = 800;
 
-/** Standard `Pressable` press-in feedback — mirrors the welcome screen's "Get started" button. */
 export const Pressed = {
   opacity: 0.85,
   transform: [{ scale: 0.99 }],

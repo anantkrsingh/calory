@@ -2,6 +2,7 @@ import { z } from 'zod';
 
 import {
   activityLevelSchema,
+  chatMessageRoleSchema,
   equipmentSchema,
   exerciseCategorySchema,
   goalStatusSchema,
@@ -338,6 +339,25 @@ export const appSettingsSchema = z.object({
       prompt: z.string(),
     }),
   ),
+});
+
+export const chatConversationSchema = z.object({
+  ...entityFields,
+  userId: objectIdSchema,
+  title: z.string().optional(),
+  messageCount: z.number().int(),
+  lastMessageAt: isoDateTimeSchema.optional(),
+});
+
+export const chatMessageSchema = z.object({
+  ...entityFields,
+  conversationId: objectIdSchema,
+  role: chatMessageRoleSchema,
+  content: z.string(),
+});
+
+export const chatConversationDetailSchema = chatConversationSchema.extend({
+  messages: z.array(chatMessageSchema),
 });
 
 export const otpSendResponseSchema = z.object({

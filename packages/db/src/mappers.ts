@@ -1,6 +1,8 @@
 import type {
   AppSettings,
   BodyMeasurement,
+  ChatConversation,
+  ChatMessage,
   DailyQuote,
   Exercise,
   Goal,
@@ -15,6 +17,8 @@ import type {
 import type {
   AppSettingsRow,
   BodyMeasurementRow,
+  ChatConversationRow,
+  ChatMessageRow,
   DailyQuoteRow,
   ExerciseRow,
   GoalRow,
@@ -303,6 +307,29 @@ export function toGoal(row: GoalRow): Goal {
     status: row.status,
     achievedAt: isoOrUndefined(row.achievedAt),
     exerciseId: orUndefined(row.exerciseId),
+    createdAt: iso(row.createdAt),
+    updatedAt: iso(row.updatedAt),
+  };
+}
+
+export function toChatConversation(row: ChatConversationRow): ChatConversation {
+  return {
+    id: row.id,
+    userId: row.userId,
+    title: orUndefined(row.title),
+    messageCount: row.messageCount,
+    lastMessageAt: isoOrUndefined(row.lastMessageAt),
+    createdAt: iso(row.createdAt),
+    updatedAt: iso(row.updatedAt),
+  };
+}
+
+export function toChatMessage(row: ChatMessageRow): ChatMessage {
+  return {
+    id: row.id,
+    conversationId: row.conversationId,
+    role: row.role,
+    content: row.content,
     createdAt: iso(row.createdAt),
     updatedAt: iso(row.updatedAt),
   };

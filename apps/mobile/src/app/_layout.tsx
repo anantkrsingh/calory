@@ -1,37 +1,45 @@
-import { Ubuntu_300Light } from '@expo-google-fonts/ubuntu/300Light';
-import { Ubuntu_300Light_Italic } from '@expo-google-fonts/ubuntu/300Light_Italic';
-import { Ubuntu_400Regular } from '@expo-google-fonts/ubuntu/400Regular';
-import { Ubuntu_400Regular_Italic } from '@expo-google-fonts/ubuntu/400Regular_Italic';
-import { Ubuntu_500Medium } from '@expo-google-fonts/ubuntu/500Medium';
-import { Ubuntu_500Medium_Italic } from '@expo-google-fonts/ubuntu/500Medium_Italic';
-import { Ubuntu_700Bold } from '@expo-google-fonts/ubuntu/700Bold';
-import { Ubuntu_700Bold_Italic } from '@expo-google-fonts/ubuntu/700Bold_Italic';
-import { QueryClientProvider } from '@tanstack/react-query';
-import { useFonts } from 'expo-font';
-import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
-import * as SplashScreen from 'expo-splash-screen';
-import { useEffect } from 'react';
-import { useColorScheme } from 'react-native';
-import { KeyboardProvider } from 'react-native-keyboard-controller';
+import '@/polyfills';
 
-import { setOnUnauthorized } from '@/api/http';
-import { queryClient } from '@/api/query-client';
-import { hasCompletedOnboarding } from '@/lib/onboarding';
-import { selectHydrated, selectIsAuthenticated, selectUser, useAuthStore } from '@/stores/auth.store';
+import { Ubuntu_300Light } from "@expo-google-fonts/ubuntu/300Light";
+import { Ubuntu_300Light_Italic } from "@expo-google-fonts/ubuntu/300Light_Italic";
+import { Ubuntu_400Regular } from "@expo-google-fonts/ubuntu/400Regular";
+import { Ubuntu_400Regular_Italic } from "@expo-google-fonts/ubuntu/400Regular_Italic";
+import { Ubuntu_500Medium } from "@expo-google-fonts/ubuntu/500Medium";
+import { Ubuntu_500Medium_Italic } from "@expo-google-fonts/ubuntu/500Medium_Italic";
+import { Ubuntu_700Bold } from "@expo-google-fonts/ubuntu/700Bold";
+import { Ubuntu_700Bold_Italic } from "@expo-google-fonts/ubuntu/700Bold_Italic";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { useFonts } from "expo-font";
+import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from "expo-router";
+import * as SplashScreen from "expo-splash-screen";
+import { StatusBar } from "expo-status-bar";
+import { useEffect } from "react";
+import { KeyboardProvider } from "react-native-keyboard-controller";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
+
+import { setOnUnauthorized } from "@/api/http";
+import { queryClient } from "@/api/query-client";
+import { useColorScheme } from "@/hooks/use-color-scheme";
+import { hasCompletedOnboarding } from "@/lib/onboarding";
+import {
+  selectHydrated,
+  selectIsAuthenticated,
+  selectUser,
+  useAuthStore,
+} from "@/stores/auth.store";
+import { selectThemeHydrated, useThemeStore } from "@/stores/theme.store";
 
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
   const isHydrated = useAuthStore(selectHydrated);
+  const isThemeHydrated = useThemeStore(selectThemeHydrated);
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
   const user = useAuthStore(selectUser);
-  // A social-login user is authenticated immediately, before onboarding runs —
-  // keep the `auth` group (which hosts /auth/onboarding) mounted for them
-  // instead of tearing it down the instant `isAuthenticated` flips true.
-  const needsOnboarding = isAuthenticated && user !== null && !hasCompletedOnboarding(user);
+  const needsOnboarding =
+    isAuthenticated && user !== null && !hasCompletedOnboarding(user);
 
-  // Registered under these exact keys — src/components/ui/Text.tsx maps weights onto them.
   const [fontsLoaded] = useFonts({
     Ubuntu_300Light,
     Ubuntu_300Light_Italic,
@@ -49,19 +57,23 @@ export default function RootLayout() {
   }, []);
 
   useEffect(() => {
-    if (isHydrated && fontsLoaded) {
+    if (isHydrated && isThemeHydrated && fontsLoaded) {
       SplashScreen.hideAsync();
     }
-  }, [isHydrated, fontsLoaded]);
+  }, [isHydrated, isThemeHydrated, fontsLoaded]);
 
-  if (!isHydrated || !fontsLoaded) {
+  if (!isHydrated || !isThemeHydrated || !fontsLoaded) {
     return null;
   }
 
   return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
     <QueryClientProvider client={queryClient}>
       <KeyboardProvider>
-        <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+        <ThemeProvider
+          value={colorScheme === "dark" ? DarkTheme : DefaultTheme}
+        >
+          <StatusBar style={colorScheme === "dark" ? "light" : "dark"} />
           <Stack screenOptions={{ headerShown: false }}>
             <Stack.Protected guard={isAuthenticated && !needsOnboarding}>
               <Stack.Screen name="(app)" />
@@ -74,5 +86,6 @@ export default function RootLayout() {
         </ThemeProvider>
       </KeyboardProvider>
     </QueryClientProvider>
+    </GestureHandlerRootView>
   );
 }

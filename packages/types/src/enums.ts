@@ -128,9 +128,19 @@ export type GoalStatus = (typeof GoalStatus)[keyof typeof GoalStatus];
 export const PromptCategory = {
   QuoteOfTheDay: 'quote_of_the_day',
   WorkoutRoutine: 'workout_routine',
+  UserChat: 'user_chat',
 } as const;
 export type PromptCategory =
   (typeof PromptCategory)[keyof typeof PromptCategory];
+
+/** Role of a persisted chat message. */
+export const ChatMessageRole = {
+  User: 'user',
+  Assistant: 'assistant',
+  System: 'system',
+} as const;
+export type ChatMessageRole =
+  (typeof ChatMessageRole)[keyof typeof ChatMessageRole];
 
 export const MEASUREMENT_SITES = [
   'neck',

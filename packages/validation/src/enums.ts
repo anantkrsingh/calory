@@ -7,6 +7,7 @@ import {
   GoalType,
   MEASUREMENT_SITES,
   MuscleGroup,
+  ChatMessageRole,
   PromptCategory,
   SetType,
   Sex,
@@ -33,4 +34,5 @@ export const workoutStatusSchema = z.enum(WorkoutStatus);
 export const goalTypeSchema = z.enum(GoalType);
 export const goalStatusSchema = z.enum(GoalStatus);
 export const promptCategorySchema = z.enum(PromptCategory);
+export const chatMessageRoleSchema = z.enum(ChatMessageRole);
 export const measurementSiteSchema = z.enum(MEASUREMENT_SITES);

@@ -5,6 +5,7 @@ export const PROMPT_CATEGORIES = Object.values(PromptCategory);
 export const PROMPT_CATEGORY_LABELS: Record<PromptCategory, string> = {
   [PromptCategory.QuoteOfTheDay]: 'Quote of the day',
   [PromptCategory.WorkoutRoutine]: 'Workout routine',
+  [PromptCategory.UserChat]: 'User chat',
 };
 
 /** Built-in fallbacks used when no DB prompt is configured for a category. */
@@ -26,6 +27,15 @@ export const DEFAULT_PROMPTS: Record<PromptCategory, string> = {
     'isRestDay true and leave exercises empty. Match volume and intensity to ' +
     'their activity level, and prefer exercises whose equipment they are ' +
     'likely to have.',
+  [PromptCategory.UserChat]:
+    'You are a supportive fitness coach inside a training app. Answer the ' +
+    "user's questions about workouts, recovery, nutrition basics, form cues, " +
+    'and motivation.\n\n' +
+    'Keep replies concise and actionable. Prefer clear bullet points over ' +
+    'long essays. Do not diagnose medical conditions or prescribe medication; ' +
+    'suggest seeing a qualified professional when health risks are involved. ' +
+    'If you lack the user\'s profile details, ask one clarifying question ' +
+    'instead of inventing numbers.',
 };
 
 /** Admin-configured prompt for `category`, falling back to the built-in default. */

@@ -31,6 +31,10 @@ export class ApiError extends Error {
     return this.status === 400 || this.status === 422;
   }
 
+  get isPaymentRequired(): boolean {
+    return this.status === 402;
+  }
+
   /** First message for a field, for inline form errors. */
   fieldError(field: string): string | undefined {
     return this.details[field]?.[0];
