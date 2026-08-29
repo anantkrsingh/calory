@@ -5,21 +5,33 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { toWorkoutRoutine } from '@fitness/db';
+import { DayOfWeek } from '@fitness/types';
 import type {
   Id,
   IsoDate,
   RoutinePlanDay,
   TodayRoutine,
+  TodayRoutineExercise,
   WorkoutRoutine,
 } from '@fitness/types';
 
 import { PrismaService } from '../prisma/prisma.service';
 import { RoutineQueue } from '../queues/routine.queue';
 
-/** ISO date (`YYYY-MM-DD`) → 1 = Monday .. 7 = Sunday, matching `RoutinePlanDay.dayOfWeek`. */
-function dayOfWeekOf(date: IsoDate): number {
-  const jsDay = new Date(`${date}T00:00:00.000Z`).getUTCDay(); // 0 = Sunday
-  return jsDay === 0 ? 7 : jsDay;
+const WEEKDAYS: DayOfWeek[] = [
+  DayOfWeek.Sunday,
+  DayOfWeek.Monday,
+  DayOfWeek.Tuesday,
+  DayOfWeek.Wednesday,
+  DayOfWeek.Thursday,
+  DayOfWeek.Friday,
+  DayOfWeek.Saturday,
+];
+
+/** ISO date (`YYYY-MM-DD`) → weekday, matching `RoutinePlanDay.dayOfWeek`. */
+function dayOfWeekOf(date: IsoDate): DayOfWeek {
+  const jsDay = new Date(`${date}T00:00:00.000Z`).getUTCDay();
+  return WEEKDAYS[jsDay] ?? DayOfWeek.Sunday;
 }
 
 @Injectable()
@@ -93,12 +105,8 @@ export class WorkoutRoutineService {
     return routine;
   }
 
-  /**
-   * Home-screen summary for one calendar day: today's slice of the active
-   * routine, layered with the real step count and completed sets logged so
-   * far — turning the AI's per-exercise `estimatedCalories` and per-step
-   * `caloriesPerStep` into an actual calories-burned-so-far number.
-   */
+  /** Home-screen summary for one calendar day: today's slice of the active
+   * routine, layered with real steps and completed sets. */
   async getToday(userId: Id, date: IsoDate): Promise<TodayRoutine> {
     const [routineRow, dailySteps] = await Promise.all([
       this.prisma.workoutRoutine.findFirst({
@@ -117,50 +125,50 @@ export class WorkoutRoutineService {
         routineStatus: routineRow?.status ?? null,
         date,
         dailyCalorieTarget: routineRow?.dailyCalorieTarget ?? undefined,
+        exercises: [],
         stepsToday,
-        caloriesBurned: { fromSteps: 0, fromExercises: 0, total: 0 },
+        caloriesBurned: 0,
       };
     }
 
     const routine = toWorkoutRoutine(routineRow);
     const day = routine.days.find((d) => d.dayOfWeek === dayOfWeekOf(date));
 
-    const fromSteps = routine.caloriesPerStep
-      ? Math.round(stepsToday * routine.caloriesPerStep)
-      : 0;
-    const fromExercises = day
-      ? await this.exerciseCaloriesEarned(userId, date, day)
-      : 0;
+    const completedByExerciseId = day
+      ? await this.todaysCompletedSetsByExercise(userId, date)
+      : new Map<string, number>();
+    const exercises = day
+      ? this.mergeExerciseProgress(day, completedByExerciseId)
+      : [];
+
+    const caloriesBurned = Math.round(
+      exercises.reduce(
+        (sum, exercise) =>
+          sum +
+          (exercise.sets > 0
+            ? (exercise.completedSets / exercise.sets) * exercise.estimatedCalories
+            : 0),
+        0,
+      ),
+    );
 
     return {
       routineStatus: routine.status,
       date,
       dailyCalorieTarget: routine.dailyCalorieTarget,
       day,
+      exercises,
       stepsToday,
-      caloriesBurned: {
-        fromSteps,
-        fromExercises,
-        total: fromSteps + fromExercises,
-      },
+      caloriesBurned,
     };
   }
 
-  /**
-   * Sums each planned exercise's `estimatedCalories`, credited in proportion
-   * to how many of its prescribed sets were actually logged as completed
-   * today — so half the sets earns half the calories.
-   *
-   * "Today" is approximated as a UTC calendar day, the same no-timezone
-   * convention `DailySteps.date` already uses.
-   */
-  private async exerciseCaloriesEarned(
+  /** "Today" is approximated as a UTC calendar day, the same no-timezone
+   * convention `DailySteps.date` already uses. */
+  private async todaysCompletedSetsByExercise(
     userId: Id,
     date: IsoDate,
-    day: RoutinePlanDay,
-  ): Promise<number> {
-    if (day.exercises.length === 0) return 0;
-
+  ): Promise<Map<string, number>> {
     const dayStart = new Date(`${date}T00:00:00.000Z`);
     const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
 
@@ -169,20 +177,34 @@ export class WorkoutRoutineService {
       select: { exercises: true },
     });
 
-    const planned = new Map(day.exercises.map((e) => [e.exerciseId, e]));
-    let earned = 0;
-
+    const completedByExerciseId = new Map<string, number>();
     for (const workout of workouts) {
       for (const exercise of workout.exercises) {
-        const target = planned.get(exercise.exerciseId);
-        if (!target || target.sets <= 0) continue;
-
-        const completedSets = exercise.sets.filter((set) => set.completed).length;
-        const ratio = Math.min(1, completedSets / target.sets);
-        earned += ratio * target.estimatedCalories;
+        const completed = exercise.sets.filter((set) => set.completed).length;
+        completedByExerciseId.set(
+          exercise.exerciseId,
+          (completedByExerciseId.get(exercise.exerciseId) ?? 0) + completed,
+        );
       }
     }
+    return completedByExerciseId;
+  }
 
-    return Math.round(earned);
+  /** Shared by the exercise list and the calorie sum, so they can't disagree. */
+  private mergeExerciseProgress(
+    day: RoutinePlanDay,
+    completedByExerciseId: Map<string, number>,
+  ): TodayRoutineExercise[] {
+    return day.exercises.map((exercise) => {
+      const completedSets = Math.min(
+        completedByExerciseId.get(exercise.exerciseId) ?? 0,
+        exercise.sets,
+      );
+      return {
+        ...exercise,
+        completedSets,
+        isCompleted: exercise.sets > 0 && completedSets >= exercise.sets,
+      };
+    });
   }
 }

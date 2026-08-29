@@ -18,8 +18,7 @@ const IOS_POLL_MS = 60_000;
 // Debounce before persisting a moving count server-side, and how long the app
 // can sit in the background before we treat a resumed session as stale.
 const SYNC_DEBOUNCE_MS = 5_000;
-// On reopen, only force an out-of-band sync if the last one is at least this
-// old — a quick app switch shouldn't re-hit the server on every foreground.
+// On reopen, only force a sync if the last one is at least this old.
 const RESYNC_STALE_MS = 60_000;
 
 export type StepsTrackerState = {
@@ -37,9 +36,7 @@ export type StepsTrackerState = {
  * sensor only reports a delta from the moment you start listening, so there
  * we add that delta on top of the last count the server already has.
  *
- * Every synced value is also cached locally (steps + when), so a cold start
- * can paint immediately and a reopen can tell whether the device has moved
- * on since the last sync without waiting on the server.
+ * Synced values are also cached locally, so a cold start can paint instantly.
  */
 export function useStepsTracker(): StepsTrackerState {
   const [date] = useState(todayIsoDate);
@@ -71,10 +68,7 @@ export function useStepsTracker(): StepsTrackerState {
     syncTimerRef.current = setTimeout(() => flushSync(steps), SYNC_DEBOUNCE_MS);
   };
 
-  // Flush whatever hasn't synced yet when backgrounded; on return to the
-  // foreground, compare the live reading against what's cached and force an
-  // immediate (non-debounced) sync if it's moved on and the last sync is
-  // stale enough to be worth re-checking.
+  // Flush on backgrounding; on reopen, force a sync if the reading moved on.
   useEffect(() => {
     const sub = AppState.addEventListener('change', (state) => {
       if (state === 'active') {

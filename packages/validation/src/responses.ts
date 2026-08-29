@@ -3,6 +3,7 @@ import { z } from 'zod';
 import {
   activityLevelSchema,
   chatMessageRoleSchema,
+  dayOfWeekSchema,
   equipmentSchema,
   exerciseCategorySchema,
   goalStatusSchema,
@@ -10,6 +11,7 @@ import {
   measurementSiteSchema,
   muscleGroupSchema,
   promptCategorySchema,
+  routineDayStatusSchema,
   setTypeSchema,
   sexSchema,
   unitSystemSchema,
@@ -332,8 +334,8 @@ export const routinePlanExerciseSchema = z.object({
 });
 
 export const routinePlanDaySchema = z.object({
-  dayOfWeek: z.number().int(),
-  isRestDay: z.boolean(),
+  dayOfWeek: dayOfWeekSchema,
+  status: routineDayStatusSchema,
   targetCaloriesBurned: z.number().int(),
   caloriesFromRunning: z.number().int(),
   caloriesFromExercises: z.number().int(),
@@ -349,17 +351,15 @@ export const workoutRoutineSchema = z.object({
   userId: objectIdSchema,
   status: z.enum(['generating', 'active', 'failed', 'superseded']),
   dailyCalorieTarget: z.number().int().optional(),
-  caloriesPerStep: z.number().optional(),
   summary: z.string().optional(),
   days: z.array(routinePlanDaySchema),
   error: z.string().optional(),
   generatedAt: isoDateTimeSchema.optional(),
 });
 
-export const todayRoutineCaloriesSchema = z.object({
-  fromSteps: z.number(),
-  fromExercises: z.number(),
-  total: z.number(),
+export const todayRoutineExerciseSchema = routinePlanExerciseSchema.extend({
+  completedSets: z.number().int(),
+  isCompleted: z.boolean(),
 });
 
 export const todayRoutineSchema = z.object({
@@ -369,8 +369,10 @@ export const todayRoutineSchema = z.object({
   date: isoDateSchema,
   dailyCalorieTarget: z.number().int().optional(),
   day: routinePlanDaySchema.optional(),
+  exercises: z.array(todayRoutineExerciseSchema),
   stepsToday: z.number().int(),
-  caloriesBurned: todayRoutineCaloriesSchema,
+  /** Earned from completed sets logged against today's plan. */
+  caloriesBurned: z.number(),
 });
 
 export const healthResponseSchema = z.object({

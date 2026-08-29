@@ -142,6 +142,23 @@ enum WorkoutRoutineStatus {
   superseded
 }
 
+enum DayOfWeek {
+  monday
+  tuesday
+  wednesday
+  thursday
+  friday
+  saturday
+  sunday
+}
+
+/// Generated once and kept for the routine's lifetime — `active` for a
+/// training day, `rest` for a planned recovery/off day.
+enum RoutineDayStatus {
+  active
+  rest
+}
+
 // ---------------------------------------------------------------------------
 // Composite types
 // ---------------------------------------------------------------------------
@@ -247,8 +264,8 @@ type RoutinePlanExercise {
 }
 
 type RoutinePlanDay {
-  dayOfWeek            Int
-  isRestDay            Boolean
+  dayOfWeek            DayOfWeek
+  status               RoutineDayStatus @default(active)
   targetCaloriesBurned Int
   /// Optional: absent on routines generated before these fields existed.
   caloriesFromRunning  Int?
@@ -514,10 +531,6 @@ model WorkoutRoutine {
   status              WorkoutRoutineStatus @default(generating)
   /// Daily calorie intake target.
   dailyCalorieTarget  Int?
-  /// AI-estimated kcal burned per step, from the user's weight/BMI — a live
-  /// step count times this gives a live calories-burned-from-walking number.
-  /// Steps and calorie-burn targets otherwise live per day on `RoutinePlanDay`.
-  caloriesPerStep     Float?
   summary             String?
   days                RoutinePlanDay[]
   /// Set when status is `failed`, for admin debugging.

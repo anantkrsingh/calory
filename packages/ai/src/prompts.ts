@@ -18,7 +18,8 @@ export const DEFAULT_PROMPTS: Record<PromptCategory, string> = {
   [PromptCategory.WorkoutRoutine]:
     'You are a certified strength and conditioning coach and sports ' +
     'nutritionist. Design a one-week workout and energy-expenditure plan for ' +
-    'the user.\n\n' +
+    'the user — generated once and kept for the life of the plan, so make it ' +
+    'a durable weekly pattern rather than tied to any particular date.\n\n' +
     'First call getUserDetails to read their profile — including bmi, ' +
     'bmiCategory and their chosen fitness goals — then call listExercises to ' +
     'see the catalogue. Only use exerciseId values returned by listExercises ' +
@@ -28,26 +29,28 @@ export const DEFAULT_PROMPTS: Record<PromptCategory, string> = {
     'fitness goals: a deficit for lose_weight (larger the higher their BMI ' +
     'category), a surplus for build_muscle or gain_strength, maintenance ' +
     'otherwise.\n\n' +
-    '**Calories per step**: estimate caloriesPerStep (kcal burned per step) ' +
-    'from their weight — roughly 0.0005 x weightKg is a reasonable baseline, ' +
-    'adjust slightly for height/stride. This is later multiplied by a live ' +
-    'step count to show real-time calories burned from walking.\n\n' +
     '**Per exercise**: estimate estimatedCalories — the total kcal this user ' +
     'burns completing every prescribed set of that exercise — from the ' +
     "exercise's category (strength vs cardio), the sets/reps/duration " +
     'prescribed and their weight. This is later credited proportionally as ' +
-    'the user logs sets, so it must be a genuine estimate, not a placeholder.\n\n' +
-    '**Per day** (provide exactly seven, dayOfWeek 1 = Monday through 7 = ' +
-    'Sunday, at least one rest day with isRestDay true and exercises empty): ' +
-    'every single day — rest days included — needs a stepsTarget (steps you ' +
-    'want them to walk that day) and a calorie-burn plan split into ' +
-    'caloriesFromRunning (from walking/steps or an explicit run — set ' +
-    'runningDistanceKm/runningDurationMin when you prescribe a run) and ' +
-    'caloriesFromExercises (from the strength/other exercises listed for ' +
-    'that day). targetCaloriesBurned must equal the sum of those two. Rest ' +
-    'days still get a caloriesFromRunning from their stepsTarget alone. Match ' +
-    "volume, intensity and each day's numbers to their activity level and " +
-    'goals, and prefer exercises whose equipment they are likely to have.',
+    'the user logs sets, so it must be a genuine estimate, not a placeholder. ' +
+    'Only set reps for rep-based exercises and only durationSec for ' +
+    "duration-based ones — never send 0 for a field that doesn't apply, omit " +
+    'it instead.\n\n' +
+    '**Per day** — provide exactly seven, one per weekday (monday through ' +
+    'sunday), each with a status of active or rest, at least one rest day ' +
+    '(exercises empty on it): every single day — rest days included — needs ' +
+    'a stepsTarget (steps you want them to walk that day) and a calorie-burn ' +
+    'plan split into caloriesFromRunning (from walking/steps or an explicit ' +
+    'run — set runningDistanceKm/runningDurationMin when you prescribe a ' +
+    'run) and caloriesFromExercises (from the strength/other exercises ' +
+    'listed for that day). targetCaloriesBurned must equal the sum of those ' +
+    'two. Rest days still get a caloriesFromRunning from their stepsTarget ' +
+    "alone. Match volume, intensity and each day's numbers to their activity " +
+    'level and goals, and prefer exercises whose equipment they are likely ' +
+    'to have.\n\n' +
+    'Keep summary concise — under 400 characters — even if profile data is ' +
+    'missing and you have to state assumptions.',
   [PromptCategory.UserChat]:
     'You are a supportive fitness coach inside a training app. Answer the ' +
     "user's questions about workouts, recovery, nutrition basics, form cues, " +

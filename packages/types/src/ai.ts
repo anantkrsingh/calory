@@ -1,3 +1,4 @@
+import type { DayOfWeek } from './enums';
 import type { Entity, Id, IsoDate, IsoDateTime } from './common';
 
 export const QUOTE_QUEUE_NAME = 'quote';
@@ -13,6 +14,15 @@ export const WorkoutRoutineStatus = {
 } as const;
 export type WorkoutRoutineStatus =
   (typeof WorkoutRoutineStatus)[keyof typeof WorkoutRoutineStatus];
+
+/** Generated once and kept for the routine's lifetime — a training day stays
+ * `active` every week; mark it `rest` for a planned recovery/off day. */
+export const RoutineDayStatus = {
+  Active: 'active',
+  Rest: 'rest',
+} as const;
+export type RoutineDayStatus =
+  (typeof RoutineDayStatus)[keyof typeof RoutineDayStatus];
 
 export interface QuoteJobData {
   /** ISO calendar date the quote belongs to. */
@@ -37,6 +47,10 @@ export interface RoutineJobResult {
 export interface RoutineReconcileJobResult {
   /** Users a generation job was queued for on this pass. */
   queued: number;
+  /** Of `queued`, users who never had a routine generated at all. */
+  neverGenerated: number;
+  /** Of `queued`, users whose prior attempt(s) had `status: 'failed'`. */
+  retriedAfterFailure: number;
 }
 
 export interface DailyQuote extends Entity {
@@ -56,10 +70,9 @@ export interface RoutinePlanExercise {
   estimatedCalories: number;
 }
 
-/** 1 = Monday .. 7 = Sunday. */
 export interface RoutinePlanDay {
-  dayOfWeek: number;
-  isRestDay: boolean;
+  dayOfWeek: DayOfWeek;
+  status: RoutineDayStatus;
   /** caloriesFromRunning + caloriesFromExercises. */
   targetCaloriesBurned: number;
   /** Portion of targetCaloriesBurned from running/walking/steps. */
@@ -77,24 +90,19 @@ export interface RoutinePlanDay {
 export interface WorkoutRoutine extends Entity {
   userId: Id;
   status: WorkoutRoutineStatus;
-  /** Daily calorie intake target. */
   dailyCalorieTarget?: number;
-  /** AI-estimated kcal burned per step, from the user's weight/BMI — a live
-   * step count times this gives a live calories-burned-from-steps figure.
-   * Steps/calorie-burn targets otherwise live per day in `days`. */
-  caloriesPerStep?: number;
   summary?: string;
   days: RoutinePlanDay[];
   error?: string;
   generatedAt?: IsoDateTime;
 }
 
-/** How much of today's calorie-burn target has actually been earned, from
- * logged steps and completed sets against today's plan. */
-export interface TodayRoutineCalories {
-  fromSteps: number;
-  fromExercises: number;
-  total: number;
+/** One of today's planned exercises, layered with how many of its sets have
+ * actually been logged as completed today. */
+export interface TodayRoutineExercise extends RoutinePlanExercise {
+  /** Capped at `sets` — never more than what was prescribed. */
+  completedSets: number;
+  isCompleted: boolean;
 }
 
 /** Home-screen summary: today's slice of the active routine, layered with the
@@ -107,6 +115,10 @@ export interface TodayRoutine {
   dailyCalorieTarget?: number;
   /** Undefined when there's no active routine, or the routine has no plan for this weekday. */
   day?: RoutinePlanDay;
+  /** Same list as `day.exercises`, but with live completion — empty on a rest
+   * day or when there's no plan yet. Render this, not `day.exercises`. */
+  exercises: TodayRoutineExercise[];
   stepsToday: number;
-  caloriesBurned: TodayRoutineCalories;
+  /** Earned from completed sets logged against today's plan. */
+  caloriesBurned: number;
 }

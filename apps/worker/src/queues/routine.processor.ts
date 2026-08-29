@@ -6,6 +6,7 @@ import {
   type OnModuleInit,
 } from '@nestjs/common';
 import { resolvePrompt, weeklyRoutineSchema } from '@fitness/ai';
+import type { WeeklyRoutine } from '@fitness/ai';
 import type { Env } from '@fitness/config/server';
 import {
   ROUTINE_QUEUE_NAME,
@@ -17,9 +18,11 @@ import {
 import {
   generateObject,
   generateText,
+  NoObjectGeneratedError,
   stepCountIs,
   tool,
   type LanguageModel,
+  type LanguageModelUsage,
 } from 'ai';
 import { Queue, Worker, type Job } from 'bullmq';
 import { z } from 'zod';
@@ -33,6 +36,9 @@ const RECONCILE_REPEAT_KEY = 'routine-reconcile';
 // Cap per reconciliation pass so one tick can't flood the LLM queue; the next
 // scheduled run picks up whatever is left.
 const RECONCILE_BATCH_SIZE = 200;
+// A full 7-day plan is a large structured object; too low a cap here reads
+// as a schema-validation failure (truncated JSON), not a token-limit one.
+const ROUTINE_OBJECT_MAX_OUTPUT_TOKENS = 8000;
 
 const yearsSince = (isoDate: string): number | null => {
   const born = new Date(isoDate);
@@ -53,6 +59,12 @@ const bmiCategory = (bmi: number): string => {
   if (bmi < 30) return 'overweight';
   return 'obese';
 };
+
+// Models routinely send 0 for reps/durationSec when the field just doesn't
+// apply to that exercise, instead of omitting it — 0 of either is never a
+// real prescription, so treat it the same as null/undefined.
+const positiveOrNull = (value: number | null | undefined): number | null =>
+  value ? value : null;
 
 @Injectable()
 export class RoutineProcessor implements OnModuleInit, OnModuleDestroy {
@@ -91,10 +103,15 @@ export class RoutineProcessor implements OnModuleInit, OnModuleDestroy {
     );
 
     this.worker.on('failed', (job, error) => {
-      this.logger.error(`Routine job ${job?.id} failed: ${error.message}`);
+      const maxAttempts = job?.opts.attempts ?? 1;
+      this.logger.error(
+        `Routine job ${job?.id} (routine ${job?.data.routineId}, user ${job?.data.userId}) ` +
+          `failed on attempt ${job?.attemptsMade}/${maxAttempts}: ${error.message}`,
+        error.stack,
+      );
 
       // Only give up once BullMQ has exhausted its retries.
-      const exhausted = !job || job.attemptsMade >= (job.opts.attempts ?? 1);
+      const exhausted = !job || job.attemptsMade >= maxAttempts;
       if (exhausted) void this.markFailed(job?.data.routineId, error.message);
     });
 
@@ -158,12 +175,9 @@ export class RoutineProcessor implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  /**
-   * Backfill: any user with no `generating`/`active` routine — never registered
-   * one (pre-existing account) or their last attempt ended in `failed` — gets a
-   * fresh generation job queued, exactly like `WorkoutRoutineService.requestGeneration`
-   * does on registration.
-   */
+  /** Backfill: any user with no `generating`/`active` routine gets a fresh
+   * generation job, same as `WorkoutRoutineService.requestGeneration` on
+   * registration. A retried failure has its old `failed` row(s) superseded. */
   private async reconcileMissingRoutines(): Promise<RoutineReconcileJobResult> {
     const inProgressOrActive = await this.prisma.workoutRoutine.findMany({
       where: { status: { in: ['generating', 'active'] } },
@@ -178,8 +192,24 @@ export class RoutineProcessor implements OnModuleInit, OnModuleDestroy {
       take: RECONCILE_BATCH_SIZE,
     });
 
+    const priorFailures = await this.prisma.workoutRoutine.findMany({
+      where: { userId: { in: users.map((u) => u.id) }, status: 'failed' },
+      select: { id: true, userId: true },
+    });
+    const failedRoutineIdsByUser = new Map<string, string[]>();
+    for (const row of priorFailures) {
+      const ids = failedRoutineIdsByUser.get(row.userId) ?? [];
+      ids.push(row.id);
+      failedRoutineIdsByUser.set(row.userId, ids);
+    }
+
     let queued = 0;
+    let retriedAfterFailure = 0;
+    let neverGenerated = 0;
+
     for (const user of users) {
+      const priorFailedIds = failedRoutineIdsByUser.get(user.id) ?? [];
+
       try {
         const routine = await this.prisma.workoutRoutine.create({
           data: { userId: user.id, status: 'generating', days: [] },
@@ -197,6 +227,15 @@ export class RoutineProcessor implements OnModuleInit, OnModuleDestroy {
 
         if (job) {
           queued += 1;
+          if (priorFailedIds.length > 0) {
+            retriedAfterFailure += 1;
+            await this.prisma.workoutRoutine.updateMany({
+              where: { id: { in: priorFailedIds } },
+              data: { status: 'superseded' },
+            });
+          } else {
+            neverGenerated += 1;
+          }
         } else {
           await this.prisma.workoutRoutine.update({
             where: { id: routine.id },
@@ -213,10 +252,11 @@ export class RoutineProcessor implements OnModuleInit, OnModuleDestroy {
     }
 
     this.logger.log(
-      `Routine reconciliation: queued ${queued} of ${users.length} users needing a plan`,
+      `Routine reconciliation: queued ${queued} of ${users.length} users needing ` +
+        `a plan (${neverGenerated} never generated, ${retriedAfterFailure} retried after failure)`,
     );
 
-    return { queued };
+    return { queued, neverGenerated, retriedAfterFailure };
   }
 
   private async markFailed(
@@ -258,9 +298,9 @@ export class RoutineProcessor implements OnModuleInit, OnModuleDestroy {
 
         const heightCm = user.profile.heightCm ?? null;
         const weightKg = latest?.weightKg ?? null;
-        // Computed server-side rather than left to the model — it must be
-        // exact since it drives the calorie targets.
-        const bmi = heightCm && weightKg ? calculateBmi(heightCm, weightKg) : null;
+        // Computed here, not left to the model — it drives the calorie targets.
+        const bmi =
+          heightCm && weightKg ? calculateBmi(heightCm, weightKg) : null;
 
         return {
           displayName: user.profile.displayName,
@@ -325,6 +365,10 @@ export class RoutineProcessor implements OnModuleInit, OnModuleDestroy {
 
   private async handle(job: Job<RoutineJobData>): Promise<RoutineJobResult> {
     const { userId, routineId } = job.data;
+    const startedAt = Date.now();
+    const tag = `Routine ${routineId} (user ${userId}, job ${job.id}, attempt ${job.attemptsMade + 1})`;
+
+    this.logger.log(`${tag}: starting generation`);
 
     if (!this.model) {
       throw new Error('No LLM provider configured; cannot generate a routine');
@@ -336,14 +380,22 @@ export class RoutineProcessor implements OnModuleInit, OnModuleDestroy {
 
     if (!routine) throw new Error(`Routine ${routineId} no longer exists`);
     if (routine.status === 'superseded') {
-      this.logger.log(`Routine ${routineId} was superseded, skipping`);
+      this.logger.log(`${tag}: already superseded, skipping`);
       return { routineId, status: 'superseded' };
     }
 
     const settings = await this.prisma.appSettings.findFirst();
     const prompt = resolvePrompt('workout_routine', settings?.aiPrompts);
+    const usesAdminPrompt =
+      settings?.aiPrompts?.some(
+        (p) => p.promptCategory === 'workout_routine',
+      ) ?? false;
+    this.logger.log(
+      `${tag}: resolved ${usesAdminPrompt ? 'admin-configured' : 'default'} prompt (${prompt.length} chars)`,
+    );
 
     // generateObject takes no tools, so gather context first, then structure it.
+    this.logger.log(`${tag}: gathering context via tools`);
     const research = await generateText({
       model: this.model,
       prompt: `${prompt}\n\nCall the tools to gather what you need, then outline the week in plain text.`,
@@ -354,49 +406,77 @@ export class RoutineProcessor implements OnModuleInit, OnModuleDestroy {
       stopWhen: stepCountIs(6),
     });
 
+    const toolCalls = research.steps.flatMap((step) => step.toolCalls);
+    this.logger.log(
+      `${tag}: research complete — ${research.steps.length} step(s), ` +
+        `${toolCalls.map((c) => c.toolName).join(', ') || 'no tool calls'}, ` +
+        `${research.usage?.totalTokens ?? '?'} tokens`,
+    );
+
     const toolContext = research.steps
       .flatMap((step) => step.toolResults)
       .map((result) => `${result.toolName}: ${JSON.stringify(result.output)}`)
       .join('\n');
 
-    const { object } = await generateObject({
-      model: this.model,
-      schema: weeklyRoutineSchema,
-      prompt: [
-        prompt,
-        '',
-        'Data retrieved for this user:',
-        toolContext || '(no tool data available)',
-        '',
-        research.text,
-      ].join('\n'),
-    });
+    const objectPrompt = [
+      prompt,
+      '',
+      'Data retrieved for this user:',
+      toolContext || '(no tool data available)',
+      '',
+      research.text,
+    ].join('\n');
+
+    const { object, usage } = await this.generateWeeklyRoutine(
+      this.model,
+      objectPrompt,
+      tag,
+    );
+
+    const totalExercises = object.days.reduce(
+      (sum, d) => sum + d.exercises.length,
+      0,
+    );
+    this.logger.log(
+      `${tag}: plan generated — ${object.days.length} day(s), ${totalExercises} exercise slot(s), ` +
+        `dailyCalorieTarget=${object.dailyCalorieTarget}, ${usage?.totalTokens ?? '?'} tokens`,
+    );
 
     const validIds = await this.validExerciseIds(userId, object);
 
-    const days = object.days.map((day) => ({
-      dayOfWeek: day.dayOfWeek,
-      isRestDay: day.isRestDay,
-      targetCaloriesBurned: day.targetCaloriesBurned,
-      caloriesFromRunning: day.caloriesFromRunning,
-      caloriesFromExercises: day.caloriesFromExercises,
-      stepsTarget: day.stepsTarget,
-      runningDistanceKm: day.runningDistanceKm ?? null,
-      runningDurationMin: day.runningDurationMin ?? null,
-      focus: day.focus,
+    const days = object.days.map((day) => {
       // Drop hallucinated ids rather than persisting a broken reference.
-      exercises: day.exercises
-        .filter((exercise) => validIds.has(exercise.exerciseId))
-        .map((exercise) => ({
+      const exercises = day.exercises.filter((exercise) =>
+        validIds.has(exercise.exerciseId),
+      );
+      const dropped = day.exercises.length - exercises.length;
+      if (dropped > 0) {
+        this.logger.warn(
+          `${tag}: dropped ${dropped} exercise(s) with an unrecognized id on day ${day.dayOfWeek}`,
+        );
+      }
+
+      return {
+        dayOfWeek: day.dayOfWeek,
+        status: day.status,
+        targetCaloriesBurned: day.targetCaloriesBurned,
+        caloriesFromRunning: day.caloriesFromRunning,
+        caloriesFromExercises: day.caloriesFromExercises,
+        stepsTarget: day.stepsTarget,
+        runningDistanceKm: day.runningDistanceKm ?? null,
+        runningDurationMin: day.runningDurationMin ?? null,
+        focus: day.focus,
+        exercises: exercises.map((exercise) => ({
           exerciseId: exercise.exerciseId,
           exerciseName: exercise.exerciseName,
           sets: exercise.sets,
-          reps: exercise.reps ?? null,
-          durationSec: exercise.durationSec ?? null,
+          reps: positiveOrNull(exercise.reps),
+          durationSec: positiveOrNull(exercise.durationSec),
           restSeconds: exercise.restSeconds ?? null,
-          estimatedCalories: exercise.estimatedCalories,
+          estimatedCalories: exercise.estimatedCalories ?? null,
         })),
-    }));
+      };
+    });
 
     // A regenerate request may have superseded this routine while the model ran.
     const { count } = await this.prisma.workoutRoutine.updateMany({
@@ -404,7 +484,6 @@ export class RoutineProcessor implements OnModuleInit, OnModuleDestroy {
       data: {
         status: 'active',
         dailyCalorieTarget: object.dailyCalorieTarget,
-        caloriesPerStep: object.caloriesPerStep,
         summary: object.summary,
         days,
         error: null,
@@ -412,14 +491,61 @@ export class RoutineProcessor implements OnModuleInit, OnModuleDestroy {
       },
     });
 
+    const elapsedSec = ((Date.now() - startedAt) / 1000).toFixed(1);
+
     if (count === 0) {
-      this.logger.log(`Routine ${routineId} was superseded mid-generation`);
+      this.logger.log(
+        `${tag}: superseded mid-generation after ${elapsedSec}s, discarding result`,
+      );
       return { routineId, status: 'superseded' };
     }
 
-    this.logger.log(`Routine ${routineId} generated for user ${userId}`);
+    this.logger.log(`${tag}: generated and saved in ${elapsedSec}s`);
 
     return { routineId, status: 'active' };
+  }
+
+  private async generateWeeklyRoutine(
+    model: LanguageModel,
+    prompt: string,
+    tag: string,
+  ): Promise<{ object: WeeklyRoutine; usage: LanguageModelUsage | undefined }> {
+    try {
+      return await generateObject({
+        model,
+        schema: weeklyRoutineSchema,
+        prompt,
+        maxOutputTokens: ROUTINE_OBJECT_MAX_OUTPUT_TOKENS,
+      });
+    } catch (error) {
+      if (!NoObjectGeneratedError.isInstance(error)) throw error;
+
+      this.logger.warn(
+        `${tag}: model output did not match schema (finishReason=${error.finishReason}, ` +
+          `${error.usage?.totalTokens ?? '?'} tokens, ${error.text?.length ?? 0} chars) — ` +
+          `retrying once with a repair prompt. Cause: ${
+            error.cause instanceof Error
+              ? error.cause.message
+              : String(error.cause)
+          }`,
+      );
+
+      return generateObject({
+        model,
+        schema: weeklyRoutineSchema,
+        prompt: [
+          prompt,
+          '',
+          'Your previous response did not satisfy the required schema:',
+          error.cause instanceof Error
+            ? error.cause.message
+            : String(error.cause),
+          '',
+          'Produce a corrected response that satisfies every field exactly.',
+        ].join('\n'),
+        maxOutputTokens: ROUTINE_OBJECT_MAX_OUTPUT_TOKENS,
+      });
+    }
   }
 
   /** Exercise ids the model referenced that actually exist and belong to this user. */

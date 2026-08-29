@@ -295,14 +295,12 @@ export function toWorkoutRoutine(row: WorkoutRoutineRow): WorkoutRoutine {
     userId: row.userId,
     status: row.status,
     dailyCalorieTarget: orUndefined(row.dailyCalorieTarget),
-    caloriesPerStep: orUndefined(row.caloriesPerStep),
     summary: orUndefined(row.summary),
     days: row.days.map((day) => ({
       dayOfWeek: day.dayOfWeek,
-      isRestDay: day.isRestDay,
+      status: day.status,
       targetCaloriesBurned: day.targetCaloriesBurned,
-      // Absent on routines generated before these fields existed — fall back
-      // to zero rather than let a stale document fail to load at all.
+      // Absent on routines generated before these fields existed.
       caloriesFromRunning: day.caloriesFromRunning ?? 0,
       caloriesFromExercises: day.caloriesFromExercises ?? 0,
       stepsTarget: day.stepsTarget ?? 0,
