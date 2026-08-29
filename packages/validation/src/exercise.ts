@@ -6,7 +6,21 @@ import {
   exerciseCategorySchema,
   muscleGroupSchema,
 } from './enums';
-import { objectIdSchema, paginationQuerySchema } from './primitives';
+import { clientIdSchema, objectIdSchema, paginationQuerySchema } from './primitives';
+
+/** One step of an exercise's illustrated how-to — distinct from `instructions`
+ * (a single free-text description). `image` may be a fresh upload or a URL
+ * reused from the exercise's own `images` gallery, so it's just a plain URL. */
+export const exerciseInstructionStepSchema = z.object({
+  id: clientIdSchema,
+  order: z.number().int().nonnegative(),
+  text: z
+    .string()
+    .trim()
+    .min(LIMITS.exerciseInstructionStepText.min)
+    .max(LIMITS.exerciseInstructionStepText.max),
+  image: z.url().nullish(),
+});
 
 export const createExerciseSchema = z.object({
   name: z
@@ -21,6 +35,10 @@ export const createExerciseSchema = z.object({
   secondaryMuscles: z.array(muscleGroupSchema).default([]),
   equipment: equipmentSchema,
   instructions: z.string().trim().max(LIMITS.notes.max).optional(),
+  instructionSteps: z
+    .array(exerciseInstructionStepSchema)
+    .max(LIMITS.exerciseInstructionSteps.max)
+    .default([]),
   thumbnail: z.url().nullish(),
   images: z.array(z.url()).max(LIMITS.exerciseImages.max).default([]),
 });
@@ -39,6 +57,16 @@ export const exerciseIdParamSchema = z.object({
   id: objectIdSchema,
 });
 
+/** Powers the Build screen's muscle-wise browse — search matches either an
+ * exercise name or a muscle group (e.g. "chest", "full body"). */
+export const exerciseByMuscleQuerySchema = z.object({
+  search: z.string().trim().min(1).max(120).optional(),
+});
+
+export type ExerciseInstructionStepInput = z.infer<
+  typeof exerciseInstructionStepSchema
+>;
 export type CreateExerciseInput = z.infer<typeof createExerciseSchema>;
 export type UpdateExerciseInput = z.infer<typeof updateExerciseSchema>;
 export type ExerciseQueryInput = z.infer<typeof exerciseQuerySchema>;
+export type ExerciseByMuscleQueryInput = z.infer<typeof exerciseByMuscleQuerySchema>;

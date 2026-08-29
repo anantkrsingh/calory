@@ -16,6 +16,11 @@ export {
   useDeleteChat,
   useUpdateChat,
 } from './chats.queries';
+export {
+  ExercisesQueries,
+  useExercise,
+  useExercisesByMuscle,
+} from './exercises.queries';
 export { useCreateMeasurement } from './measurements.queries';
 export { useSendOtp, useResendOtp, useVerifyOtp } from './otp.queries';
 export { QuotesQueries, useTodayQuote } from './quotes.queries';

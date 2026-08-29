@@ -41,6 +41,7 @@ import DateOfBirthPicker, {
 } from '@/components/ui/DateOfBirthPicker';
 import PrimaryButton from '@/components/ui/PrimaryButton';
 import { Brand, Spacing } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useTheme } from '@/hooks/use-theme';
 import { initialsOf } from '@/lib/user';
 import { useUpdateProfile, useUploadAvatar } from '@/queries/users.queries';
@@ -48,6 +49,7 @@ import { selectUser, useAuthStore } from '@/stores/auth.store';
 
 const AVATAR_SIZE = 96;
 const BADGE_SIZE = 32;
+const HAIRLINE = StyleSheet.hairlineWidth || 1;
 
 const SEX_OPTIONS: { value: Sex; label: string; Icon: LucideIcon }[] = [
   { value: 'male', label: 'Male', Icon: Mars },
@@ -125,6 +127,7 @@ function draftFromUser(user: ReturnType<typeof selectUser>): Draft {
 export default function EditProfileScreen() {
   const router = useRouter();
   const theme = useTheme();
+  const colorScheme = useColorScheme();
   const user = useAuthStore(selectUser);
   const updateProfile = useUpdateProfile();
   const uploadAvatar = useUploadAvatar();
@@ -277,7 +280,10 @@ export default function EditProfileScreen() {
             autoCapitalize="words"
             autoCorrect={false}
             returnKeyType="done"
-            style={[styles.input, { backgroundColor: theme.backgroundElement, color: theme.text }]}
+            style={[
+              styles.input,
+              { backgroundColor: theme.backgroundElement, borderColor: theme.border, color: theme.text },
+            ]}
           />
         </Field>
 
@@ -309,7 +315,11 @@ export default function EditProfileScreen() {
         <Field label="Date of birth">
           <Pressable
             onPress={() => dobPickerRef.current?.present()}
-            style={[styles.input, styles.dateInput, { backgroundColor: theme.backgroundElement }]}>
+            style={[
+              styles.input,
+              styles.dateInput,
+              { backgroundColor: theme.backgroundElement, borderColor: theme.border },
+            ]}>
             <ThemedText
               type="default"
               style={draft.dateOfBirth ? undefined : { color: theme.textSecondary }}>
@@ -330,7 +340,7 @@ export default function EditProfileScreen() {
               style={[
                 styles.input,
                 styles.heightInput,
-                { backgroundColor: theme.backgroundElement, color: theme.text },
+                { backgroundColor: theme.backgroundElement, borderColor: theme.border, color: theme.text },
               ]}
             />
             <SegmentedControl
@@ -338,6 +348,11 @@ export default function EditProfileScreen() {
               selectedIndex={draft.units === 'metric' ? 0 : 1}
               onValueChange={(value) => handleUnitsChange(value.toLowerCase() as UnitSystem)}
               tintColor={Brand.accent}
+              // The app's theme is a manual JS preference, independent of the
+              // OS setting — without this the native control renders using
+              // the system's actual scheme, which can leave unselected label
+              // text invisible (e.g. light-on-light) when the two disagree.
+              appearance={colorScheme}
               style={styles.segmentedControl}
             />
           </View>
@@ -479,6 +494,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.four,
     paddingVertical: Spacing.three,
     borderRadius: 999,
+    borderWidth: HAIRLINE,
     fontSize: 16,
     fontWeight: '500',
   },

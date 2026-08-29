@@ -1,11 +1,18 @@
 import 'dotenv/config';
 
 import { createPrismaClient } from '../client';
-import { EXERCISE_CATALOGUE } from './exercises';
+import {
+  EXERCISE_CATALOGUE,
+  PLACEHOLDER_GALLERY,
+  PLACEHOLDER_THUMBNAIL,
+} from './exercises';
 
 /**
  * Idempotent seed for the shared exercise catalogue. Re-running it updates
  * existing rows rather than duplicating them, so it is safe on every deploy.
+ *
+ * Entries without their own `thumbnail`/`images` get the shared placeholder
+ * art until real photography is uploaded per exercise.
  */
 async function main(): Promise<void> {
   const prisma = createPrismaClient();
@@ -15,6 +22,12 @@ async function main(): Promise<void> {
     let updated = 0;
 
     for (const exercise of EXERCISE_CATALOGUE) {
+      const data = {
+        ...exercise,
+        thumbnail: exercise.thumbnail ?? PLACEHOLDER_THUMBNAIL,
+        images: exercise.images ?? PLACEHOLDER_GALLERY,
+      };
+
       const existing = await prisma.exercise.findFirst({
         where: { name: exercise.name, createdById: null },
         select: { id: true },
@@ -23,12 +36,12 @@ async function main(): Promise<void> {
       if (existing) {
         await prisma.exercise.update({
           where: { id: existing.id },
-          data: { ...exercise, isCustom: false },
+          data: { ...data, isCustom: false },
         });
         updated += 1;
       } else {
         await prisma.exercise.create({
-          data: { ...exercise, createdById: null, isCustom: false },
+          data: { ...data, createdById: null, isCustom: false },
         });
         created += 1;
       }

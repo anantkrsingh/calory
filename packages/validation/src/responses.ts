@@ -16,6 +16,7 @@ import {
   userRoleSchema,
   workoutStatusSchema,
 } from './enums';
+import { exerciseInstructionStepSchema } from './exercise';
 import { isoDateSchema, isoDateTimeSchema, objectIdSchema } from './primitives';
 
 const entityFields = {
@@ -95,10 +96,16 @@ export const exerciseSchema = z.object({
   secondaryMuscles: z.array(muscleGroupSchema),
   equipment: equipmentSchema,
   instructions: z.string().optional(),
+  instructionSteps: z.array(exerciseInstructionStepSchema),
   thumbnail: z.string().optional(),
   images: z.array(z.string()),
   createdBy: objectIdSchema.nullable(),
   isCustom: z.boolean(),
+});
+
+export const exerciseMuscleGroupSchema = z.object({
+  muscle: muscleGroupSchema,
+  exercises: z.array(exerciseSchema),
 });
 
 export const exercisePersonalRecordSchema = z.object({

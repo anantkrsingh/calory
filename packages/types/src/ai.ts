@@ -2,6 +2,8 @@ import type { Entity, Id, IsoDate, IsoDateTime } from './common';
 
 export const QUOTE_QUEUE_NAME = 'quote';
 export const ROUTINE_QUEUE_NAME = 'routine';
+/** Backfills a daily plan for any registered user who doesn't have one yet. */
+export const ROUTINE_RECONCILE_QUEUE_NAME = 'routine-reconcile';
 
 export const WorkoutRoutineStatus = {
   Generating: 'generating',
@@ -32,6 +34,11 @@ export interface RoutineJobResult {
   status: WorkoutRoutineStatus;
 }
 
+export interface RoutineReconcileJobResult {
+  /** Users a generation job was queued for on this pass. */
+  queued: number;
+}
+
 export interface DailyQuote extends Entity {
   date: IsoDate;
   quoteOfTheDay: string;
@@ -58,7 +65,10 @@ export interface RoutinePlanDay {
 export interface WorkoutRoutine extends Entity {
   userId: Id;
   status: WorkoutRoutineStatus;
+  /** Daily calorie intake target. */
   dailyCalorieTarget?: number;
+  /** Daily step count target. Per-day calorie burn target lives on each day. */
+  dailyStepsTarget?: number;
   summary?: string;
   days: RoutinePlanDay[];
   error?: string;

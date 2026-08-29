@@ -4,15 +4,18 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { Prisma, paginate, toExercise, toSkipTake } from '@fitness/db';
+import { MuscleGroup } from '@fitness/types';
 import type {
   AuthenticatedUser,
   Exercise,
+  ExerciseMuscleGroup,
   ExercisePersonalRecord,
   Id,
   Paginated,
 } from '@fitness/types';
 import type {
   CreateExerciseInput,
+  ExerciseByMuscleQueryInput,
   ExerciseQueryInput,
   UpdateExerciseInput,
 } from '@fitness/validation';
@@ -53,6 +56,61 @@ export class ExercisesService {
     ]);
 
     return paginate(rows.map(toExercise), query, total);
+  }
+
+  /**
+   * The shared catalogue plus the caller's own custom exercises, grouped by
+   * primary muscle for the Build screen's browse-by-muscle list. An exercise
+   * with several primary muscles appears once under each of them — this is
+   * intentional (a dip belongs under both Chest and Triceps).
+   *
+   * `search` matches either the exercise name or a muscle group name, so
+   * typing "chest" surfaces the whole Chest group even for exercises whose
+   * name doesn't contain the word.
+   */
+  async byMuscle(
+    userId: Id,
+    query: ExerciseByMuscleQueryInput,
+  ): Promise<ExerciseMuscleGroup[]> {
+    const search = query.search;
+    const matchedMuscle = search ? matchMuscleGroup(search) : undefined;
+
+    const where: Prisma.ExerciseWhereInput = {
+      AND: [
+        { OR: [{ createdById: null }, { createdById: userId }] },
+        ...(search
+          ? [
+              {
+                OR: [
+                  { name: { contains: search, mode: 'insensitive' as const } },
+                  ...(matchedMuscle
+                    ? [{ primaryMuscles: { has: matchedMuscle } }]
+                    : []),
+                ],
+              },
+            ]
+          : []),
+      ],
+    };
+
+    const rows = await this.prisma.exercise.findMany({
+      where,
+      orderBy: { name: 'asc' },
+    });
+    const exercises = rows.map(toExercise);
+
+    const groups = new Map<MuscleGroup, Exercise[]>();
+    for (const exercise of exercises) {
+      for (const muscle of exercise.primaryMuscles) {
+        const bucket = groups.get(muscle);
+        if (bucket) bucket.push(exercise);
+        else groups.set(muscle, [exercise]);
+      }
+    }
+
+    return Object.values(MuscleGroup)
+      .filter((muscle) => groups.has(muscle))
+      .map((muscle) => ({ muscle, exercises: groups.get(muscle)! }));
   }
 
   async findById(userId: Id, id: Id): Promise<Exercise> {
@@ -212,4 +270,13 @@ export class ExercisesService {
 function estimateOneRepMax(weightKg: number, reps: number): number {
   if (reps <= 1) return weightKg;
   return Math.round(weightKg * (1 + reps / 30) * 10) / 10;
+}
+
+/**
+ * Loosely matches a search term against a muscle group, accepting the raw
+ * enum value or its spaced-out label ("full body" / "full-body" → full_body).
+ */
+function matchMuscleGroup(search: string): MuscleGroup | undefined {
+  const normalized = search.trim().toLowerCase().replace(/[\s-]+/g, '_');
+  return Object.values(MuscleGroup).find((muscle) => muscle === normalized);
 }

@@ -19,17 +19,21 @@ import {
 import type {
   AuthenticatedUser,
   Exercise,
+  ExerciseMuscleGroup,
   ExercisePersonalRecord,
   Paginated,
 } from '@fitness/types';
 import {
   exerciseSchema,
+  exerciseMuscleGroupSchema,
   exercisePersonalRecordSchema,
   createExerciseSchema,
+  exerciseByMuscleQuerySchema,
   exerciseQuerySchema,
   objectIdSchema,
   updateExerciseSchema,
   type CreateExerciseInput,
+  type ExerciseByMuscleQueryInput,
   type ExerciseQueryInput,
   type UpdateExerciseInput,
 } from '@fitness/validation';
@@ -54,6 +58,25 @@ export class ExercisesController {
     @Query(zodPipe(exerciseQuerySchema)) query: ExerciseQueryInput,
   ): Promise<Paginated<Exercise>> {
     return this.exercises.list(user.id, query);
+  }
+
+  @Get('by-muscle')
+  @ApiOperation({
+    summary:
+      'List exercises grouped by primary muscle — powers the Build screen',
+  })
+  @ApiZodQuery(exerciseByMuscleQuerySchema)
+  @ApiZodResponse(exerciseMuscleGroupSchema, {
+    isArray: true,
+    description: 'Exercises grouped by muscle',
+    name: 'ExerciseMuscleGroup',
+  })
+  byMuscle(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query(zodPipe(exerciseByMuscleQuerySchema))
+    query: ExerciseByMuscleQueryInput,
+  ): Promise<ExerciseMuscleGroup[]> {
+    return this.exercises.byMuscle(user.id, query);
   }
 
   @Get(':id')

@@ -27,6 +27,7 @@ export const routineDaySchema = z.object({
 
 export const weeklyRoutineSchema = z.object({
   dailyCalorieTarget: z.number().int().min(0).max(10000),
+  dailyStepsTarget: z.number().int().min(0).max(50000),
   summary: z.string().max(500),
   days: z.array(routineDaySchema).length(7),
 });

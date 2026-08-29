@@ -9,8 +9,10 @@ import { resolvePrompt, weeklyRoutineSchema } from '@fitness/ai';
 import type { Env } from '@fitness/config/server';
 import {
   ROUTINE_QUEUE_NAME,
+  ROUTINE_RECONCILE_QUEUE_NAME,
   type RoutineJobData,
   type RoutineJobResult,
+  type RoutineReconcileJobResult,
 } from '@fitness/types';
 import {
   generateObject,
@@ -19,7 +21,7 @@ import {
   tool,
   type LanguageModel,
 } from 'ai';
-import { Worker, type Job } from 'bullmq';
+import { Queue, Worker, type Job } from 'bullmq';
 import { z } from 'zod';
 
 import { AI_MODEL } from '../ai/ai.module';
@@ -27,6 +29,10 @@ import { ENV } from '../config/env.module';
 import { PrismaService } from '../prisma/prisma.service';
 
 const MAX_EXERCISES = 60;
+const RECONCILE_REPEAT_KEY = 'routine-reconcile';
+// Cap per reconciliation pass so one tick can't flood the LLM queue; the next
+// scheduled run picks up whatever is left.
+const RECONCILE_BATCH_SIZE = 200;
 
 const yearsSince = (isoDate: string): number | null => {
   const born = new Date(isoDate);
@@ -39,6 +45,17 @@ const yearsSince = (isoDate: string): number | null => {
 export class RoutineProcessor implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(RoutineProcessor.name);
   private worker?: Worker<RoutineJobData, RoutineJobResult>;
+  // Producer side of the generate queue, needed so reconciliation can enqueue
+  // jobs for backfilled users the same way the API does on registration.
+  private generateQueue?: Queue<RoutineJobData, RoutineJobResult>;
+  private reconcileQueue?: Queue<
+    Record<string, never>,
+    RoutineReconcileJobResult
+  >;
+  private reconcileWorker?: Worker<
+    Record<string, never>,
+    RoutineReconcileJobResult
+  >;
 
   constructor(
     @Inject(ENV) private readonly env: Env,
@@ -46,33 +63,147 @@ export class RoutineProcessor implements OnModuleInit, OnModuleDestroy {
     private readonly prisma: PrismaService,
   ) {}
 
-  onModuleInit(): void {
+  async onModuleInit(): Promise<void> {
+    const connection = {
+      host: this.env.REDIS_HOST,
+      port: this.env.REDIS_PORT,
+      password: this.env.REDIS_PASSWORD,
+      maxRetriesPerRequest: null,
+    };
+
     this.worker = new Worker<RoutineJobData, RoutineJobResult>(
       ROUTINE_QUEUE_NAME,
       (job) => this.handle(job),
-      {
-        connection: {
-          host: this.env.REDIS_HOST,
-          port: this.env.REDIS_PORT,
-          password: this.env.REDIS_PASSWORD,
-          maxRetriesPerRequest: null,
-        },
-        prefix: 'fitness',
-      },
+      { connection, prefix: 'fitness' },
     );
 
     this.worker.on('failed', (job, error) => {
       this.logger.error(`Routine job ${job?.id} failed: ${error.message}`);
 
       // Only give up once BullMQ has exhausted its retries.
-      const exhausted =
-        !job || job.attemptsMade >= (job.opts.attempts ?? 1);
+      const exhausted = !job || job.attemptsMade >= (job.opts.attempts ?? 1);
       if (exhausted) void this.markFailed(job?.data.routineId, error.message);
     });
+
+    this.generateQueue = new Queue<RoutineJobData, RoutineJobResult>(
+      ROUTINE_QUEUE_NAME,
+      { connection, prefix: 'fitness' },
+    );
+
+    this.reconcileQueue = new Queue<
+      Record<string, never>,
+      RoutineReconcileJobResult
+    >(ROUTINE_RECONCILE_QUEUE_NAME, {
+      connection,
+      prefix: 'fitness',
+      defaultJobOptions: { removeOnComplete: 10, removeOnFail: 20 },
+    });
+
+    this.reconcileWorker = new Worker<
+      Record<string, never>,
+      RoutineReconcileJobResult
+    >(ROUTINE_RECONCILE_QUEUE_NAME, () => this.reconcileMissingRoutines(), {
+      connection,
+      prefix: 'fitness',
+    });
+
+    this.reconcileWorker.on('failed', (job, error) => {
+      this.logger.error(
+        `Routine reconcile job ${job?.id} failed: ${error.message}`,
+      );
+    });
+
+    await this.scheduleReconciliation();
+    // Also run once on boot so a fresh deploy doesn't wait for the first tick.
+    await this.reconcileQueue.add('reconcile', {});
   }
 
   async onModuleDestroy(): Promise<void> {
     await this.worker?.close();
+    await this.generateQueue?.close();
+    await this.reconcileWorker?.close();
+    await this.reconcileQueue?.close();
+  }
+
+  /** Idempotent: re-running replaces the existing repeat schedule. */
+  private async scheduleReconciliation(): Promise<void> {
+    try {
+      await this.reconcileQueue?.upsertJobScheduler(
+        RECONCILE_REPEAT_KEY,
+        { pattern: this.env.ROUTINE_RECONCILE_CRON },
+        { name: 'reconcile', data: {} },
+      );
+      this.logger.log(
+        `Routine reconciliation scheduled: ${this.env.ROUTINE_RECONCILE_CRON}`,
+      );
+    } catch (error) {
+      this.logger.error(
+        `Could not schedule routine reconciliation: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
+  }
+
+  /**
+   * Backfill: any user with no `generating`/`active` routine — never registered
+   * one (pre-existing account) or their last attempt ended in `failed` — gets a
+   * fresh generation job queued, exactly like `WorkoutRoutineService.requestGeneration`
+   * does on registration.
+   */
+  private async reconcileMissingRoutines(): Promise<RoutineReconcileJobResult> {
+    const inProgressOrActive = await this.prisma.workoutRoutine.findMany({
+      where: { status: { in: ['generating', 'active'] } },
+      select: { userId: true },
+      distinct: ['userId'],
+    });
+
+    const covered = inProgressOrActive.map((row) => row.userId);
+    const users = await this.prisma.user.findMany({
+      where: { id: { notIn: covered } },
+      select: { id: true },
+      take: RECONCILE_BATCH_SIZE,
+    });
+
+    let queued = 0;
+    for (const user of users) {
+      try {
+        const routine = await this.prisma.workoutRoutine.create({
+          data: { userId: user.id, status: 'generating', days: [] },
+        });
+
+        const job = await this.generateQueue?.add(
+          'generateRoutine',
+          { userId: user.id, routineId: routine.id },
+          {
+            jobId: `routine-${routine.id}`,
+            attempts: 3,
+            backoff: { type: 'exponential', delay: 20_000 },
+          },
+        );
+
+        if (job) {
+          queued += 1;
+        } else {
+          await this.prisma.workoutRoutine.update({
+            where: { id: routine.id },
+            data: { status: 'failed', error: 'Could not queue generation job' },
+          });
+        }
+      } catch (error) {
+        this.logger.error(
+          `Could not backfill a routine for user ${user.id}: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        );
+      }
+    }
+
+    this.logger.log(
+      `Routine reconciliation: queued ${queued} of ${users.length} users needing a plan`,
+    );
+
+    return { queued };
   }
 
   private async markFailed(
@@ -99,7 +230,7 @@ export class RoutineProcessor implements OnModuleInit, OnModuleDestroy {
     return tool({
       description:
         'Get the profile of the user this routine is for: age, sex, height, ' +
-        'weight, activity level and weekly workout target.',
+        'weight, activity level, chosen fitness goals and weekly workout target.',
       inputSchema: z.object({}),
       execute: async () => {
         const user = await this.prisma.user.findUnique({
@@ -120,6 +251,10 @@ export class RoutineProcessor implements OnModuleInit, OnModuleDestroy {
           sex: user.profile.sex ?? null,
           heightCm: user.profile.heightCm ?? null,
           activityLevel: user.profile.activityLevel ?? null,
+          // The goals the user picked at signup — use these to steer the
+          // calorie (intake/burn) and step targets, e.g. a deficit + higher
+          // step target for lose_weight, a surplus for build_muscle.
+          fitnessGoals: user.profile.fitnessGoals,
           weightKg: latest?.weightKg ?? null,
           bodyFatPercentage: latest?.bodyFatPercentage ?? null,
           units: user.preferences.units,
@@ -242,6 +377,7 @@ export class RoutineProcessor implements OnModuleInit, OnModuleDestroy {
       data: {
         status: 'active',
         dailyCalorieTarget: object.dailyCalorieTarget,
+        dailyStepsTarget: object.dailyStepsTarget,
         summary: object.summary,
         days,
         error: null,

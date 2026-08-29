@@ -1,33 +1,3 @@
-import { StyleSheet } from 'react-native';
+import { BuildScreen } from '@/components/build/BuildScreen';
 
-import { TabScreen } from '@/components/tab-screen';
-import { ThemedText } from '@/components/themed-text';
-import { Spacing } from '@/constants/theme';
-
-export default function BuildScreen() {
-  return (
-    <TabScreen contentStyle={styles.centered}>
-      <ThemedText type="title" style={styles.title}>
-        Build
-      </ThemedText>
-      <ThemedText type="small" style={[styles.subtitle, { opacity: 0.6 }]}>
-        Put together a workout or routine.
-      </ThemedText>
-    </TabScreen>
-  );
-}
-
-const styles = StyleSheet.create({
-  centered: {
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: Spacing.two,
-  },
-  title: {
-    fontSize: 28,
-  },
-  subtitle: {
-    textAlign: 'center',
-    fontSize: 16,
-  },
-});
+export default BuildScreen;

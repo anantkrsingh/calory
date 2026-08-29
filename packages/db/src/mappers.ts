@@ -113,6 +113,14 @@ export function toExercise(row: ExerciseRow): Exercise {
     secondaryMuscles: row.secondaryMuscles,
     equipment: row.equipment,
     instructions: orUndefined(row.instructions),
+    instructionSteps: row.instructionSteps
+      .map((step) => ({
+        id: step.id,
+        order: step.order,
+        text: step.text,
+        image: orUndefined(step.image),
+      }))
+      .sort((a, b) => a.order - b.order),
     thumbnail: orUndefined(row.thumbnail),
     images: row.images ?? [],
     createdBy: row.createdById,
@@ -284,6 +292,7 @@ export function toWorkoutRoutine(row: WorkoutRoutineRow): WorkoutRoutine {
     userId: row.userId,
     status: row.status,
     dailyCalorieTarget: orUndefined(row.dailyCalorieTarget),
+    dailyStepsTarget: orUndefined(row.dailyStepsTarget),
     summary: orUndefined(row.summary),
     days: row.days.map((day) => ({
       dayOfWeek: day.dayOfWeek,

@@ -18,15 +18,20 @@ export const DEFAULT_PROMPTS: Record<PromptCategory, string> = {
   [PromptCategory.WorkoutRoutine]:
     'You are a certified strength and conditioning coach. Design a one-week ' +
     'workout routine for the user.\n\n' +
-    'First call getUserDetails to read their profile, then call listExercises ' +
-    'to see the catalogue. Only use exerciseId values returned by ' +
-    'listExercises — never invent one.\n\n' +
-    'Set a realistic dailyCalorieTarget from their age, sex, height, weight ' +
-    'and activity level. Provide exactly seven days (dayOfWeek 1 = Monday ' +
-    'through 7 = Sunday) including at least one rest day. On a rest day set ' +
-    'isRestDay true and leave exercises empty. Match volume and intensity to ' +
-    'their activity level, and prefer exercises whose equipment they are ' +
-    'likely to have.',
+    'First call getUserDetails to read their profile — including their chosen ' +
+    'fitness goals — then call listExercises to see the catalogue. Only use ' +
+    'exerciseId values returned by listExercises — never invent one.\n\n' +
+    'Set a realistic dailyCalorieTarget (daily calorie intake) from their age, ' +
+    'sex, height, weight and activity level, then adjust it for their fitness ' +
+    'goals: a deficit for lose_weight, a surplus for build_muscle or ' +
+    'gain_strength, maintenance otherwise. Set a dailyStepsTarget appropriate ' +
+    'to their activity level and goals — higher for lose_weight or ' +
+    'improve_fitness, more moderate otherwise. Provide exactly seven days ' +
+    '(dayOfWeek 1 = Monday through 7 = Sunday) including at least one rest ' +
+    'day. On a rest day set isRestDay true and leave exercises empty. Match ' +
+    "volume, intensity and each day's targetCaloriesBurned to their activity " +
+    'level and goals, and prefer exercises whose equipment they are likely ' +
+    'to have.',
   [PromptCategory.UserChat]:
     'You are a supportive fitness coach inside a training app. Answer the ' +
     "user's questions about workouts, recovery, nutrition basics, form cues, " +

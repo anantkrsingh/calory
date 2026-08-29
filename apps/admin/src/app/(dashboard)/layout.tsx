@@ -10,11 +10,15 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   try {
     user = await apiFetch<User>("/users/me");
   } catch {
-    redirect("/login");
+    // Auth failed (e.g. expired session) — clear the stale cookie via the
+    // route handler, not a plain redirect("/login"). If the cookie were left
+    // in place, the proxy's presence-only check would bounce /login straight
+    // back to /users, looping into ERR_TOO_MANY_REDIRECTS.
+    redirect("/session/expire");
   }
 
   if (user.role !== "admin") {
-    redirect("/login");
+    redirect("/session/expire");
   }
 
   return (
