@@ -321,32 +321,56 @@ export const dailyQuoteSchema = z.object({
   quoteOfTheDay: z.string(),
 });
 
+export const routinePlanExerciseSchema = z.object({
+  exerciseId: objectIdSchema,
+  exerciseName: z.string(),
+  sets: z.number().int(),
+  reps: z.number().int().optional(),
+  durationSec: z.number().int().optional(),
+  restSeconds: z.number().int().optional(),
+  estimatedCalories: z.number().int(),
+});
+
+export const routinePlanDaySchema = z.object({
+  dayOfWeek: z.number().int(),
+  isRestDay: z.boolean(),
+  targetCaloriesBurned: z.number().int(),
+  caloriesFromRunning: z.number().int(),
+  caloriesFromExercises: z.number().int(),
+  stepsTarget: z.number().int(),
+  runningDistanceKm: z.number().optional(),
+  runningDurationMin: z.number().int().optional(),
+  focus: z.string(),
+  exercises: z.array(routinePlanExerciseSchema),
+});
+
 export const workoutRoutineSchema = z.object({
   ...entityFields,
   userId: objectIdSchema,
   status: z.enum(['generating', 'active', 'failed', 'superseded']),
   dailyCalorieTarget: z.number().int().optional(),
+  caloriesPerStep: z.number().optional(),
   summary: z.string().optional(),
-  days: z.array(
-    z.object({
-      dayOfWeek: z.number().int(),
-      isRestDay: z.boolean(),
-      targetCaloriesBurned: z.number().int(),
-      focus: z.string(),
-      exercises: z.array(
-        z.object({
-          exerciseId: objectIdSchema,
-          exerciseName: z.string(),
-          sets: z.number().int(),
-          reps: z.number().int().optional(),
-          durationSec: z.number().int().optional(),
-          restSeconds: z.number().int().optional(),
-        }),
-      ),
-    }),
-  ),
+  days: z.array(routinePlanDaySchema),
   error: z.string().optional(),
   generatedAt: isoDateTimeSchema.optional(),
+});
+
+export const todayRoutineCaloriesSchema = z.object({
+  fromSteps: z.number(),
+  fromExercises: z.number(),
+  total: z.number(),
+});
+
+export const todayRoutineSchema = z.object({
+  routineStatus: z
+    .enum(['generating', 'active', 'failed', 'superseded'])
+    .nullable(),
+  date: isoDateSchema,
+  dailyCalorieTarget: z.number().int().optional(),
+  day: routinePlanDaySchema.optional(),
+  stepsToday: z.number().int(),
+  caloriesBurned: todayRoutineCaloriesSchema,
 });
 
 export const healthResponseSchema = z.object({

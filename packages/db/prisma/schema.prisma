@@ -242,18 +242,24 @@ type RoutinePlanExercise {
   reps         Int?
   durationSec  Int?
   restSeconds  Int?
+  /// Optional: absent on routines generated before this field existed.
+  estimatedCalories Int?
 }
 
-/// One day of an AI-generated weekly routine. 1 = Monday .. 7 = Sunday.
 type RoutinePlanDay {
   dayOfWeek            Int
   isRestDay            Boolean
   targetCaloriesBurned Int
+  /// Optional: absent on routines generated before these fields existed.
+  caloriesFromRunning  Int?
+  caloriesFromExercises Int?
+  stepsTarget          Int?
+  runningDistanceKm    Float?
+  runningDurationMin   Int?
   focus                String
   exercises            RoutinePlanExercise[]
 }
 
-/// Circumferences in centimetres.
 type BodyMeasurements {
   neck       Float?
   chest      Float?
@@ -267,9 +273,6 @@ type BodyMeasurements {
   rightCalf  Float?
 }
 
-// ---------------------------------------------------------------------------
-// Models
-// ---------------------------------------------------------------------------
 
 model User {
   id            String   @id @default(auto()) @map("_id") @db.ObjectId
@@ -283,7 +286,6 @@ model User {
 
   linkedAccounts LinkedAccount[]
 
-  /// Hash of the current refresh token; rotating it revokes the session.
   refreshTokenHash String?
   lastLoginAt      DateTime?
 
@@ -512,8 +514,10 @@ model WorkoutRoutine {
   status              WorkoutRoutineStatus @default(generating)
   /// Daily calorie intake target.
   dailyCalorieTarget  Int?
-  /// Daily step count target. Per-day calorie burn target lives on each `RoutinePlanDay`.
-  dailyStepsTarget    Int?
+  /// AI-estimated kcal burned per step, from the user's weight/BMI — a live
+  /// step count times this gives a live calories-burned-from-walking number.
+  /// Steps and calorie-burn targets otherwise live per day on `RoutinePlanDay`.
+  caloriesPerStep     Float?
   summary             String?
   days                RoutinePlanDay[]
   /// Set when status is `failed`, for admin debugging.

@@ -1,3 +1,4 @@
+import { DEFAULT_DAILY_STEPS_GOAL } from "@fitness/config";
 import { StyleSheet, View } from "react-native";
 
 import { TabScreen } from "@/components/tab-screen";
@@ -5,19 +6,23 @@ import { ThemedText } from "@/components/themed-text";
 import { CircularProgressRing } from "@/components/ui/CircularProgressRing";
 import { Spacing } from "@/constants/theme";
 import { useStepsTracker } from "@/hooks/use-steps-tracker";
+import { todayIsoDate } from "@/lib/date";
 import { useTodayQuote } from "@/queries/quotes.queries";
-import { useTodayCalories } from "@/queries/workout-routines.queries";
+import { useTodayRoutine } from "@/queries/workout-routines.queries";
 
 const RING_SIZE = 96;
 const RING_STROKE = 12;
 
 export default function HomeScreen() {
   const { data: quote } = useTodayQuote();
-  const { data: calories } = useTodayCalories();
-  const { steps, goal: stepsGoal } = useStepsTracker();
+  const { data: routine } = useTodayRoutine(todayIsoDate());
+  const { steps } = useStepsTracker();
 
-  const burned = calories?.burned ?? 0;
-  const target = calories?.target ?? 0;
+  // The AI routine's per-day targets once it's generated; sane fallbacks
+  // (no calorie-burn target yet) while it's still generating.
+  const stepsGoal = routine?.day?.stepsTarget ?? DEFAULT_DAILY_STEPS_GOAL;
+  const burned = routine?.caloriesBurned.total ?? 0;
+  const target = routine?.day?.targetCaloriesBurned ?? 0;
 
   return (
     <TabScreen contentStyle={styles.content}>

@@ -41,6 +41,19 @@ const yearsSince = (isoDate: string): number | null => {
   return Math.floor(ms / (365.25 * 24 * 60 * 60 * 1000));
 };
 
+/** Standard BMI = kg / m^2, rounded to one decimal. */
+const calculateBmi = (heightCm: number, weightKg: number): number => {
+  const heightM = heightCm / 100;
+  return Math.round((weightKg / (heightM * heightM)) * 10) / 10;
+};
+
+const bmiCategory = (bmi: number): string => {
+  if (bmi < 18.5) return 'underweight';
+  if (bmi < 25) return 'normal';
+  if (bmi < 30) return 'overweight';
+  return 'obese';
+};
+
 @Injectable()
 export class RoutineProcessor implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(RoutineProcessor.name);
@@ -230,7 +243,7 @@ export class RoutineProcessor implements OnModuleInit, OnModuleDestroy {
     return tool({
       description:
         'Get the profile of the user this routine is for: age, sex, height, ' +
-        'weight, activity level, chosen fitness goals and weekly workout target.',
+        'weight, BMI, activity level, chosen fitness goals and weekly workout target.',
       inputSchema: z.object({}),
       execute: async () => {
         const user = await this.prisma.user.findUnique({
@@ -243,20 +256,28 @@ export class RoutineProcessor implements OnModuleInit, OnModuleDestroy {
           orderBy: { recordedAt: 'desc' },
         });
 
+        const heightCm = user.profile.heightCm ?? null;
+        const weightKg = latest?.weightKg ?? null;
+        // Computed server-side rather than left to the model — it must be
+        // exact since it drives the calorie targets.
+        const bmi = heightCm && weightKg ? calculateBmi(heightCm, weightKg) : null;
+
         return {
           displayName: user.profile.displayName,
           ageYears: user.profile.dateOfBirth
             ? yearsSince(user.profile.dateOfBirth)
             : null,
           sex: user.profile.sex ?? null,
-          heightCm: user.profile.heightCm ?? null,
+          heightCm,
           activityLevel: user.profile.activityLevel ?? null,
           // The goals the user picked at signup — use these to steer the
           // calorie (intake/burn) and step targets, e.g. a deficit + higher
           // step target for lose_weight, a surplus for build_muscle.
           fitnessGoals: user.profile.fitnessGoals,
-          weightKg: latest?.weightKg ?? null,
+          weightKg,
           bodyFatPercentage: latest?.bodyFatPercentage ?? null,
+          bmi,
+          bmiCategory: bmi ? bmiCategory(bmi) : null,
           units: user.preferences.units,
         };
       },
@@ -357,6 +378,11 @@ export class RoutineProcessor implements OnModuleInit, OnModuleDestroy {
       dayOfWeek: day.dayOfWeek,
       isRestDay: day.isRestDay,
       targetCaloriesBurned: day.targetCaloriesBurned,
+      caloriesFromRunning: day.caloriesFromRunning,
+      caloriesFromExercises: day.caloriesFromExercises,
+      stepsTarget: day.stepsTarget,
+      runningDistanceKm: day.runningDistanceKm ?? null,
+      runningDurationMin: day.runningDurationMin ?? null,
       focus: day.focus,
       // Drop hallucinated ids rather than persisting a broken reference.
       exercises: day.exercises
@@ -368,6 +394,7 @@ export class RoutineProcessor implements OnModuleInit, OnModuleDestroy {
           reps: exercise.reps ?? null,
           durationSec: exercise.durationSec ?? null,
           restSeconds: exercise.restSeconds ?? null,
+          estimatedCalories: exercise.estimatedCalories,
         })),
     }));
 
@@ -377,7 +404,7 @@ export class RoutineProcessor implements OnModuleInit, OnModuleDestroy {
       data: {
         status: 'active',
         dailyCalorieTarget: object.dailyCalorieTarget,
-        dailyStepsTarget: object.dailyStepsTarget,
+        caloriesPerStep: object.caloriesPerStep,
         summary: object.summary,
         days,
         error: null,

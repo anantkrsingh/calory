@@ -34,5 +34,7 @@ export {
 export { useUpdateProfile, useUploadAvatar } from './users.queries';
 export {
   WorkoutRoutinesQueries,
-  useTodayCalories,
+  useRegenerateRoutine,
+  useTodayRoutine,
+  useWorkoutRoutine,
 } from './workout-routines.queries';

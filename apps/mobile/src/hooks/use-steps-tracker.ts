@@ -3,15 +3,9 @@ import { Pedometer } from 'expo-sensors';
 import { useEffect, useRef, useState } from 'react';
 import { AppState, Platform } from 'react-native';
 
+import { todayIsoDate } from '@/lib/date';
+import { readStepsCache, writeStepsCache } from '@/lib/steps-cache';
 import { useDailySteps, useUpsertSteps } from '@/queries/steps.queries';
-
-/** Local calendar date, not UTC — a step count belongs to the day the device says it is. */
-function todayIsoDate(): string {
-  const now = new Date();
-  const month = String(now.getMonth() + 1).padStart(2, '0');
-  const day = String(now.getDate()).padStart(2, '0');
-  return `${now.getFullYear()}-${month}-${day}`;
-}
 
 function startOfToday(): Date {
   const now = new Date();
@@ -24,6 +18,9 @@ const IOS_POLL_MS = 60_000;
 // Debounce before persisting a moving count server-side, and how long the app
 // can sit in the background before we treat a resumed session as stale.
 const SYNC_DEBOUNCE_MS = 5_000;
+// On reopen, only force an out-of-band sync if the last one is at least this
+// old — a quick app switch shouldn't re-hit the server on every foreground.
+const RESYNC_STALE_MS = 60_000;
 
 export type StepsTrackerState = {
   /** Live device count once available; the last synced server value until then. */
@@ -39,16 +36,23 @@ export type StepsTrackerState = {
  * the server. iOS answers a direct "steps since midnight" query; Android's
  * sensor only reports a delta from the moment you start listening, so there
  * we add that delta on top of the last count the server already has.
+ *
+ * Every synced value is also cached locally (steps + when), so a cold start
+ * can paint immediately and a reopen can tell whether the device has moved
+ * on since the last sync without waiting on the server.
  */
 export function useStepsTracker(): StepsTrackerState {
   const [date] = useState(todayIsoDate);
   const server = useDailySteps(date);
   const upsertSteps = useUpsertSteps();
 
-  const [liveSteps, setLiveSteps] = useState<number | null>(null);
+  const [liveSteps, setLiveSteps] = useState<number | null>(
+    () => readStepsCache(date)?.steps ?? null,
+  );
   const [permissionDenied, setPermissionDenied] = useState(false);
 
-  const lastSyncedRef = useRef<number | null>(null);
+  const lastSyncedRef = useRef<number | null>(readStepsCache(date)?.steps ?? null);
+
   const syncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const flushSync = (steps: number) => {
@@ -58,6 +62,7 @@ export function useStepsTracker(): StepsTrackerState {
     }
     if (lastSyncedRef.current === steps) return;
     lastSyncedRef.current = steps;
+    writeStepsCache(date, steps);
     upsertSteps.mutate({ date, steps });
   };
 
@@ -66,15 +71,24 @@ export function useStepsTracker(): StepsTrackerState {
     syncTimerRef.current = setTimeout(() => flushSync(steps), SYNC_DEBOUNCE_MS);
   };
 
-  // Flush whatever hasn't synced yet when the app is backgrounded, so a quick
-  // open-and-close still records that session's steps.
+  // Flush whatever hasn't synced yet when backgrounded; on return to the
+  // foreground, compare the live reading against what's cached and force an
+  // immediate (non-debounced) sync if it's moved on and the last sync is
+  // stale enough to be worth re-checking.
   useEffect(() => {
     const sub = AppState.addEventListener('change', (state) => {
-      if (state !== 'active' && liveSteps !== null) flushSync(liveSteps);
+      if (state === 'active') {
+        if (liveSteps === null) return;
+        const cached = readStepsCache(date);
+        const stale = !cached || Date.now() - cached.updatedAt > RESYNC_STALE_MS;
+        if (stale && liveSteps !== (cached?.steps ?? null)) flushSync(liveSteps);
+      } else if (liveSteps !== null) {
+        flushSync(liveSteps);
+      }
     });
     return () => sub.remove();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- flushSync closes over refs, not state
-  }, [liveSteps]);
+  }, [liveSteps, date]);
 
   useEffect(() => {
     // Only start watching once we know the server's existing total for
