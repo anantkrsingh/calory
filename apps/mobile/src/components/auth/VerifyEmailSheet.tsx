@@ -1,8 +1,15 @@
 import { TrueSheet } from '@lodev09/react-native-true-sheet';
 import { useRouter } from 'expo-router';
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
-import { Pressable, StyleSheet, TextInput, View } from 'react-native';
-import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
+import {
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  TextInput,
+  View,
+} from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import PrimaryButton from '@/components/ui/PrimaryButton';
@@ -133,88 +140,89 @@ export default forwardRef<VerifyEmailSheetRef>(function VerifyEmailSheet(_props,
       backgroundColor="transparent"
       cornerRadius={0}
       grabber={false}>
-      <KeyboardAwareScrollView
-        bottomOffset={Spacing.four}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}>
-        <View style={styles.sheetPadding}>
-          <View style={[styles.card, { backgroundColor: theme.background }]}>
-            <View style={styles.handle} />
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <ScrollView
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}>
+          <View style={styles.sheetPadding}>
+            <View style={[styles.card, { backgroundColor: theme.background }]}>
+              <View style={styles.handle} />
 
-            <ThemedText type="subtitle" style={styles.title}>
-              Verify your email
-            </ThemedText>
-            <ThemedText type="small" style={[styles.subtitle, { color: theme.textSecondary }]}>
-              We&apos;ve sent a 6-digit verification code to
-            </ThemedText>
-            <ThemedText type="smallBold" style={styles.email}>
-              {email}
-            </ThemedText>
-
-            <View style={styles.otpInputs}>
-              {otpDigits.map((digit, index) => (
-                <TextInput
-                  key={index}
-                  ref={(input) => {
-                    inputs.current[index] = input;
-                  }}
-                  style={[
-                    styles.otpInput,
-                    {
-                      backgroundColor: theme.backgroundElement,
-                      color: theme.text,
-                      borderColor: digit ? Brand.accent : 'transparent',
-                    },
-                  ]}
-                  value={digit}
-                  onChangeText={(text) => handleDigitChange(index, text)}
-                  onKeyPress={({ nativeEvent }) => handleKeyPress(index, nativeEvent.key)}
-                  keyboardType="numeric"
-                  maxLength={OTP_LENGTH}
-                  textAlign="center"
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  textContentType="oneTimeCode"
-                />
-              ))}
-            </View>
-
-            {error ? (
-              <ThemedText type="small" style={styles.errorText}>
-                {error}
+              <ThemedText type="subtitle" style={styles.title}>
+                Verify your email
               </ThemedText>
-            ) : null}
-
-            <PrimaryButton
-              label={verifyRegistration.isPending ? 'Verifying...' : 'Verify'}
-              onPress={handleVerify}
-              disabled={otp.length !== OTP_LENGTH || verifyRegistration.isPending}
-              style={styles.verifyButton}
-            />
-
-            <View style={styles.resendContainer}>
-              <ThemedText type="small" style={[styles.resendText, { color: theme.textSecondary }]}>
-                Didn&apos;t receive a code?{' '}
+              <ThemedText type="small" style={[styles.subtitle, { color: theme.textSecondary }]}>
+                We&apos;ve sent a 6-digit verification code to
               </ThemedText>
-              <Pressable
-                onPress={handleResend}
-                disabled={!canResend}
-                style={({ pressed }) => [pressed && canResend && Pressed]}>
-                <ThemedText
-                  type="linkPrimary"
-                  style={[styles.resendLink, { opacity: canResend ? 1 : 0.5 }]}>
-                  Resend Code
-                </ThemedText>
-              </Pressable>
-              {resendTimer > 0 ? (
-                <ThemedText type="small" style={[styles.timer, { color: theme.textSecondary }]}>
-                  {formatSeconds(resendTimer)}
+              <ThemedText type="smallBold" style={styles.email}>
+                {email}
+              </ThemedText>
+
+              <View style={styles.otpInputs}>
+                {otpDigits.map((digit, index) => (
+                  <TextInput
+                    key={index}
+                    ref={(input) => {
+                      inputs.current[index] = input;
+                    }}
+                    style={[
+                      styles.otpInput,
+                      {
+                        backgroundColor: theme.backgroundElement,
+                        color: theme.text,
+                        borderColor: digit ? Brand.accent : 'transparent',
+                      },
+                    ]}
+                    value={digit}
+                    onChangeText={(text) => handleDigitChange(index, text)}
+                    onKeyPress={({ nativeEvent }) => handleKeyPress(index, nativeEvent.key)}
+                    keyboardType="numeric"
+                    maxLength={OTP_LENGTH}
+                    textAlign="center"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    textContentType="oneTimeCode"
+                  />
+                ))}
+              </View>
+
+              {error ? (
+                <ThemedText type="small" style={styles.errorText}>
+                  {error}
                 </ThemedText>
               ) : null}
+
+              <PrimaryButton
+                label={verifyRegistration.isPending ? 'Verifying...' : 'Verify'}
+                onPress={handleVerify}
+                disabled={otp.length !== OTP_LENGTH || verifyRegistration.isPending}
+                style={styles.verifyButton}
+              />
+
+              <View style={styles.resendContainer}>
+                <ThemedText type="small" style={[styles.resendText, { color: theme.textSecondary }]}>
+                  Didn&apos;t receive a code?{' '}
+                </ThemedText>
+                <Pressable
+                  onPress={handleResend}
+                  disabled={!canResend}
+                  style={({ pressed }) => [pressed && canResend && Pressed]}>
+                  <ThemedText
+                    type="linkPrimary"
+                    style={[styles.resendLink, { opacity: canResend ? 1 : 0.5 }]}>
+                    Resend Code
+                  </ThemedText>
+                </Pressable>
+                {resendTimer > 0 ? (
+                  <ThemedText type="small" style={[styles.timer, { color: theme.textSecondary }]}>
+                    {formatSeconds(resendTimer)}
+                  </ThemedText>
+                ) : null}
+              </View>
             </View>
           </View>
-        </View>
-      </KeyboardAwareScrollView>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </TrueSheet>
   );
 });

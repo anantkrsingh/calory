@@ -1,35 +1,35 @@
-import { useChat } from '@ai-sdk/react';
-import type { UIMessage } from 'ai';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useChat } from "@ai-sdk/react";
+import type { UIMessage } from "ai";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
   FlatList,
-  KeyboardAvoidingView,
   Platform,
   StyleSheet,
   View,
-} from 'react-native';
-import { KeyboardStickyView } from 'react-native-keyboard-controller';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useQueryClient } from '@tanstack/react-query';
+} from "react-native";
+import { KeyboardStickyView } from "react-native-keyboard-controller";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useQueryClient } from "@tanstack/react-query";
 
-import { getErrorMessage, isApiError } from '@/api/errors';
+import { getErrorMessage, isApiError } from "@/api/errors";
 import {
   ANDROID_TAB_BAR_HEIGHT,
   ANDROID_TAB_BAR_MARGIN_BOTTOM,
-} from '@/components/android-tabbar/constants';
-import { ChatComposer } from '@/components/chat/ChatComposer';
-import { MessageBubble } from '@/components/chat/MessageBubble';
-import { ThemedText } from '@/components/themed-text';
-import { Brand, MaxContentWidth, Spacing } from '@/constants/theme';
+} from "@/components/android-tabbar/constants";
+import { ChatComposer } from "@/components/chat/ChatComposer";
+import { MessageBubble } from "@/components/chat/MessageBubble";
+import { ThemedText } from "@/components/themed-text";
+import { Brand, MaxContentWidth, Spacing } from "@/constants/theme";
 import {
   isMessageStreaming,
   textFromUIMessage,
   toUIMessages,
-} from '@/lib/chat-messages';
-import { createCoachChatTransport } from '@/lib/chat-transport';
-import { ChatsQueries, useChatDetail } from '@/queries/chats.queries';
+} from "@/lib/chat-messages";
+import { createCoachChatTransport } from "@/lib/chat-transport";
+import { ChatsQueries, useChatDetail } from "@/queries/chats.queries";
+import { LinearGradient } from "expo-linear-gradient";
 
 type ChatThreadProps = {
   conversationId: string;
@@ -38,10 +38,8 @@ type ChatThreadProps = {
 export function ChatThread({ conversationId }: ChatThreadProps) {
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
-
   const { data, isLoading, isError, error } = useChatDetail(conversationId);
-
-  const [draft, setDraft] = useState('');
+  const [draft, setDraft] = useState("");
   const listRef = useRef<FlatList<UIMessage>>(null);
   const seededRef = useRef<string | null>(null);
 
@@ -61,24 +59,23 @@ export function ChatThread({ conversationId }: ChatThreadProps) {
       });
     },
     onError: (err) => {
-      const message = getErrorMessage(err, 'Couldn’t send that message.');
+      const message = getErrorMessage(err, "Couldn’t send that message.");
       const isCredits =
-        /credit/i.test(message) ||
-        (isApiError(err) && err.isPaymentRequired);
-      Alert.alert(isCredits ? 'Out of credits' : 'Send failed', message);
+        /credit/i.test(message) || (isApiError(err) && err.isPaymentRequired);
+      Alert.alert(isCredits ? "Out of credits" : "Send failed", message);
     },
   });
 
   useEffect(() => {
     if (!data) return;
     if (seededRef.current === conversationId) return;
-    if (status !== 'ready') return;
+    if (status !== "ready") return;
 
     seededRef.current = conversationId;
     setMessages(toUIMessages(data.messages) as never);
   }, [conversationId, data, setMessages, status]);
 
-  const sending = status === 'submitted' || status === 'streaming';
+  const sending = status === "submitted" || status === "streaming";
 
   const scrollToEnd = useCallback(() => {
     requestAnimationFrame(() => {
@@ -94,14 +91,14 @@ export function ChatThread({ conversationId }: ChatThreadProps) {
     const content = draft.trim();
     if (!content || sending) return;
 
-    setDraft('');
+    setDraft("");
     await sendMessage({ text: content });
   }, [draft, sendMessage, sending]);
 
   const keyExtractor = useCallback((item: UIMessage) => item.id, []);
 
   const renderItem = useCallback(({ item }: { item: UIMessage }) => {
-    if (item.role !== 'user' && item.role !== 'assistant') return null;
+    if (item.role !== "user" && item.role !== "assistant") return null;
     return (
       <MessageBubble
         role={item.role}
@@ -125,23 +122,21 @@ export function ChatThread({ conversationId }: ChatThreadProps) {
     );
   }, [isLoading]);
 
-  // Composer sits above the floating Android tab bar; on iOS the native tab
-  // bar already reserves its own space, so no extra clearance is needed.
   const composerBarSpacing = {
-    paddingBottom:
-      Platform.OS === 'android' ? Spacing.two : Math.max(insets.bottom, Spacing.two),
+    paddingBottom: Spacing.two,
   };
 
-  // The tab-bar clearance is lifted via transform (sticky offset), not a
-  // static margin, so it collapses when the keyboard opens instead of
-  // leaving a gap between the composer and the keyboard.
   const stickyOffset =
-    Platform.OS === 'android'
+    Platform.OS === "android"
       ? {
-          closed: -(insets.bottom + ANDROID_TAB_BAR_HEIGHT + ANDROID_TAB_BAR_MARGIN_BOTTOM),
+          closed: -(
+            insets.bottom +
+            ANDROID_TAB_BAR_HEIGHT +
+            ANDROID_TAB_BAR_MARGIN_BOTTOM
+          ),
           opened: 0,
         }
-      : { closed: 0, opened: 0 };
+      : { closed: -insets.bottom, opened: 0 };
 
   const composerContent = (
     <View style={styles.composerInner}>
@@ -158,10 +153,7 @@ export function ChatThread({ conversationId }: ChatThreadProps) {
   );
 
   return (
-    <KeyboardAvoidingView
-      style={styles.flex}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={0}>
+    <View style={styles.flex}>
       {isLoading && messages.length === 0 ? (
         <View style={styles.centered}>
           <ActivityIndicator color={Brand.accent} />
@@ -174,7 +166,7 @@ export function ChatThread({ conversationId }: ChatThreadProps) {
           <ThemedText themeColor="textSecondary" style={styles.errorBody}>
             {isApiError(error)
               ? error.message
-              : getErrorMessage(error, 'Try again in a moment.')}
+              : getErrorMessage(error, "Try again in a moment.")}
           </ThemedText>
         </View>
       ) : (
@@ -186,6 +178,7 @@ export function ChatThread({ conversationId }: ChatThreadProps) {
           contentContainerStyle={[
             styles.list,
             messages.length === 0 && styles.listEmpty,
+            { paddingBottom: Platform.OS === "android" ? Spacing.two : 400 },
           ]}
           ListEmptyComponent={listEmpty}
           showsVerticalScrollIndicator={false}
@@ -199,7 +192,7 @@ export function ChatThread({ conversationId }: ChatThreadProps) {
           {composerContent}
         </View>
       </KeyboardStickyView>
-    </KeyboardAvoidingView>
+    </View>
   );
 }
 
@@ -207,54 +200,55 @@ const styles = StyleSheet.create({
   flex: {
     flex: 1,
   },
+  gradientBackground: {},
   list: {
     paddingTop: Spacing.three,
     paddingBottom: Spacing.three,
   },
   listEmpty: {
     flexGrow: 1,
-    justifyContent: 'center',
+    justifyContent: "center",
   },
   empty: {
-    alignItems: 'center',
+    alignItems: "center",
     gap: Spacing.two,
     paddingHorizontal: Spacing.five,
   },
   emptyTitle: {
     fontSize: 20,
     lineHeight: 26,
-    textAlign: 'center',
+    textAlign: "center",
   },
   emptyBody: {
     fontSize: 15,
     lineHeight: 22,
-    textAlign: 'center',
+    textAlign: "center",
   },
   composerBar: {
-    overflow: 'hidden',
+    overflow: "hidden",
     paddingTop: Spacing.two,
   },
   composerInner: {
-    alignSelf: 'center',
+    alignSelf: "center",
     maxWidth: MaxContentWidth,
     paddingHorizontal: Spacing.three,
-    width: '100%',
+    width: "100%",
   },
   centered: {
-    alignItems: 'center',
+    alignItems: "center",
     flex: 1,
     gap: Spacing.two,
-    justifyContent: 'center',
+    justifyContent: "center",
     paddingHorizontal: Spacing.four,
   },
   errorTitle: {
     fontSize: 18,
-    fontWeight: '700',
-    textAlign: 'center',
+    fontWeight: "700",
+    textAlign: "center",
   },
   errorBody: {
     fontSize: 14,
     lineHeight: 20,
-    textAlign: 'center',
+    textAlign: "center",
   },
 });

@@ -2,7 +2,6 @@ import '@/global.css';
 
 import { Platform } from 'react-native';
 
-/** Default palette — auth and any screen outside `(app)`. */
 export const Colors = {
   light: {
     text: '#000000',
@@ -24,16 +23,12 @@ export const Colors = {
   },
 } as const;
 
-/**
- * Authenticated app shell only (`(app)` layout). Auth screens keep `Colors`.
- * Warm page background + white surfaces (cards, app bar).
- */
+
 export const AppColors = {
   light: {
     ...Colors.light,
     background: '#FAFAF8',
     surface: '#FFFFFF',
-    // Elevated chrome (app bar, cards) sits on the warm page bg.
     backgroundElement: '#FFFFFF',
   },
   dark: {
