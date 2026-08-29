@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 
 const NAV_LINKS = [
@@ -10,10 +11,8 @@ export function SiteHeader() {
   return (
     <header className="sticky top-0 z-50 border-b border-border bg-background/80 backdrop-blur-md">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-        <Link href="/" className="flex items-center gap-2">
-          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-accent text-sm font-bold text-white">
-            C
-          </span>
+        <Link href="/" className="flex items-center gap-2.5">
+          <Image src="/logo.png" alt="" width={32} height={32} className="rounded-[9px]" />
           <span className="text-lg font-bold tracking-tight">Calory</span>
         </Link>
         <nav className="hidden items-center gap-8 text-sm font-medium text-text-secondary md:flex">
