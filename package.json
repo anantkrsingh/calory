@@ -21,6 +21,7 @@
     "dev:api": "turbo run dev --filter=@fitness/api",
     "dev:worker": "turbo run dev --filter=@fitness/worker",
     "dev:admin": "turbo run dev --filter=@fitness/admin",
+    "dev:landing": "turbo run dev --filter=@fitness/landing",
     "dev:mobile": "turbo run start --filter=@fitness/mobile",
     "dev:all": "turbo run dev",
     "lint": "turbo run lint",

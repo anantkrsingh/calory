@@ -20,6 +20,10 @@ import Animated, {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { TabBarButton } from '@/components/android-tabbar/TabBarButton';
+import {
+  ANDROID_TAB_BAR_HEIGHT,
+  ANDROID_TAB_BAR_MARGIN_BOTTOM,
+} from '@/components/android-tabbar/constants';
 import { Brand } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useTheme } from '@/hooks/use-theme';
@@ -34,7 +38,7 @@ type AndroidTabbarProps = BottomTabBarProps & {
 
 const DeviceWidth = Dimensions.get('window').width;
 
-const TAB_BAR_HEIGHT = 70;
+const TAB_BAR_HEIGHT = ANDROID_TAB_BAR_HEIGHT;
 const HORIZONTAL_PADDING = 16;
 const VERTICAL_PADDING = 8;
 const PILL_TOP = 5;
@@ -285,7 +289,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderRadius: 40,
     marginHorizontal: 16,
-    marginBottom: 8,
+    marginBottom: ANDROID_TAB_BAR_MARGIN_BOTTOM,
     boxShadow: '0 -2px 8px rgba(0, 0, 0, 0.1)',
     position: 'relative',
     overflow: 'hidden',

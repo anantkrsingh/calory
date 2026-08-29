@@ -3,6 +3,7 @@ import { z } from 'zod';
 import {
   activityLevelSchema,
   chatMessageRoleSchema,
+  dayOfWeekSchema,
   equipmentSchema,
   exerciseCategorySchema,
   goalStatusSchema,
@@ -10,12 +11,14 @@ import {
   measurementSiteSchema,
   muscleGroupSchema,
   promptCategorySchema,
+  routineDayStatusSchema,
   setTypeSchema,
   sexSchema,
   unitSystemSchema,
   userRoleSchema,
   workoutStatusSchema,
 } from './enums';
+import { exerciseInstructionStepSchema } from './exercise';
 import { isoDateSchema, isoDateTimeSchema, objectIdSchema } from './primitives';
 
 const entityFields = {
@@ -95,10 +98,22 @@ export const exerciseSchema = z.object({
   secondaryMuscles: z.array(muscleGroupSchema),
   equipment: equipmentSchema,
   instructions: z.string().optional(),
+  instructionSteps: z.array(exerciseInstructionStepSchema),
   thumbnail: z.string().optional(),
   images: z.array(z.string()),
   createdBy: objectIdSchema.nullable(),
   isCustom: z.boolean(),
+  isFavorite: z.boolean(),
+});
+
+export const exerciseMuscleGroupSchema = z.object({
+  muscle: muscleGroupSchema,
+  exercises: z.array(exerciseSchema),
+});
+
+export const exerciseCatalogueSchema = z.object({
+  favorites: z.array(exerciseSchema),
+  groups: z.array(exerciseMuscleGroupSchema),
 });
 
 export const exercisePersonalRecordSchema = z.object({
@@ -223,6 +238,19 @@ export const bodyMeasurementSchema = z.object({
   notes: z.string().optional(),
 });
 
+export const dailyStepsSchema = z.object({
+  ...entityFields,
+  userId: objectIdSchema,
+  date: isoDateSchema,
+  steps: z.number().int(),
+});
+
+export const stepsSummarySchema = z.object({
+  date: isoDateSchema,
+  steps: z.number().int(),
+  goal: z.number().int(),
+});
+
 export const measurementTrendSchema = z.object({
   metric: z.union([
     z.literal('weightKg'),
@@ -295,32 +323,63 @@ export const dailyQuoteSchema = z.object({
   quoteOfTheDay: z.string(),
 });
 
+export const routinePlanExerciseSchema = z.object({
+  exerciseId: objectIdSchema,
+  exerciseName: z.string(),
+  sets: z.number().int(),
+  reps: z.number().int().optional(),
+  durationSec: z.number().int().optional(),
+  restSeconds: z.number().int().optional(),
+  estimatedCalories: z.number().int(),
+});
+
+export const routinePlanDaySchema = z.object({
+  dayOfWeek: dayOfWeekSchema,
+  status: routineDayStatusSchema,
+  targetCaloriesBurned: z.number().int(),
+  caloriesFromRunning: z.number().int(),
+  caloriesFromExercises: z.number().int(),
+  stepsTarget: z.number().int(),
+  runningDistanceKm: z.number().optional(),
+  runningDurationMin: z.number().int().optional(),
+  focus: z.string(),
+  exercises: z.array(routinePlanExerciseSchema),
+});
+
 export const workoutRoutineSchema = z.object({
   ...entityFields,
   userId: objectIdSchema,
   status: z.enum(['generating', 'active', 'failed', 'superseded']),
   dailyCalorieTarget: z.number().int().optional(),
   summary: z.string().optional(),
-  days: z.array(
-    z.object({
-      dayOfWeek: z.number().int(),
-      isRestDay: z.boolean(),
-      targetCaloriesBurned: z.number().int(),
-      focus: z.string(),
-      exercises: z.array(
-        z.object({
-          exerciseId: objectIdSchema,
-          exerciseName: z.string(),
-          sets: z.number().int(),
-          reps: z.number().int().optional(),
-          durationSec: z.number().int().optional(),
-          restSeconds: z.number().int().optional(),
-        }),
-      ),
-    }),
-  ),
+  days: z.array(routinePlanDaySchema),
   error: z.string().optional(),
   generatedAt: isoDateTimeSchema.optional(),
+});
+
+export const todayRoutineExerciseSchema = routinePlanExerciseSchema.extend({
+  completedSets: z.number().int(),
+  isCompleted: z.boolean(),
+  thumbnail: z.string().optional(),
+});
+
+export const todayRoutineSchema = z.object({
+  routineStatus: z
+    .enum(['generating', 'active', 'failed', 'superseded'])
+    .nullable(),
+  date: isoDateSchema,
+  dailyCalorieTarget: z.number().int().optional(),
+  day: routinePlanDaySchema.optional(),
+  exercises: z.array(todayRoutineExerciseSchema),
+  stepsToday: z.number().int(),
+  /** Earned from completed sets logged against today's plan. */
+  caloriesBurned: z.number(),
+});
+
+export const dailyCaloriesBurnedSchema = z.object({
+  date: isoDateSchema,
+  caloriesBurned: z.number(),
+  targetCaloriesBurned: z.number(),
 });
 
 export const healthResponseSchema = z.object({

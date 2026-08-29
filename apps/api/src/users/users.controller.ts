@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -7,9 +8,20 @@ import {
   HttpStatus,
   Param,
   Patch,
+  Post,
   Query,
+  UploadedFile,
+  UseInterceptors,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { FileInterceptor } from '@nestjs/platform-express';
+import {
+  ApiBearerAuth,
+  ApiBody,
+  ApiConsumes,
+  ApiOperation,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 import type { AuthenticatedUser, Paginated, User } from '@fitness/types';
 import {
   adminUpdateUserSchema,
@@ -26,6 +38,10 @@ import { Roles } from '../auth/roles.guard';
 import { CurrentUser } from '../common/decorators';
 import { ApiZodBody, ApiZodQuery, ApiZodResponse } from '../common/swagger';
 import { zodPipe } from '../common/zod-validation.pipe';
+import {
+  ALLOWED_MIME_TYPES,
+  MAX_UPLOAD_BYTES,
+} from '../uploads/uploads.service';
 import { UsersService } from './users.service';
 
 @ApiTags('users')
@@ -61,6 +77,46 @@ export class UsersController {
     @Body(zodPipe(updateUserSchema)) body: UpdateUserInput,
   ): Promise<User> {
     return this.users.update(user.id, body);
+  }
+
+  @Post('me/avatar')
+  @ApiOperation({
+    summary:
+      'Upload and set your profile avatar. JPEG/PNG/WebP/GIF, max 5MB.',
+  })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['file'],
+      properties: {
+        file: { type: 'string', format: 'binary' },
+      },
+    },
+  })
+  @ApiZodResponse(userSchema, { description: 'Updated profile', name: 'User' })
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: { fileSize: MAX_UPLOAD_BYTES },
+      fileFilter: (_req, file, callback) => {
+        if (!ALLOWED_MIME_TYPES.has(file.mimetype)) {
+          callback(
+            new BadRequestException(
+              'Unsupported image type. Use JPEG, PNG, WebP, or GIF.',
+            ),
+            false,
+          );
+          return;
+        }
+        callback(null, true);
+      },
+    }),
+  )
+  uploadAvatar(
+    @CurrentUser() user: AuthenticatedUser,
+    @UploadedFile() file: Express.Multer.File,
+  ): Promise<User> {
+    return this.users.updateAvatar(user.id, file);
   }
 
   @Delete('me')

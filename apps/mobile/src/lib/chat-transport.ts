@@ -66,10 +66,6 @@ function lastUserText(messages: UIMessage[]): string {
   return '';
 }
 
-/**
- * Transport for our Nest `POST /chats/:id/messages` endpoint, which streams
- * plain text via AI SDK `pipeTextStreamToResponse` and expects `{ content }`.
- */
 export function createCoachChatTransport(conversationId: string) {
   return new TextStreamChatTransport({
     api: `${API_BASE_URL}/chats/${conversationId}/messages`,

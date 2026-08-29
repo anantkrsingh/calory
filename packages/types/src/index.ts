@@ -6,6 +6,7 @@ export * from './exercise';
 export * from './workout';
 export * from './routine';
 export * from './measurement';
+export * from './steps';
 export * from './goal';
 export * from './stats';
 export * from './otp';

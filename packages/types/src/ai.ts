@@ -1,7 +1,9 @@
+import type { DayOfWeek } from './enums';
 import type { Entity, Id, IsoDate, IsoDateTime } from './common';
 
 export const QUOTE_QUEUE_NAME = 'quote';
 export const ROUTINE_QUEUE_NAME = 'routine';
+export const ROUTINE_RECONCILE_QUEUE_NAME = 'routine-reconcile';
 
 export const WorkoutRoutineStatus = {
   Generating: 'generating',
@@ -12,8 +14,15 @@ export const WorkoutRoutineStatus = {
 export type WorkoutRoutineStatus =
   (typeof WorkoutRoutineStatus)[keyof typeof WorkoutRoutineStatus];
 
+
+export const RoutineDayStatus = {
+  Active: 'active',
+  Rest: 'rest',
+} as const;
+export type RoutineDayStatus =
+  (typeof RoutineDayStatus)[keyof typeof RoutineDayStatus];
+
 export interface QuoteJobData {
-  /** ISO calendar date the quote belongs to. */
   date: IsoDate;
 }
 
@@ -32,6 +41,12 @@ export interface RoutineJobResult {
   status: WorkoutRoutineStatus;
 }
 
+export interface RoutineReconcileJobResult {
+  queued: number;
+  neverGenerated: number;
+  retriedAfterFailure: number;
+}
+
 export interface DailyQuote extends Entity {
   date: IsoDate;
   quoteOfTheDay: string;
@@ -44,13 +59,18 @@ export interface RoutinePlanExercise {
   reps?: number;
   durationSec?: number;
   restSeconds?: number;
+  estimatedCalories: number;
 }
 
-/** 1 = Monday .. 7 = Sunday. */
 export interface RoutinePlanDay {
-  dayOfWeek: number;
-  isRestDay: boolean;
+  dayOfWeek: DayOfWeek;
+  status: RoutineDayStatus;
   targetCaloriesBurned: number;
+  caloriesFromRunning: number;
+  caloriesFromExercises: number;
+  stepsTarget: number;
+  runningDistanceKm?: number;
+  runningDurationMin?: number;
   focus: string;
   exercises: RoutinePlanExercise[];
 }
@@ -63,4 +83,32 @@ export interface WorkoutRoutine extends Entity {
   days: RoutinePlanDay[];
   error?: string;
   generatedAt?: IsoDateTime;
+}
+
+export interface TodayRoutineExercise extends RoutinePlanExercise {
+  completedSets: number;
+  isCompleted: boolean;
+  thumbnail?: string;
+}
+
+/** Calories credited from completed sets on one calendar day, alongside that
+ * day's plan target — the basis for the home screen's weekly calorie strip
+ * and the weekly-progress history sheet. */
+export interface DailyCaloriesBurned {
+  date: IsoDate;
+  caloriesBurned: number;
+  /** From that weekday's plan; 0 if there's no plan for it (e.g. no active routine). */
+  targetCaloriesBurned: number;
+}
+
+export interface TodayRoutine {
+  routineStatus: WorkoutRoutineStatus | null;
+  date: IsoDate;
+  dailyCalorieTarget?: number;
+  day?: RoutinePlanDay;
+
+  exercises: TodayRoutineExercise[];
+  stepsToday: number;
+
+  caloriesBurned: number;
 }

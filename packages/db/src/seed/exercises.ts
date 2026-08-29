@@ -11,7 +11,20 @@ export interface CatalogueExercise {
   secondaryMuscles: MuscleGroup[];
   equipment: Equipment;
   instructions?: string;
+  /** Falls back to `PLACEHOLDER_THUMBNAIL` in run.ts when omitted. */
+  thumbnail?: string;
+  /** Falls back to `PLACEHOLDER_GALLERY` in run.ts when omitted. */
+  images?: string[];
 }
+
+/** Stand-in art until every catalogue exercise has real photography. */
+export const PLACEHOLDER_THUMBNAIL =
+  'https://res.cloudinary.com/duhuphymw/image/upload/v1786453646/fitness-tracker/exercises/pyedf2x9cuxqkzwasnpr.webp';
+
+export const PLACEHOLDER_GALLERY = [
+  'https://res.cloudinary.com/duhuphymw/image/upload/v1786453612/fitness-tracker/exercises/clvzbgvudccobtxmoyom.webp',
+  'https://res.cloudinary.com/duhuphymw/image/upload/v1786453618/fitness-tracker/exercises/cqmmvf7cbhcdyewt7c3w.webp',
+];
 
 /** The built-in exercise catalogue — shared by every user, `createdById: null`. */
 export const EXERCISE_CATALOGUE: CatalogueExercise[] = [

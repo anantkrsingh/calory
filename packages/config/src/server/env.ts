@@ -58,6 +58,10 @@ export const envSchema = z.object({
   QUOTE_CRON: z.string().default('0 3 * * *'),
   QUOTE_TIMEZONE: z.string().default('UTC'),
 
+  // Backfills a daily plan for any user missing one (new deploys, prior
+  // registrations, or a routine stuck in `failed`).
+  ROUTINE_RECONCILE_CRON: z.string().default('*/30 * * * *'),
+
   DEFAULT_PAGE_SIZE: z.coerce
     .number()
     .int()

@@ -142,6 +142,23 @@ enum WorkoutRoutineStatus {
   superseded
 }
 
+enum DayOfWeek {
+  monday
+  tuesday
+  wednesday
+  thursday
+  friday
+  saturday
+  sunday
+}
+
+/// Generated once and kept for the routine's lifetime — `active` for a
+/// training day, `rest` for a planned recovery/off day.
+enum RoutineDayStatus {
+  active
+  rest
+}
+
 // ---------------------------------------------------------------------------
 // Composite types
 // ---------------------------------------------------------------------------
@@ -242,18 +259,24 @@ type RoutinePlanExercise {
   reps         Int?
   durationSec  Int?
   restSeconds  Int?
+  /// Optional: absent on routines generated before this field existed.
+  estimatedCalories Int?
 }
 
-/// One day of an AI-generated weekly routine. 1 = Monday .. 7 = Sunday.
 type RoutinePlanDay {
-  dayOfWeek            Int
-  isRestDay            Boolean
+  dayOfWeek            DayOfWeek
+  status               RoutineDayStatus @default(active)
   targetCaloriesBurned Int
+  /// Optional: absent on routines generated before these fields existed.
+  caloriesFromRunning  Int?
+  caloriesFromExercises Int?
+  stepsTarget          Int?
+  runningDistanceKm    Float?
+  runningDurationMin   Int?
   focus                String
   exercises            RoutinePlanExercise[]
 }
 
-/// Circumferences in centimetres.
 type BodyMeasurements {
   neck       Float?
   chest      Float?
@@ -267,9 +290,6 @@ type BodyMeasurements {
   rightCalf  Float?
 }
 
-// ---------------------------------------------------------------------------
-// Models
-// ---------------------------------------------------------------------------
 
 model User {
   id            String   @id @default(auto()) @map("_id") @db.ObjectId
@@ -283,7 +303,6 @@ model User {
 
   linkedAccounts LinkedAccount[]
 
-  /// Hash of the current refresh token; rotating it revokes the session.
   refreshTokenHash String?
   lastLoginAt      DateTime?
 
@@ -293,6 +312,10 @@ model User {
   planName         String?
   planExpiresAt    DateTime?
   plan             Plan?     @relation(fields: [planId], references: [id])
+
+  /// Exercise ids this user has favorited — shown pinned above the muscle-wise
+  /// browse on the Build screen.
+  favoriteExerciseIds String[] @db.ObjectId @default([])
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -304,6 +327,7 @@ model User {
   goals           Goal[]
   workoutRoutines WorkoutRoutine[]
   chatConversations ChatConversation[]
+  dailySteps      DailySteps[]
 
   @@map("users")
 }
@@ -327,6 +351,17 @@ model Plan {
   @@map("plans")
 }
 
+/// One step of an exercise's illustrated how-to, distinct from `Exercise.instructions`
+/// (a single free-text description). `image` is a Cloudinary URL — either a fresh
+/// upload or one reused from the exercise's own `images` gallery.
+type ExerciseInstructionStep {
+  /// Client-generated (UUID), same convention as WorkoutSet/WorkoutExercise.
+  id    String
+  order Int
+  text  String
+  image String?
+}
+
 model Exercise {
   id               String           @id @default(auto()) @map("_id") @db.ObjectId
   name             String
@@ -334,7 +369,10 @@ model Exercise {
   primaryMuscles   MuscleGroup[]
   secondaryMuscles MuscleGroup[]
   equipment        Equipment
+  /// Short free-text description shown under the name.
   instructions     String?
+  /// Ordered, optionally-illustrated step-by-step how-to.
+  instructionSteps ExerciseInstructionStep[]
   /// Main / list thumbnail image (Cloudinary URL).
   thumbnail        String?
   /// Additional gallery images (Cloudinary URLs).
@@ -425,6 +463,24 @@ model BodyMeasurement {
   @@map("body_measurements")
 }
 
+/// One day's step count, upserted by (userId, date) as the pedometer reading
+/// on-device climbs through the day.
+model DailySteps {
+  id     String @id @default(auto()) @map("_id") @db.ObjectId
+  userId String @db.ObjectId
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// ISO calendar date, YYYY-MM-DD, in the device's local timezone.
+  date  String
+  steps Int
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, date])
+  @@map("daily_steps")
+}
+
 model Goal {
   id     String @id @default(auto()) @map("_id") @db.ObjectId
   userId String @db.ObjectId
@@ -473,6 +529,7 @@ model WorkoutRoutine {
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   status              WorkoutRoutineStatus @default(generating)
+  /// Daily calorie intake target.
   dailyCalorieTarget  Int?
   summary             String?
   days                RoutinePlanDay[]

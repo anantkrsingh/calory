@@ -18,18 +18,11 @@ import { uploadedImageSchema } from '@fitness/validation';
 import { Roles } from '../auth/roles.guard';
 import { ApiZodResponse } from '../common/swagger';
 import {
+  ALLOWED_MIME_TYPES,
   MAX_UPLOAD_BYTES,
   UploadsService,
   type UploadedImageResult,
 } from './uploads.service';
-
-const ALLOWED_MIME_TYPES = new Set([
-  'image/jpeg',
-  'image/jpg',
-  'image/png',
-  'image/webp',
-  'image/gif',
-]);
 
 @ApiTags('uploads')
 @ApiBearerAuth('access-token')

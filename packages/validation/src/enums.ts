@@ -1,5 +1,6 @@
 import {
   ActivityLevel,
+  DayOfWeek,
   Equipment,
   ExerciseCategory,
   FitnessGoal,
@@ -9,6 +10,7 @@ import {
   MuscleGroup,
   ChatMessageRole,
   PromptCategory,
+  RoutineDayStatus,
   SetType,
   Sex,
   UnitSystem,
@@ -36,3 +38,5 @@ export const goalStatusSchema = z.enum(GoalStatus);
 export const promptCategorySchema = z.enum(PromptCategory);
 export const chatMessageRoleSchema = z.enum(ChatMessageRole);
 export const measurementSiteSchema = z.enum(MEASUREMENT_SITES);
+export const dayOfWeekSchema = z.enum(DayOfWeek);
+export const routineDayStatusSchema = z.enum(RoutineDayStatus);

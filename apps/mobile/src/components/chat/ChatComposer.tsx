@@ -80,7 +80,7 @@ const styles = StyleSheet.create({
   wrap: {
     alignItems: 'flex-end',
     borderCurve: 'continuous',
-    borderRadius: 24,
+    borderRadius: 28,
     borderWidth: StyleSheet.hairlineWidth || 1,
     flexDirection: 'row',
     gap: Spacing.two,

@@ -31,6 +31,8 @@ export const LIMITS = {
   notes: { max: 2000 },
   exerciseName: { min: 1, max: 120 },
   exerciseImages: { max: 10 },
+  exerciseInstructionSteps: { max: 20 },
+  exerciseInstructionStepText: { min: 1, max: 500 },
   setsPerExercise: { max: 50 },
   exercisesPerWorkout: { max: 50 },
   reps: { min: 0, max: 1000 },
@@ -45,7 +47,12 @@ export const LIMITS = {
   chatMessage: { min: 1, max: 4000 },
   /** How many prior messages to send to the model as context. */
   chatContextMessages: 40,
+  /** Generous ceiling — a marathon is ~50-60k steps. */
+  steps: { min: 0, max: 200_000 },
 } as const;
+
+/** Shown on the home widget until a per-user goal exists to override it. */
+export const DEFAULT_DAILY_STEPS_GOAL = 10_000;
 
 export const UNIT_CONVERSION = {
   kgPerLb: 0.45359237,

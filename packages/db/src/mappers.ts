@@ -4,6 +4,7 @@ import type {
   ChatConversation,
   ChatMessage,
   DailyQuote,
+  DailySteps,
   Exercise,
   Goal,
   Plan,
@@ -20,6 +21,7 @@ import type {
   ChatConversationRow,
   ChatMessageRow,
   DailyQuoteRow,
+  DailyStepsRow,
   ExerciseRow,
   GoalRow,
   PlanRow,
@@ -102,7 +104,9 @@ export function toPlan(row: PlanRow): Plan {
   };
 }
 
-export function toExercise(row: ExerciseRow): Exercise {
+/** `isFavorite` is contextual to the requesting user, so it's never on the
+ * row itself — pass whether the caller has this exercise in their favorites. */
+export function toExercise(row: ExerciseRow, isFavorite = false): Exercise {
   return {
     id: row.id,
     name: row.name,
@@ -111,10 +115,19 @@ export function toExercise(row: ExerciseRow): Exercise {
     secondaryMuscles: row.secondaryMuscles,
     equipment: row.equipment,
     instructions: orUndefined(row.instructions),
+    instructionSteps: row.instructionSteps
+      .map((step) => ({
+        id: step.id,
+        order: step.order,
+        text: step.text,
+        image: orUndefined(step.image),
+      }))
+      .sort((a, b) => a.order - b.order),
     thumbnail: orUndefined(row.thumbnail),
     images: row.images ?? [],
     createdBy: row.createdById,
     isCustom: row.isCustom,
+    isFavorite,
     createdAt: iso(row.createdAt),
     updatedAt: iso(row.updatedAt),
   };
@@ -237,6 +250,17 @@ export function toBodyMeasurement(row: BodyMeasurementRow): BodyMeasurement {
   };
 }
 
+export function toDailySteps(row: DailyStepsRow): DailySteps {
+  return {
+    id: row.id,
+    userId: row.userId,
+    date: row.date,
+    steps: row.steps,
+    createdAt: iso(row.createdAt),
+    updatedAt: iso(row.updatedAt),
+  };
+}
+
 export function toAppSettings(row: AppSettingsRow): AppSettings {
   return {
     id: row.id,
@@ -274,8 +298,14 @@ export function toWorkoutRoutine(row: WorkoutRoutineRow): WorkoutRoutine {
     summary: orUndefined(row.summary),
     days: row.days.map((day) => ({
       dayOfWeek: day.dayOfWeek,
-      isRestDay: day.isRestDay,
+      status: day.status,
       targetCaloriesBurned: day.targetCaloriesBurned,
+      // Absent on routines generated before these fields existed.
+      caloriesFromRunning: day.caloriesFromRunning ?? 0,
+      caloriesFromExercises: day.caloriesFromExercises ?? 0,
+      stepsTarget: day.stepsTarget ?? 0,
+      runningDistanceKm: orUndefined(day.runningDistanceKm),
+      runningDurationMin: orUndefined(day.runningDurationMin),
       focus: day.focus,
       exercises: day.exercises.map((exercise) => ({
         exerciseId: exercise.exerciseId,
@@ -284,6 +314,7 @@ export function toWorkoutRoutine(row: WorkoutRoutineRow): WorkoutRoutine {
         reps: orUndefined(exercise.reps),
         durationSec: orUndefined(exercise.durationSec),
         restSeconds: orUndefined(exercise.restSeconds),
+        estimatedCalories: exercise.estimatedCalories ?? 0,
       })),
     })),
     error: orUndefined(row.error),

@@ -8,6 +8,7 @@ import {
   Param,
   Patch,
   Post,
+  Put,
   Query,
 } from '@nestjs/common';
 import {
@@ -19,17 +20,21 @@ import {
 import type {
   AuthenticatedUser,
   Exercise,
+  ExerciseCatalogue,
   ExercisePersonalRecord,
   Paginated,
 } from '@fitness/types';
 import {
   exerciseSchema,
+  exerciseCatalogueSchema,
   exercisePersonalRecordSchema,
   createExerciseSchema,
+  exerciseByMuscleQuerySchema,
   exerciseQuerySchema,
   objectIdSchema,
   updateExerciseSchema,
   type CreateExerciseInput,
+  type ExerciseByMuscleQueryInput,
   type ExerciseQueryInput,
   type UpdateExerciseInput,
 } from '@fitness/validation';
@@ -56,6 +61,24 @@ export class ExercisesController {
     return this.exercises.list(user.id, query);
   }
 
+  @Get('by-muscle')
+  @ApiOperation({
+    summary:
+      'List exercises grouped by primary muscle, favorites pinned on top — powers the Build screen',
+  })
+  @ApiZodQuery(exerciseByMuscleQuerySchema)
+  @ApiZodResponse(exerciseCatalogueSchema, {
+    description: 'Favorites plus exercises grouped by muscle',
+    name: 'ExerciseCatalogue',
+  })
+  byMuscle(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query(zodPipe(exerciseByMuscleQuerySchema))
+    query: ExerciseByMuscleQueryInput,
+  ): Promise<ExerciseCatalogue> {
+    return this.exercises.byMuscle(user.id, query);
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get one exercise' })
   @ApiResponse({ status: 404, description: 'Not found' })
@@ -76,6 +99,28 @@ export class ExercisesController {
     @Param('id', zodPipe(objectIdSchema)) id: string,
   ): Promise<ExercisePersonalRecord> {
     return this.exercises.personalRecords(user.id, id);
+  }
+
+  @Put(':id/favorite')
+  @ApiOperation({ summary: 'Favorite an exercise' })
+  @ApiResponse({ status: 404, description: 'Not found' })
+  @ApiZodResponse(exerciseSchema, { description: 'Updated exercise', name: 'Exercise' })
+  addFavorite(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', zodPipe(objectIdSchema)) id: string,
+  ): Promise<Exercise> {
+    return this.exercises.addFavorite(user.id, id);
+  }
+
+  @Delete(':id/favorite')
+  @ApiOperation({ summary: 'Unfavorite an exercise' })
+  @ApiResponse({ status: 404, description: 'Not found' })
+  @ApiZodResponse(exerciseSchema, { description: 'Updated exercise', name: 'Exercise' })
+  removeFavorite(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', zodPipe(objectIdSchema)) id: string,
+  ): Promise<Exercise> {
+    return this.exercises.removeFavorite(user.id, id);
   }
 
   @Post()

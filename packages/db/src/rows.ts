@@ -3,6 +3,7 @@ import type {
   BodyMeasurement,
   ChatConversation,
   ChatMessage,
+  DailySteps,
   Exercise,
   Goal,
   Plan,
@@ -25,6 +26,7 @@ export type ExerciseRow = Exercise;
 export type WorkoutRow = Workout;
 export type RoutineRow = Routine;
 export type BodyMeasurementRow = BodyMeasurement;
+export type DailyStepsRow = DailySteps;
 export type GoalRow = Goal;
 export type AppSettingsRow = AppSettings;
 export type DailyQuoteRow = DailyQuote;

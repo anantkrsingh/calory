@@ -6,7 +6,18 @@ import {
   ExerciseCategory,
   MuscleGroup,
 } from "@fitness/types";
-import { Edit, ImagePlus, Loader2, Plus, Trash2, X } from "lucide-react";
+import type { ExerciseInstructionStepInput } from "@fitness/validation";
+import {
+  ChevronDown,
+  ChevronUp,
+  Edit,
+  ImagePlus,
+  Images,
+  Loader2,
+  Plus,
+  Trash2,
+  X,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useRef, useState, useTransition } from "react";
 
@@ -19,7 +30,16 @@ import {
 } from "@/lib/exercise-actions";
 
 const MAX_GALLERY_IMAGES = 10;
+const MAX_STEPS = 20;
 const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
+
+/** A step being edited in the form — same shape the API expects, generated
+ * client-side so a brand-new step has a stable id before it's ever saved. */
+type StepDraft = ExerciseInstructionStepInput;
+
+function newStepDraft(order: number): StepDraft {
+  return { id: crypto.randomUUID(), order, text: "", image: undefined };
+}
 
 function labelize(value: string): string {
   return value
@@ -98,12 +118,16 @@ export function ExerciseManagementClient({
   const [instructions, setInstructions] = useState("");
   const [thumbnail, setThumbnail] = useState<string | undefined>(undefined);
   const [images, setImages] = useState<string[]>([]);
+  const [steps, setSteps] = useState<StepDraft[]>([]);
   const [uploadingThumbnail, setUploadingThumbnail] = useState(false);
   const [uploadingGallery, setUploadingGallery] = useState(false);
+  const [uploadingStepId, setUploadingStepId] = useState<string | null>(null);
+  const [galleryPickerStepId, setGalleryPickerStepId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const thumbnailInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
+  const stepInputRef = useRef<HTMLInputElement>(null);
 
   const openCreateModal = () => {
     setEditingExercise(null);
@@ -115,6 +139,7 @@ export function ExerciseManagementClient({
     setInstructions("");
     setThumbnail(undefined);
     setImages([]);
+    setSteps([]);
     setError(null);
     setIsModalOpen(true);
   };
@@ -129,6 +154,11 @@ export function ExerciseManagementClient({
     setInstructions(exercise.instructions ?? "");
     setThumbnail(exercise.thumbnail);
     setImages([...(exercise.images ?? [])]);
+    setSteps(
+      [...(exercise.instructionSteps ?? [])]
+        .sort((a, b) => a.order - b.order)
+        .map((step) => ({ ...step })),
+    );
     setError(null);
     setIsModalOpen(true);
   };
@@ -189,6 +219,64 @@ export function ExerciseManagementClient({
     }
   };
 
+  const addStep = () => {
+    if (steps.length >= MAX_STEPS) {
+      setError(`You can add at most ${MAX_STEPS} steps`);
+      return;
+    }
+    setSteps((prev) => [...prev, newStepDraft(prev.length)]);
+  };
+
+  const removeStep = (id: string) => {
+    setSteps((prev) => prev.filter((step) => step.id !== id));
+    if (galleryPickerStepId === id) setGalleryPickerStepId(null);
+  };
+
+  const updateStepText = (id: string, text: string) => {
+    setSteps((prev) => prev.map((step) => (step.id === id ? { ...step, text } : step)));
+  };
+
+  const setStepImage = (id: string, image: string | undefined) => {
+    setSteps((prev) => prev.map((step) => (step.id === id ? { ...step, image } : step)));
+  };
+
+  const moveStep = (id: string, direction: -1 | 1) => {
+    setSteps((prev) => {
+      const index = prev.findIndex((step) => step.id === id);
+      const target = index + direction;
+      if (index === -1 || target < 0 || target >= prev.length) return prev;
+      const next = [...prev];
+      [next[index], next[target]] = [next[target], next[index]];
+      return next;
+    });
+  };
+
+  const openStepUpload = (id: string) => {
+    setGalleryPickerStepId(null);
+    setUploadingStepId(id);
+    stepInputRef.current?.click();
+  };
+
+  const handleStepImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    const stepId = uploadingStepId;
+    if (!file || !stepId) {
+      setUploadingStepId(null);
+      return;
+    }
+
+    setError(null);
+    try {
+      const url = await uploadFile(file);
+      setStepImage(stepId, url);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to upload step image");
+    } finally {
+      setUploadingStepId(null);
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -199,6 +287,10 @@ export function ExerciseManagementClient({
     }
     if (primaryMuscles.length === 0) {
       setError("Pick at least one primary muscle");
+      return;
+    }
+    if (steps.some((step) => !step.text.trim())) {
+      setError("Every step needs text, or remove the empty one");
       return;
     }
 
@@ -215,6 +307,11 @@ export function ExerciseManagementClient({
             (typeof MuscleGroup)[keyof typeof MuscleGroup]
           >,
           instructions: instructions.trim() || undefined,
+          instructionSteps: steps.map((step, index) => ({
+            ...step,
+            order: index,
+            text: step.text.trim(),
+          })),
           thumbnail: thumbnail ?? null,
           images,
         };
@@ -504,7 +601,7 @@ export function ExerciseManagementClient({
 
               <div>
                 <label className="mb-1 block text-xs font-medium text-neutral-700">
-                  Instructions
+                  Description
                 </label>
                 <textarea
                   value={instructions}
@@ -633,6 +730,155 @@ export function ExerciseManagementClient({
                     </button>
                   ) : null}
                 </div>
+              </div>
+
+              <div>
+                <div className="mb-2 flex items-center justify-between">
+                  <label className="block text-xs font-medium text-neutral-700">
+                    Steps
+                  </label>
+                  <span className="text-[11px] text-neutral-400">
+                    {steps.length}/{MAX_STEPS}
+                  </span>
+                </div>
+                <p className="mb-2 text-[11px] text-neutral-400">
+                  Step-by-step how-to — separate from the description above. Each
+                  step can carry an image: upload a new one, or reuse one from the
+                  gallery.
+                </p>
+                <input
+                  ref={stepInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/gif"
+                  className="hidden"
+                  onChange={handleStepImageChange}
+                />
+                <div className="space-y-3">
+                  {steps.map((step, index) => (
+                    <div key={step.id} className="rounded-xl border border-neutral-200 p-3">
+                      <div className="mb-2 flex items-center justify-between">
+                        <span className="flex h-6 w-6 items-center justify-center rounded-full bg-neutral-900 text-xs font-semibold text-white">
+                          {index + 1}
+                        </span>
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => moveStep(step.id, -1)}
+                            disabled={index === 0}
+                            className="cursor-pointer rounded-lg p-1 text-neutral-500 hover:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-30"
+                            aria-label="Move step up"
+                          >
+                            <ChevronUp size={14} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => moveStep(step.id, 1)}
+                            disabled={index === steps.length - 1}
+                            className="cursor-pointer rounded-lg p-1 text-neutral-500 hover:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-30"
+                            aria-label="Move step down"
+                          >
+                            <ChevronDown size={14} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => removeStep(step.id)}
+                            className="cursor-pointer rounded-lg p-1 text-red-500 hover:bg-red-50"
+                            aria-label="Remove step"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      </div>
+
+                      <textarea
+                        value={step.text}
+                        onChange={(e) => updateStepText(step.id, e.target.value)}
+                        rows={2}
+                        placeholder="What should the athlete do in this step?"
+                        className="mb-2 w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm text-neutral-900 outline-none focus:border-neutral-900"
+                      />
+
+                      {step.image ? (
+                        <div className="relative inline-block">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={step.image}
+                            alt=""
+                            className="h-20 w-28 rounded-lg border border-neutral-200 object-cover"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setStepImage(step.id, undefined)}
+                            className="cursor-pointer absolute -right-1.5 -top-1.5 rounded-full bg-neutral-900 p-1 text-white"
+                            aria-label="Remove step image"
+                          >
+                            <X size={12} />
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex flex-wrap items-center gap-2">
+                          <button
+                            type="button"
+                            disabled={uploadingStepId === step.id}
+                            onClick={() => openStepUpload(step.id)}
+                            className="cursor-pointer inline-flex items-center gap-1 rounded-lg border border-dashed border-neutral-300 px-2.5 py-1.5 text-xs font-medium text-neutral-600 hover:border-neutral-400 hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            {uploadingStepId === step.id ? (
+                              <Loader2 size={13} className="animate-spin" />
+                            ) : (
+                              <ImagePlus size={13} />
+                            )}
+                            Upload image
+                          </button>
+                          {images.length > 0 ? (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setGalleryPickerStepId(
+                                  galleryPickerStepId === step.id ? null : step.id,
+                                )
+                              }
+                              className="cursor-pointer inline-flex items-center gap-1 rounded-lg border border-neutral-200 px-2.5 py-1.5 text-xs font-medium text-neutral-600 hover:border-neutral-400 hover:bg-neutral-50"
+                            >
+                              <Images size={13} />
+                              Choose from gallery
+                            </button>
+                          ) : null}
+                        </div>
+                      )}
+
+                      {galleryPickerStepId === step.id ? (
+                        <div className="mt-2 flex flex-wrap gap-2 rounded-lg border border-neutral-200 bg-neutral-50 p-2">
+                          {images.map((url) => (
+                            <button
+                              key={url}
+                              type="button"
+                              onClick={() => {
+                                setStepImage(step.id, url);
+                                setGalleryPickerStepId(null);
+                              }}
+                              className="cursor-pointer overflow-hidden rounded-lg border-2 border-transparent hover:border-neutral-900"
+                            >
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img src={url} alt="" className="h-14 w-14 object-cover" />
+                            </button>
+                          ))}
+                        </div>
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+
+                {steps.length < MAX_STEPS ? (
+                  <button
+                    type="button"
+                    onClick={addStep}
+                    className="cursor-pointer mt-2 inline-flex items-center gap-1 rounded-lg border border-dashed border-neutral-300 px-3 py-1.5 text-xs font-medium text-neutral-600 hover:border-neutral-400 hover:bg-neutral-50"
+                  >
+                    <Plus size={14} />
+                    Add step
+                  </button>
+                ) : null}
               </div>
 
               <div className="mt-6 flex items-center justify-end gap-2 border-t border-neutral-100 pt-4">

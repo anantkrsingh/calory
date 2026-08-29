@@ -15,6 +15,8 @@ type ScreenAppBarProps = {
   onBack?: () => void;
   /** Hide the back control (e.g. root tab screens). */
   showBack?: boolean;
+  /** Replaces the back button when provided. */
+  left?: ReactNode;
   right?: ReactNode;
 };
 
@@ -23,6 +25,7 @@ export function ScreenAppBar({
   title,
   onBack,
   showBack = true,
+  left,
   right,
 }: ScreenAppBarProps) {
   const theme = useTheme();
@@ -41,6 +44,22 @@ export function ScreenAppBar({
     router.replace('/');
   };
 
+  const leading =
+    left !== undefined ? (
+      <View style={styles.sideSlot}>{left}</View>
+    ) : showBack ? (
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Back"
+        hitSlop={8}
+        onPress={handleBack}
+        style={styles.backButton}>
+        <ChevronLeft color={theme.text} size={24} />
+      </Pressable>
+    ) : (
+      <View style={styles.sideSlot} />
+    );
+
   return (
     <View
       style={[
@@ -52,18 +71,7 @@ export function ScreenAppBar({
         },
       ]}>
       <View style={styles.row}>
-        {showBack ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Back"
-            hitSlop={8}
-            onPress={handleBack}
-            style={styles.backButton}>
-            <ChevronLeft color={theme.text} size={24} />
-          </Pressable>
-        ) : (
-          <View style={styles.sideSlot} />
-        )}
+        {leading}
         <ThemedText fontWeight="700" style={styles.title} numberOfLines={1}>
           {title}
         </ThemedText>
