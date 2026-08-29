@@ -22,9 +22,19 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   }
 
   return (
-    <div className="flex min-h-screen">
+    // `h-screen` + `overflow-hidden` pins this row to the viewport so only
+    // `main` scrolls. Without it, `min-h-screen` let the row grow past the
+    // viewport with a long list, taking the sidebar along for the ride and
+    // exposing bare body background below it once the sidebar's own
+    // `h-screen` ran out.
+    <div className="flex h-screen overflow-hidden">
       <Sidebar user={user} />
-      <main className="flex-1 overflow-y-auto bg-neutral-50">{children}</main>
+      {/* `min-h-0` overrides the flex item's default min-height:auto, which
+          would otherwise let this grow to fit its content instead of
+          scrolling within the row's fixed height. */}
+      <main className="min-h-0 flex-1 overflow-y-auto bg-neutral-50">
+        {children}
+      </main>
     </div>
   );
 }
