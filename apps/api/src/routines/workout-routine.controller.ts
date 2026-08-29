@@ -1,10 +1,35 @@
-import { Controller, Get, HttpCode, HttpStatus, Param, Post } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
-import type { AuthenticatedUser, TodayRoutine, WorkoutRoutine } from '@fitness/types';
-import { isoDateSchema, todayRoutineSchema, workoutRoutineSchema } from '@fitness/validation';
+import {
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  Post,
+  Query,
+} from '@nestjs/common';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
+import type {
+  AuthenticatedUser,
+  DailyCaloriesBurned,
+  TodayRoutine,
+  WorkoutRoutine,
+} from '@fitness/types';
+import {
+  dailyCaloriesBurnedSchema,
+  isoDateSchema,
+  todayRoutineSchema,
+  workoutRoutineCaloriesRangeQuerySchema,
+  workoutRoutineSchema,
+  type WorkoutRoutineCaloriesRangeQueryInput,
+} from '@fitness/validation';
 
 import { CurrentUser } from '../common/decorators';
-import { ApiZodResponse } from '../common/swagger';
+import { ApiZodQuery, ApiZodResponse } from '../common/swagger';
 import { zodPipe } from '../common/zod-validation.pipe';
 import { WorkoutRoutineService } from './workout-routine.service';
 
@@ -24,7 +49,10 @@ export class WorkoutRoutineController {
     description: 'Your current routine',
     name: 'WorkoutRoutine',
   })
-  @ApiResponse({ status: 404, description: 'No routine has been requested yet' })
+  @ApiResponse({
+    status: 404,
+    description: 'No routine has been requested yet',
+  })
   me(@CurrentUser() user: AuthenticatedUser): Promise<WorkoutRoutine> {
     return this.routines.findCurrent(user.id);
   }
@@ -45,6 +73,27 @@ export class WorkoutRoutineController {
     @Param('date', zodPipe(isoDateSchema)) date: string,
   ): Promise<TodayRoutine> {
     return this.routines.getToday(user.id, date);
+  }
+
+  @Get('calories')
+  @ApiOperation({
+    summary: 'Get calories credited per day over a date range',
+    description:
+      "Powers the home screen's weekly calorie strip. A day with no " +
+      'matching plan reads as 0, not an error.',
+  })
+  @ApiZodQuery(workoutRoutineCaloriesRangeQuerySchema)
+  @ApiZodResponse(dailyCaloriesBurnedSchema, {
+    isArray: true,
+    description: 'Calories burned per day',
+    name: 'DailyCaloriesBurned',
+  })
+  calories(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query(zodPipe(workoutRoutineCaloriesRangeQuerySchema))
+    query: WorkoutRoutineCaloriesRangeQueryInput,
+  ): Promise<DailyCaloriesBurned[]> {
+    return this.routines.getCaloriesRange(user.id, query.from, query.to);
   }
 
   @Post('regenerate')

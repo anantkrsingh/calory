@@ -8,9 +8,17 @@ export const quoteOfTheDaySchema = z.object({
 export type QuoteOfTheDay = z.infer<typeof quoteOfTheDaySchema>;
 
 export const routineExerciseSchema = z.object({
-  exerciseId: z.string(),
-  exerciseName: z.string(),
-  sets: z.number().int().min(1).max(10),
+  // Nullable: a rest day sometimes comes back with one placeholder entry
+  // instead of a true empty array — the app drops any exercise without a
+  // real id rather than reject the whole week over it.
+  exerciseId: z.string().nullable().optional(),
+  // Never trust this for display — the app always looks the real name up
+  // from the validated exerciseId. Kept only so the schema accepts whatever
+  // the model sends alongside a placeholder/null exerciseId.
+  exerciseName: z.string().nullable().optional(),
+  // Nullable: duration-based cardio (a run, a bike ride) has no real "sets"
+  // count — the app treats a missing value as 1 (one continuous effort).
+  sets: z.number().int().min(1).max(10).nullable().optional(),
   // min(0) + nullable: models routinely send 0 (or null) instead of truly
   // omitting a field that doesn't apply — a rep-based exercise still gets a
   // durationSec key back, and vice versa. The app treats 0/null as unset.

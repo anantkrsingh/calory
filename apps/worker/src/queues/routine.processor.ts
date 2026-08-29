@@ -38,7 +38,10 @@ const RECONCILE_REPEAT_KEY = 'routine-reconcile';
 const RECONCILE_BATCH_SIZE = 200;
 // A full 7-day plan is a large structured object; too low a cap here reads
 // as a schema-validation failure (truncated JSON), not a token-limit one.
-const ROUTINE_OBJECT_MAX_OUTPUT_TOKENS = 8000;
+const ROUTINE_OBJECT_MAX_OUTPUT_TOKENS = 16000;
+// Give the repair attempt even more headroom — a truncated first attempt
+// means the budget above wasn't enough.
+const ROUTINE_OBJECT_REPAIR_MAX_OUTPUT_TOKENS = 24000;
 
 const yearsSince = (isoDate: string): number | null => {
   const born = new Date(isoDate);
@@ -404,6 +407,10 @@ export class RoutineProcessor implements OnModuleInit, OnModuleDestroy {
         listExercises: this.listExercisesTool(userId),
       },
       stopWhen: stepCountIs(6),
+      // This is tool-calling + a plain-text summary, not a hard reasoning
+      // task — skip reasoning entirely so it can't eat its own output budget
+      // on invisible reasoning tokens. Ignored by non-reasoning models.
+      providerOptions: { openai: { reasoningEffort: 'minimal' } },
     });
 
     const toolCalls = research.steps.flatMap((step) => step.toolCalls);
@@ -442,17 +449,24 @@ export class RoutineProcessor implements OnModuleInit, OnModuleDestroy {
         `dailyCalorieTarget=${object.dailyCalorieTarget}, ${usage?.totalTokens ?? '?'} tokens`,
     );
 
-    const validIds = await this.validExerciseIds(userId, object);
+    const exerciseNames = await this.validExerciseNames(userId, object);
 
     const days = object.days.map((day) => {
-      // Drop hallucinated ids rather than persisting a broken reference.
-      const exercises = day.exercises.filter((exercise) =>
-        validIds.has(exercise.exerciseId),
-      );
+      // Drop rest-day placeholders and hallucinated ids alike — anything
+      // without a real, visible exerciseId can't be persisted.
+      const exercises = day.exercises
+        .filter(
+          (exercise): exercise is typeof exercise & { exerciseId: string } =>
+            !!exercise.exerciseId && exerciseNames.has(exercise.exerciseId),
+        )
+        .map((exercise) => ({
+          exercise,
+          name: exerciseNames.get(exercise.exerciseId)!,
+        }));
       const dropped = day.exercises.length - exercises.length;
       if (dropped > 0) {
         this.logger.warn(
-          `${tag}: dropped ${dropped} exercise(s) with an unrecognized id on day ${day.dayOfWeek}`,
+          `${tag}: dropped ${dropped} exercise(s) with a missing/unrecognized id on day ${day.dayOfWeek}`,
         );
       }
 
@@ -466,10 +480,12 @@ export class RoutineProcessor implements OnModuleInit, OnModuleDestroy {
         runningDistanceKm: day.runningDistanceKm ?? null,
         runningDurationMin: day.runningDurationMin ?? null,
         focus: day.focus,
-        exercises: exercises.map((exercise) => ({
+        exercises: exercises.map(({ exercise, name }) => ({
           exerciseId: exercise.exerciseId,
-          exerciseName: exercise.exerciseName,
-          sets: exercise.sets,
+          // The catalog's name, never the model's — see validExerciseNames.
+          exerciseName: name,
+          // Duration-based cardio has no real "sets" — 1 continuous effort.
+          sets: exercise.sets || 1,
           reps: positiveOrNull(exercise.reps),
           durationSec: positiveOrNull(exercise.durationSec),
           restSeconds: exercise.restSeconds ?? null,
@@ -478,7 +494,6 @@ export class RoutineProcessor implements OnModuleInit, OnModuleDestroy {
       };
     });
 
-    // A regenerate request may have superseded this routine while the model ran.
     const { count } = await this.prisma.workoutRoutine.updateMany({
       where: { id: routineId, status: 'generating' },
       data: {
@@ -516,61 +531,82 @@ export class RoutineProcessor implements OnModuleInit, OnModuleDestroy {
         schema: weeklyRoutineSchema,
         prompt,
         maxOutputTokens: ROUTINE_OBJECT_MAX_OUTPUT_TOKENS,
+        // Skip reasoning so a big schema doesn't get the whole output budget
+        // spent on invisible reasoning tokens before any JSON comes out
+        // (that's what `finishReason: 'length'` with 0 chars means). Ignored
+        // by non-reasoning models.
+        providerOptions: { openai: { reasoningEffort: 'minimal' } },
       });
     } catch (error) {
       if (!NoObjectGeneratedError.isInstance(error)) throw error;
 
+      // `length` means it ran out of output budget mid-object — there's no
+      // Zod cause to repair, it just needs more room and to be more terse.
+      const truncated = error.finishReason === 'length';
+      const causeMessage =
+        error.cause instanceof Error ? error.cause.message : undefined;
+
       this.logger.warn(
         `${tag}: model output did not match schema (finishReason=${error.finishReason}, ` +
           `${error.usage?.totalTokens ?? '?'} tokens, ${error.text?.length ?? 0} chars) — ` +
-          `retrying once with a repair prompt. Cause: ${
-            error.cause instanceof Error
-              ? error.cause.message
-              : String(error.cause)
-          }`,
+          `retrying once with ${truncated ? 'a larger token budget' : 'a repair prompt'}.` +
+          (causeMessage ? ` Cause: ${causeMessage}` : ''),
       );
 
       return generateObject({
         model,
         schema: weeklyRoutineSchema,
-        prompt: [
-          prompt,
-          '',
-          'Your previous response did not satisfy the required schema:',
-          error.cause instanceof Error
-            ? error.cause.message
-            : String(error.cause),
-          '',
-          'Produce a corrected response that satisfies every field exactly.',
-        ].join('\n'),
-        maxOutputTokens: ROUTINE_OBJECT_MAX_OUTPUT_TOKENS,
+        prompt: truncated
+          ? [
+              prompt,
+              '',
+              'Your previous response was cut off before it finished (ran out ' +
+                'of output budget). Produce the same response again, but keep ' +
+                'focus and summary text terse so the full JSON fits.',
+            ].join('\n')
+          : [
+              prompt,
+              '',
+              'Your previous response did not satisfy the required schema:',
+              causeMessage ?? 'unknown validation error',
+              '',
+              'Produce a corrected response that satisfies every field exactly.',
+            ].join('\n'),
+        maxOutputTokens: ROUTINE_OBJECT_REPAIR_MAX_OUTPUT_TOKENS,
+        providerOptions: { openai: { reasoningEffort: 'minimal' } },
       });
     }
   }
 
   /** Exercise ids the model referenced that actually exist and belong to this user. */
-  private async validExerciseIds(
+  /** id → canonical name for every referenced id that actually exists and is
+   * visible to this user. The model's own exerciseName is never trusted for
+   * display — a placeholder/rest-day entry can carry a null id and name
+   * together, and a real id's name is looked up here instead of copied. */
+  private async validExerciseNames(
     userId: string,
-    object: { days: { exercises: { exerciseId: string }[] }[] },
-  ): Promise<Set<string>> {
+    object: { days: { exercises: { exerciseId?: string | null }[] }[] },
+  ): Promise<Map<string, string>> {
     const referenced = [
       ...new Set(
         object.days.flatMap((day) =>
-          day.exercises.map((exercise) => exercise.exerciseId),
+          day.exercises
+            .map((exercise) => exercise.exerciseId)
+            .filter((id): id is string => !!id),
         ),
       ),
     ].filter((id) => /^[0-9a-fA-F]{24}$/.test(id));
 
-    if (referenced.length === 0) return new Set();
+    if (referenced.length === 0) return new Map();
 
     const rows = await this.prisma.exercise.findMany({
       where: {
         id: { in: referenced },
         OR: [{ createdById: null }, { createdById: userId }],
       },
-      select: { id: true },
+      select: { id: true, name: true },
     });
 
-    return new Set(rows.map((row) => row.id));
+    return new Map(rows.map((row) => [row.id, row.name]));
   }
 }

@@ -1,8 +1,27 @@
+export function formatIsoDate(date: Date): string {
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${date.getFullYear()}-${month}-${day}`;
+}
+
 /** Today's local calendar date as `YYYY-MM-DD` — not UTC, since a day's steps
  * and routine progress belong to the day the device says it is. */
 export function todayIsoDate(): string {
-  const now = new Date();
-  const month = String(now.getMonth() + 1).padStart(2, '0');
-  const day = String(now.getDate()).padStart(2, '0');
-  return `${now.getFullYear()}-${month}-${day}`;
+  return formatIsoDate(new Date());
 }
+
+/** The 7 local-calendar dates (Sunday first) of the week containing today. */
+export function currentWeekDates(): string[] {
+  const now = new Date();
+  const sunday = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate() - now.getDay(),
+  );
+  return Array.from({ length: 7 }, (_, i) =>
+    formatIsoDate(
+      new Date(sunday.getFullYear(), sunday.getMonth(), sunday.getDate() + i),
+    ),
+  );
+}
+

@@ -1,4 +1,9 @@
-import type { IsoDate, TodayRoutine, WorkoutRoutine } from '@fitness/types';
+import type {
+  DailyCaloriesBurned,
+  IsoDate,
+  TodayRoutine,
+  WorkoutRoutine,
+} from '@fitness/types';
 import {
   queryOptions,
   useMutation,
@@ -18,6 +23,8 @@ export class WorkoutRoutinesQueries {
     all: WorkoutRoutinesQueries.root,
     me: () => [...WorkoutRoutinesQueries.root, 'me'] as const,
     today: (date: IsoDate) => [...WorkoutRoutinesQueries.root, 'today', date] as const,
+    calories: (from: IsoDate, to: IsoDate) =>
+      [...WorkoutRoutinesQueries.root, 'calories', from, to] as const,
   };
 
   static me(enabled: boolean) {
@@ -37,6 +44,19 @@ export class WorkoutRoutinesQueries {
       // Short — steps/completed sets change through the day and this drives
       // the home screen's live rings.
       staleTime: 60 * 1000,
+      // Poll while the plan is still generating, so the loading state clears
+      // on its own once it's ready instead of waiting for the next reopen.
+      refetchInterval: (query) =>
+        query.state.data?.routineStatus === 'generating' ? 4000 : false,
+    });
+  }
+
+  static calories(enabled: boolean, from: IsoDate, to: IsoDate) {
+    return queryOptions({
+      queryKey: WorkoutRoutinesQueries.keys.calories(from, to),
+      queryFn: () => workoutRoutinesService.calories(from, to),
+      enabled,
+      staleTime: 60 * 1000,
     });
   }
 }
@@ -51,6 +71,20 @@ export function useWorkoutRoutine(): UseQueryResult<WorkoutRoutine> {
 export function useTodayRoutine(date: IsoDate): UseQueryResult<TodayRoutine> {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
   return useQuery(WorkoutRoutinesQueries.today(isAuthenticated, date));
+}
+
+/** Calories credited per day over a date range — the home screen's weekly
+ * calorie strip and the weekly-progress history sheet. `enabled` lets a
+ * caller defer a wide/rarely-needed range until it's actually shown. */
+export function useWeekCalories(
+  from: IsoDate,
+  to: IsoDate,
+  enabled = true,
+): UseQueryResult<DailyCaloriesBurned[]> {
+  const isAuthenticated = useAuthStore(selectIsAuthenticated);
+  return useQuery(
+    WorkoutRoutinesQueries.calories(isAuthenticated && enabled, from, to),
+  );
 }
 
 export function useRegenerateRoutine(): UseMutationResult<WorkoutRoutine, Error, void> {

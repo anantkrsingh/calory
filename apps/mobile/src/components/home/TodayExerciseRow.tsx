@@ -1,5 +1,6 @@
 import type { TodayRoutineExercise } from '@fitness/types';
-import { Check, ChevronRight, Dumbbell } from 'lucide-react-native';
+import { Image } from 'expo-image';
+import { Check, ChevronRight, Dumbbell, Flame } from 'lucide-react-native';
 import { memo } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
@@ -21,7 +22,7 @@ type TodayExerciseRowProps = {
 
 function TodayExerciseRowComponent({ exercise, onPress }: TodayExerciseRowProps) {
   const theme = useTheme();
-  const { isCompleted, completedSets, sets } = exercise;
+  const { isCompleted, completedSets, sets, thumbnail, estimatedCalories } = exercise;
   const inProgress = !isCompleted && completedSets > 0;
 
   return (
@@ -36,19 +37,25 @@ function TodayExerciseRowComponent({ exercise, onPress }: TodayExerciseRowProps)
         isCompleted && styles.completedRow,
         pressed && Pressed,
       ]}>
-      <View
-        style={[
-          styles.badge,
-          {
-            backgroundColor: isCompleted
-              ? Brand.accent
-              : 'rgba(239, 90, 36, 0.12)',
-          },
-        ]}>
+      <View style={styles.badgeWrap}>
         {isCompleted ? (
-          <Check color="#FFFFFF" size={18} strokeWidth={3} />
+          <View style={[styles.badge, { backgroundColor: Brand.accent }]}>
+            <Check color="#FFFFFF" size={18} strokeWidth={3} />
+          </View>
+        ) : thumbnail ? (
+          // No background fill — just the image, so a transparent-background
+          // thumbnail (most exercise art) reads cleanly against the row.
+          <Image
+            source={{ uri: thumbnail }}
+            style={styles.thumb}
+            contentFit="contain"
+            transition={150}
+          />
         ) : (
-          <Dumbbell color={Brand.accent} size={18} strokeWidth={2} />
+          <View
+            style={[styles.badge, { backgroundColor: 'rgba(239, 90, 36, 0.12)' }]}>
+            <Dumbbell color={Brand.accent} size={18} strokeWidth={2} />
+          </View>
         )}
       </View>
 
@@ -66,6 +73,14 @@ function TodayExerciseRowComponent({ exercise, onPress }: TodayExerciseRowProps)
               ? `${completedSets}/${sets} sets done`
               : formatPrescription(exercise)}
         </ThemedText>
+        {estimatedCalories > 0 ? (
+          <View style={styles.caloriesRow}>
+            <Flame color={Brand.accent} size={12} strokeWidth={2.2} />
+            <ThemedText themeColor="textSecondary" style={styles.caloriesText}>
+              {estimatedCalories} kcal
+            </ThemedText>
+          </View>
+        ) : null}
       </View>
 
       <ChevronRight color={theme.textSecondary} size={18} />
@@ -89,6 +104,12 @@ const styles = StyleSheet.create({
   completedRow: {
     opacity: 0.55,
   },
+  badgeWrap: {
+    alignItems: 'center',
+    height: 40,
+    justifyContent: 'center',
+    width: 40,
+  },
   badge: {
     alignItems: 'center',
     borderCurve: 'continuous',
@@ -96,6 +117,10 @@ const styles = StyleSheet.create({
     height: 40,
     justifyContent: 'center',
     width: 40,
+  },
+  thumb: {
+    height: '100%',
+    width: '100%',
   },
   copy: {
     flex: 1,
@@ -109,5 +134,14 @@ const styles = StyleSheet.create({
   meta: {
     fontSize: 13,
     lineHeight: 18,
+  },
+  caloriesRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 4,
+  },
+  caloriesText: {
+    fontSize: 12,
+    lineHeight: 16,
   },
 });

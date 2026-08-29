@@ -36,5 +36,6 @@ export {
   WorkoutRoutinesQueries,
   useRegenerateRoutine,
   useTodayRoutine,
+  useWeekCalories,
   useWorkoutRoutine,
 } from './workout-routines.queries';

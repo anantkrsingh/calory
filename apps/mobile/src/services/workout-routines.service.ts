@@ -1,4 +1,9 @@
-import type { IsoDate, TodayRoutine, WorkoutRoutine } from '@fitness/types';
+import type {
+  DailyCaloriesBurned,
+  IsoDate,
+  TodayRoutine,
+  WorkoutRoutine,
+} from '@fitness/types';
 import type { AxiosInstance } from 'axios';
 
 import { http } from '@/api/http';
@@ -20,6 +25,16 @@ export class WorkoutRoutinesService extends BaseService {
   async today(date: IsoDate): Promise<TodayRoutine> {
     const { data } = await this.client.get<TodayRoutine>(
       this.url('today', date),
+    );
+    return data;
+  }
+
+  /** Calories credited per day over a date range — the home screen's weekly
+   * calorie strip. */
+  async calories(from: IsoDate, to: IsoDate): Promise<DailyCaloriesBurned[]> {
+    const { data } = await this.client.get<DailyCaloriesBurned[]>(
+      this.url('calories'),
+      { params: { from, to } },
     );
     return data;
   }

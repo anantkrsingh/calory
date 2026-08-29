@@ -360,6 +360,7 @@ export const workoutRoutineSchema = z.object({
 export const todayRoutineExerciseSchema = routinePlanExerciseSchema.extend({
   completedSets: z.number().int(),
   isCompleted: z.boolean(),
+  thumbnail: z.string().optional(),
 });
 
 export const todayRoutineSchema = z.object({
@@ -373,6 +374,12 @@ export const todayRoutineSchema = z.object({
   stepsToday: z.number().int(),
   /** Earned from completed sets logged against today's plan. */
   caloriesBurned: z.number(),
+});
+
+export const dailyCaloriesBurnedSchema = z.object({
+  date: isoDateSchema,
+  caloriesBurned: z.number(),
+  targetCaloriesBurned: z.number(),
 });
 
 export const healthResponseSchema = z.object({

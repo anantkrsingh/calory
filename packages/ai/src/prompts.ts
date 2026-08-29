@@ -29,17 +29,21 @@ export const DEFAULT_PROMPTS: Record<PromptCategory, string> = {
     'fitness goals: a deficit for lose_weight (larger the higher their BMI ' +
     'category), a surplus for build_muscle or gain_strength, maintenance ' +
     'otherwise.\n\n' +
-    '**Per exercise**: estimate estimatedCalories — the total kcal this user ' +
-    'burns completing every prescribed set of that exercise — from the ' +
-    "exercise's category (strength vs cardio), the sets/reps/duration " +
-    'prescribed and their weight. This is later credited proportionally as ' +
-    'the user logs sets, so it must be a genuine estimate, not a placeholder. ' +
-    'Only set reps for rep-based exercises and only durationSec for ' +
-    "duration-based ones — never send 0 for a field that doesn't apply, omit " +
-    'it instead.\n\n' +
+    '**Per exercise**: sets is always a real number, 1 or higher — for a ' +
+    'duration-based cardio exercise (a run, a bike ride) that has no true ' +
+    '"sets", use 1 (one continuous effort). Only set reps for rep-based ' +
+    'exercises and only durationSec for duration-based ones — never send 0 ' +
+    "for a field that doesn't apply, omit it instead. Estimate " +
+    'estimatedCalories — the total kcal this user burns completing every ' +
+    "prescribed set of that exercise — from the exercise's category " +
+    '(strength vs cardio), the sets/reps/duration prescribed and their ' +
+    'weight. This is later credited proportionally as the user logs sets, ' +
+    'so it must be a genuine estimate, not a placeholder.\n\n' +
     '**Per day** — provide exactly seven, one per weekday (monday through ' +
-    'sunday), each with a status of active or rest, at least one rest day ' +
-    '(exercises empty on it): every single day — rest days included — needs ' +
+    'sunday), each with a status of active or rest, at least one rest day. ' +
+    'A rest day\'s exercises must be a true empty array, [] — never a ' +
+    'placeholder entry with null fields. Every single day — rest days ' +
+    'included — needs ' +
     'a stepsTarget (steps you want them to walk that day) and a calorie-burn ' +
     'plan split into caloriesFromRunning (from walking/steps or an explicit ' +
     'run — set runningDistanceKm/runningDurationMin when you prescribe a ' +

@@ -14,3 +14,4 @@ export * from './chat';
 export * from './responses';
 export * from './plan';
 export * from './upload';
+export * from './workout-routine';

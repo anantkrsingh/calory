@@ -1,28 +1,42 @@
 import { DEFAULT_DAILY_STEPS_GOAL } from "@fitness/config";
 import type { TodayRoutineExercise } from "@fitness/types";
 import { useRouter } from "expo-router";
-import { useCallback, useMemo } from "react";
+import { Flame, Footprints } from "lucide-react-native";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { TabScreen } from "@/components/tab-screen";
 import { ThemedText } from "@/components/themed-text";
 import { CircularProgressRing } from "@/components/ui/CircularProgressRing";
+import { RoutineGeneratingCard } from "@/components/home/RoutineGeneratingCard";
 import { TodayExerciseRow } from "@/components/home/TodayExerciseRow";
-import { BottomTabInset, Spacing } from "@/constants/theme";
+import { WeekCaloriesStrip } from "@/components/home/WeekCaloriesStrip";
+import {
+  WeekProgressSheet,
+  type WeekProgressSheetRef,
+} from "@/components/home/WeekProgressSheet";
+import { Brand, BottomTabInset, Spacing } from "@/constants/theme";
+import { useTheme } from "@/hooks/use-theme";
 import { useStepsTracker } from "@/hooks/use-steps-tracker";
-import { todayIsoDate } from "@/lib/date";
+import { currentWeekDates, todayIsoDate } from "@/lib/date";
 import { useTodayQuote } from "@/queries/quotes.queries";
-import { useTodayRoutine } from "@/queries/workout-routines.queries";
+import { useTodayRoutine, useWeekCalories } from "@/queries/workout-routines.queries";
 
 const RING_SIZE = 96;
 const RING_STROKE = 12;
+const RING_ICON_SIZE = 26;
 
 export default function HomeScreen() {
   const router = useRouter();
+  const theme = useTheme();
   const insets = useSafeAreaInsets();
+  const weekProgressSheetRef = useRef<WeekProgressSheetRef>(null);
+  const today = useState(todayIsoDate)[0];
+  const weekDates = useState(currentWeekDates)[0];
   const { data: quote } = useTodayQuote();
-  const { data: routine } = useTodayRoutine(todayIsoDate());
+  const { data: routine } = useTodayRoutine(today);
+  const { data: weekCalories } = useWeekCalories(weekDates[0], weekDates[6]);
   const { steps } = useStepsTracker();
 
   const stepsGoal = routine?.day?.stepsTarget ?? DEFAULT_DAILY_STEPS_GOAL;
@@ -65,50 +79,96 @@ export default function HomeScreen() {
           </View>
         ) : null}
 
-        <View style={styles.ringsRow}>
-          <CircularProgressRing
-            value={steps}
-            target={stepsGoal}
-            unit="steps"
-            size={RING_SIZE}
-            strokeWidth={RING_STROKE}
-          />
-          <CircularProgressRing
-            value={burned}
-            target={target}
-            size={RING_SIZE}
-            strokeWidth={RING_STROKE}
-          />
-        </View>
-
-        {routine?.day?.status === "rest" ? (
-          <View style={styles.section}>
-            <ThemedText fontWeight="700" style={styles.sectionTitle}>
-              Today’s Exercises
-            </ThemedText>
-            <ThemedText themeColor="textSecondary" style={styles.emptyBody}>
-              Rest day — recover and get ready for tomorrow.
-            </ThemedText>
-          </View>
-        ) : null}
-
-        {todaysExercises.length > 0 ? (
-          <View style={styles.section}>
-            <ThemedText fontWeight="700" style={styles.sectionTitle}>
-              Today’s Exercises
-            </ThemedText>
-            <View style={styles.list}>
-              {todaysExercises.map((exercise) => (
-                <TodayExerciseRow
-                  key={exercise.exerciseId}
-                  exercise={exercise}
-                  onPress={openExercise}
+        {routine?.routineStatus === "generating" ? (
+          <RoutineGeneratingCard />
+        ) : (
+          <>
+            <View style={styles.ringsRow}>
+              <View
+                style={[
+                  styles.ringCard,
+                  { backgroundColor: theme.surface, borderColor: theme.border },
+                ]}>
+                <CircularProgressRing
+                  value={steps}
+                  target={stepsGoal}
+                  unit="steps"
+                  size={RING_SIZE}
+                  strokeWidth={RING_STROKE}
+                  icon={
+                    <Footprints
+                      color={Brand.accent}
+                      size={RING_ICON_SIZE}
+                      strokeWidth={2}
+                    />
+                  }
                 />
-              ))}
+              </View>
+              <View
+                style={[
+                  styles.ringCard,
+                  { backgroundColor: theme.surface, borderColor: theme.border },
+                ]}>
+                <CircularProgressRing
+                  value={burned}
+                  target={target}
+                  size={RING_SIZE}
+                  strokeWidth={RING_STROKE}
+                  icon={
+                    <Flame
+                      color={Brand.accent}
+                      size={RING_ICON_SIZE}
+                      strokeWidth={2}
+                    />
+                  }
+                />
+              </View>
             </View>
-          </View>
-        ) : null}
+
+            {weekCalories ? (
+              <WeekCaloriesStrip
+                days={weekCalories}
+                today={today}
+                onPress={() => weekProgressSheetRef.current?.present()}
+              />
+            ) : null}
+
+            {routine?.day?.status === "rest" ? (
+              <View style={styles.section}>
+                <ThemedText fontWeight="700" style={styles.sectionTitle}>
+                  Today’s Exercises
+                </ThemedText>
+                <ThemedText themeColor="textSecondary" style={styles.emptyBody}>
+                  Rest day — recover and get ready for tomorrow.
+                </ThemedText>
+              </View>
+            ) : null}
+
+            {todaysExercises.length > 0 ? (
+              <View style={styles.section}>
+                <ThemedText fontWeight="700" style={styles.sectionTitle}>
+                  Today’s Exercises
+                </ThemedText>
+                <View style={styles.list}>
+                  {todaysExercises.map((exercise) => (
+                    <TodayExerciseRow
+                      key={exercise.exerciseId}
+                      exercise={exercise}
+                      onPress={openExercise}
+                    />
+                  ))}
+                </View>
+              </View>
+            ) : null}
+          </>
+        )}
       </ScrollView>
+
+      <WeekProgressSheet
+        ref={weekProgressSheetRef}
+        days={weekCalories ?? []}
+        today={today}
+      />
     </TabScreen>
   );
 }
@@ -140,7 +200,15 @@ const styles = StyleSheet.create({
   ringsRow: {
     alignSelf: "stretch",
     flexDirection: "row",
-    justifyContent: "space-between",
+    gap: Spacing.three,
+  },
+  ringCard: {
+    alignItems: "center",
+    borderCurve: "continuous",
+    borderRadius: 20,
+    borderWidth: StyleSheet.hairlineWidth || 1,
+    flex: 1,
+    padding: Spacing.three,
   },
   section: {
     alignSelf: "stretch",

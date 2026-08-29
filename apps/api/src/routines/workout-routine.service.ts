@@ -7,6 +7,7 @@ import {
 import { toWorkoutRoutine } from '@fitness/db';
 import { DayOfWeek } from '@fitness/types';
 import type {
+  DailyCaloriesBurned,
   Id,
   IsoDate,
   RoutinePlanDay,
@@ -32,6 +33,18 @@ const WEEKDAYS: DayOfWeek[] = [
 function dayOfWeekOf(date: IsoDate): DayOfWeek {
   const jsDay = new Date(`${date}T00:00:00.000Z`).getUTCDay();
   return WEEKDAYS[jsDay] ?? DayOfWeek.Sunday;
+}
+
+/** Inclusive list of every ISO date from `from` to `to`. */
+function enumerateDates(from: IsoDate, to: IsoDate): IsoDate[] {
+  const dates: IsoDate[] = [];
+  const cursor = new Date(`${from}T00:00:00.000Z`);
+  const end = new Date(`${to}T00:00:00.000Z`);
+  while (cursor.getTime() <= end.getTime()) {
+    dates.push(cursor.toISOString().slice(0, 10));
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
+  }
+  return dates;
 }
 
 @Injectable()
@@ -134,11 +147,20 @@ export class WorkoutRoutineService {
     const routine = toWorkoutRoutine(routineRow);
     const day = routine.days.find((d) => d.dayOfWeek === dayOfWeekOf(date));
 
-    const completedByExerciseId = day
-      ? await this.todaysCompletedSetsByExercise(userId, date)
-      : new Map<string, number>();
+    const [completedByExerciseId, thumbnailsByExerciseId] = day
+      ? await Promise.all([
+          this.todaysCompletedSetsByExercise(userId, date),
+          this.thumbnailsFor(
+            day.exercises.map((exercise) => exercise.exerciseId),
+          ),
+        ])
+      : [new Map<string, number>(), new Map<string, string>()];
     const exercises = day
-      ? this.mergeExerciseProgress(day, completedByExerciseId)
+      ? this.mergeExerciseProgress(
+          day,
+          completedByExerciseId,
+          thumbnailsByExerciseId,
+        )
       : [];
 
     const caloriesBurned = Math.round(
@@ -146,7 +168,8 @@ export class WorkoutRoutineService {
         (sum, exercise) =>
           sum +
           (exercise.sets > 0
-            ? (exercise.completedSets / exercise.sets) * exercise.estimatedCalories
+            ? (exercise.completedSets / exercise.sets) *
+              exercise.estimatedCalories
             : 0),
         0,
       ),
@@ -190,10 +213,105 @@ export class WorkoutRoutineService {
     return completedByExerciseId;
   }
 
+  /** Calories credited per day over a date range — the home screen's weekly
+   * calorie strip. A day with no matching plan (no active routine, or the
+   * routine has nothing for that weekday) reads as 0, not an error. */
+  async getCaloriesRange(
+    userId: Id,
+    from: IsoDate,
+    to: IsoDate,
+  ): Promise<DailyCaloriesBurned[]> {
+    const dates = enumerateDates(from, to);
+
+    const routineRow = await this.prisma.workoutRoutine.findFirst({
+      where: { userId, status: 'active' },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (!routineRow) {
+      return dates.map((date) => ({
+        date,
+        caloriesBurned: 0,
+        targetCaloriesBurned: 0,
+      }));
+    }
+
+    const routine = toWorkoutRoutine(routineRow);
+    const completedByDate = await this.completedSetsByExerciseForRange(
+      userId,
+      from,
+      to,
+    );
+
+    return dates.map((date) => {
+      const day = routine.days.find((d) => d.dayOfWeek === dayOfWeekOf(date));
+      if (!day) {
+        return { date, caloriesBurned: 0, targetCaloriesBurned: 0 };
+      }
+
+      const completedByExerciseId =
+        completedByDate.get(date) ?? new Map<string, number>();
+      const caloriesBurned = Math.round(
+        day.exercises.reduce((sum, exercise) => {
+          const completed = Math.min(
+            completedByExerciseId.get(exercise.exerciseId) ?? 0,
+            exercise.sets,
+          );
+          return (
+            sum +
+            (exercise.sets > 0
+              ? (completed / exercise.sets) * exercise.estimatedCalories
+              : 0)
+          );
+        }, 0),
+      );
+
+      return {
+        date,
+        caloriesBurned,
+        targetCaloriesBurned: day.targetCaloriesBurned,
+      };
+    });
+  }
+
+  /** Same idea as `todaysCompletedSetsByExercise`, batched across a range in
+   * one query and bucketed by the UTC calendar date each workout falls on. */
+  private async completedSetsByExerciseForRange(
+    userId: Id,
+    from: IsoDate,
+    to: IsoDate,
+  ): Promise<Map<IsoDate, Map<string, number>>> {
+    const rangeStart = new Date(`${from}T00:00:00.000Z`);
+    const rangeEnd = new Date(
+      new Date(`${to}T00:00:00.000Z`).getTime() + 24 * 60 * 60 * 1000,
+    );
+
+    const workouts = await this.prisma.workout.findMany({
+      where: { userId, startedAt: { gte: rangeStart, lt: rangeEnd } },
+      select: { startedAt: true, exercises: true },
+    });
+
+    const byDate = new Map<IsoDate, Map<string, number>>();
+    for (const workout of workouts) {
+      const date = workout.startedAt.toISOString().slice(0, 10);
+      const byExercise = byDate.get(date) ?? new Map<string, number>();
+      for (const exercise of workout.exercises) {
+        const completed = exercise.sets.filter((set) => set.completed).length;
+        byExercise.set(
+          exercise.exerciseId,
+          (byExercise.get(exercise.exerciseId) ?? 0) + completed,
+        );
+      }
+      byDate.set(date, byExercise);
+    }
+    return byDate;
+  }
+
   /** Shared by the exercise list and the calorie sum, so they can't disagree. */
   private mergeExerciseProgress(
     day: RoutinePlanDay,
     completedByExerciseId: Map<string, number>,
+    thumbnailsByExerciseId: Map<string, string>,
   ): TodayRoutineExercise[] {
     return day.exercises.map((exercise) => {
       const completedSets = Math.min(
@@ -204,7 +322,25 @@ export class WorkoutRoutineService {
         ...exercise,
         completedSets,
         isCompleted: exercise.sets > 0 && completedSets >= exercise.sets,
+        thumbnail: thumbnailsByExerciseId.get(exercise.exerciseId),
       };
     });
+  }
+
+  private async thumbnailsFor(exerciseIds: Id[]): Promise<Map<string, string>> {
+    if (exerciseIds.length === 0) return new Map();
+
+    const rows = await this.prisma.exercise.findMany({
+      where: { id: { in: exerciseIds } },
+      select: { id: true, thumbnail: true },
+    });
+
+    return new Map(
+      rows
+        .filter(
+          (row): row is typeof row & { thumbnail: string } => !!row.thumbnail,
+        )
+        .map((row) => [row.id, row.thumbnail]),
+    );
   }
 }
