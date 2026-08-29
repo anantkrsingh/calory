@@ -7,6 +7,46 @@
   "client": [
     {
       "client_info": {
+        "mobilesdk_app_id": "1:670526577063:android:205356438e8c61cc587e82",
+        "android_client_info": {
+          "package_name": "com.calory.ai.fitness"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "670526577063-chcua5n7vrmgu88umbvq2ob8178iltp5.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.calory.ai.fitness",
+            "certificate_hash": "c89db7402fb0964406b593b9bd10c9ef27b96ceb"
+          }
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDbUTduMTNSZ9tIFuvxhDnkKN7FshQmJW8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "670526577063-lt72on2ejdi12ffkrq4cjorc4bskc9jg.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "670526577063-3vi0vi67rl3kvdikaqt1luo9ibsd57hp.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.calory.ai.fitness"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
         "mobilesdk_app_id": "1:670526577063:android:93b360f4f3168ce2587e82",
         "android_client_info": {
           "package_name": "com.calory.fitness"
@@ -35,10 +75,10 @@
               "client_type": 3
             },
             {
-              "client_id": "670526577063-of6gf8jq6tj9t13dbqnmhu0irvrph5up.apps.googleusercontent.com",
+              "client_id": "670526577063-3vi0vi67rl3kvdikaqt1luo9ibsd57hp.apps.googleusercontent.com",
               "client_type": 2,
               "ios_info": {
-                "bundle_id": "com.example.amitians"
+                "bundle_id": "com.calory.ai.fitness"
               }
             }
           ]
@@ -91,10 +131,10 @@
               "client_type": 3
             },
             {
-              "client_id": "670526577063-of6gf8jq6tj9t13dbqnmhu0irvrph5up.apps.googleusercontent.com",
+              "client_id": "670526577063-3vi0vi67rl3kvdikaqt1luo9ibsd57hp.apps.googleusercontent.com",
               "client_type": 2,
               "ios_info": {
-                "bundle_id": "com.example.amitians"
+                "bundle_id": "com.calory.ai.fitness"
               }
             }
           ]

@@ -3,9 +3,9 @@
 <plist version="1.0">
 <dict>
 	<key>CLIENT_ID</key>
-	<string>670526577063-tcholbflnsitkbu9adnug1hd13gnpns3.apps.googleusercontent.com</string>
+	<string>670526577063-3vi0vi67rl3kvdikaqt1luo9ibsd57hp.apps.googleusercontent.com</string>
 	<key>REVERSED_CLIENT_ID</key>
-	<string>com.googleusercontent.apps.670526577063-tcholbflnsitkbu9adnug1hd13gnpns3</string>
+	<string>com.googleusercontent.apps.670526577063-3vi0vi67rl3kvdikaqt1luo9ibsd57hp</string>
 	<key>ANDROID_CLIENT_ID</key>
 	<string>670526577063-6hic1b1rukntchi42h02s69gr4fbb7ch.apps.googleusercontent.com</string>
 	<key>API_KEY</key>
@@ -15,7 +15,7 @@
 	<key>PLIST_VERSION</key>
 	<string>1</string>
 	<key>BUNDLE_ID</key>
-	<string>com.calory.fitness</string>
+	<string>com.calory.ai.fitness</string>
 	<key>PROJECT_ID</key>
 	<string>hotshot72</string>
 	<key>STORAGE_BUCKET</key>
@@ -31,6 +31,6 @@
 	<key>IS_SIGNIN_ENABLED</key>
 	<true></true>
 	<key>GOOGLE_APP_ID</key>
-	<string>1:670526577063:ios:7a721f9a11cc2ca2587e82</string>
+	<string>1:670526577063:ios:81e3a14138fc5918587e82</string>
 </dict>
 </plist>

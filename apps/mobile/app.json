@@ -25,7 +25,7 @@
     },
     "web": {
       "output": "static",
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/images/ios-icon-default.png"
     },
     "plugins": [
       "expo-router",
@@ -33,7 +33,7 @@
         "expo-splash-screen",
         {
           "backgroundColor": "#000C21",
-          "image": "./assets/images/android-icon-foreground.png",
+          "image": "./assets/images/ios-icon-default.png",
           "imageWidth": 76
         }
       ],
