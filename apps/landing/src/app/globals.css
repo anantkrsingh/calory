@@ -1,0 +1,58 @@
+@import "tailwindcss";
+
+:root {
+  /* Base surfaces — mirrors apps/mobile AppColors.light */
+  --background: #faf8f3;
+  --surface: #ffffff;
+  --surface-elevated: #ffffff;
+  --text: #0f0f0f;
+  --text-secondary: #60646c;
+  --border: rgba(0, 0, 0, 0.08);
+
+  /* Brand — mirrors apps/mobile constants/theme.ts Brand */
+  --brand-accent: #ef5a24;
+  --brand-accent-ink: #b8390f;
+  --brand-teal: #23b3a6;
+  --brand-ink: #1f4e4c;
+  --brand-cream: #f7e0b0;
+  --brand-cta-fill: #9dc6c5;
+  --brand-cta-outline: #0f0f0f;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-elevated: var(--surface-elevated);
+  --color-text: var(--text);
+  --color-text-secondary: var(--text-secondary);
+  --color-border: var(--border);
+
+  --color-brand-accent: var(--brand-accent);
+  --color-brand-accent-ink: var(--brand-accent-ink);
+  --color-brand-teal: var(--brand-teal);
+  --color-brand-ink: var(--brand-ink);
+  --color-brand-cream: var(--brand-cream);
+  --color-brand-cta-fill: var(--brand-cta-fill);
+  --color-brand-cta-outline: var(--brand-cta-outline);
+
+  --font-sans: var(--font-display);
+  --font-mono: var(--font-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #121210;
+    --surface: #1c1c1a;
+    --surface-elevated: #242422;
+    --text: #ffffff;
+    --text-secondary: #b0b4ba;
+    --border: rgba(255, 255, 255, 0.16);
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--text);
+  font-family: var(--font-display), ui-sans-serif, system-ui, sans-serif;
+  font-weight: 500;
+}
