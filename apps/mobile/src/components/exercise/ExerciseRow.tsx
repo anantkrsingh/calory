@@ -57,12 +57,7 @@ function ExerciseRowComponent({ exercise, onPress }: ExerciseRowProps) {
         ) : null}
       </View>
 
-      <View style={styles.viewMore}>
-        <ThemedText themeColor="textSecondary" style={styles.viewMoreLabel}>
-          View more
-        </ThemedText>
-        <ChevronRight color={theme.textSecondary} size={18} />
-      </View>
+      <ChevronRight color={theme.textSecondary} size={18} />
     </Pressable>
   );
 }
@@ -117,13 +112,5 @@ const styles = StyleSheet.create({
   instructions: {
     fontSize: 12,
     lineHeight: 18,
-  },
-  viewMore: {
-    alignItems: 'center',
-    gap: 2,
-  },
-  viewMoreLabel: {
-    fontSize: 11,
-    lineHeight: 14,
   },
 });

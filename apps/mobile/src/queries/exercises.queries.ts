@@ -1,6 +1,13 @@
-import type { Exercise, ExerciseMuscleGroup } from '@fitness/types';
+import type { Exercise, ExerciseCatalogue } from '@fitness/types';
 import type { ExerciseByMuscleQueryInput } from '@fitness/validation';
-import { queryOptions, useQuery, type UseQueryResult } from '@tanstack/react-query';
+import {
+  queryOptions,
+  useMutation,
+  useQuery,
+  useQueryClient,
+  type UseMutationResult,
+  type UseQueryResult,
+} from '@tanstack/react-query';
 
 import { exercisesService } from '@/services/exercises.service';
 import { selectIsAuthenticated, useAuthStore } from '@/stores/auth.store';
@@ -36,7 +43,7 @@ export class ExercisesQueries {
 
 export function useExercisesByMuscle(
   query: ExerciseByMuscleQueryInput = {},
-): UseQueryResult<ExerciseMuscleGroup[]> {
+): UseQueryResult<ExerciseCatalogue> {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
   return useQuery(ExercisesQueries.byMuscle(isAuthenticated, query));
 }
@@ -44,4 +51,26 @@ export function useExercisesByMuscle(
 export function useExercise(id: string | undefined): UseQueryResult<Exercise> {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
   return useQuery(ExercisesQueries.detail(isAuthenticated && !!id, id ?? ''));
+}
+
+/** Favorites/unfavorites depending on the exercise's current state, updates the
+ * detail cache with the server's response, and refetches every by-muscle /
+ * list view so the Favourites section and any other open list stay in sync. */
+export function useToggleExerciseFavorite(): UseMutationResult<
+  Exercise,
+  Error,
+  Exercise
+> {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (exercise) =>
+      exercise.isFavorite
+        ? exercisesService.removeFavorite(exercise.id)
+        : exercisesService.addFavorite(exercise.id),
+    onSuccess: (updated) => {
+      queryClient.setQueryData(ExercisesQueries.keys.detail(updated.id), updated);
+      void queryClient.invalidateQueries({ queryKey: ExercisesQueries.root });
+    },
+  });
 }

@@ -101,11 +101,17 @@ export const exerciseSchema = z.object({
   images: z.array(z.string()),
   createdBy: objectIdSchema.nullable(),
   isCustom: z.boolean(),
+  isFavorite: z.boolean(),
 });
 
 export const exerciseMuscleGroupSchema = z.object({
   muscle: muscleGroupSchema,
   exercises: z.array(exerciseSchema),
+});
+
+export const exerciseCatalogueSchema = z.object({
+  favorites: z.array(exerciseSchema),
+  groups: z.array(exerciseMuscleGroupSchema),
 });
 
 export const exercisePersonalRecordSchema = z.object({

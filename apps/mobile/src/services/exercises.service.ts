@@ -1,4 +1,4 @@
-import type { Exercise, ExerciseMuscleGroup } from '@fitness/types';
+import type { Exercise, ExerciseCatalogue } from '@fitness/types';
 import type { ExerciseByMuscleQueryInput } from '@fitness/validation';
 import type { AxiosInstance } from 'axios';
 
@@ -11,11 +11,12 @@ export class ExercisesService extends BaseService {
     super('/exercises', client);
   }
 
-  /** Catalogue + the caller's own custom exercises, grouped by primary muscle. */
+  /** Catalogue + the caller's own custom exercises, grouped by primary muscle,
+   * with the caller's favorites pinned above the groups. */
   async byMuscle(
     query: ExerciseByMuscleQueryInput = {},
-  ): Promise<ExerciseMuscleGroup[]> {
-    const { data } = await this.client.get<ExerciseMuscleGroup[]>(
+  ): Promise<ExerciseCatalogue> {
+    const { data } = await this.client.get<ExerciseCatalogue>(
       this.url('by-muscle'),
       { params: query },
     );
@@ -24,6 +25,16 @@ export class ExercisesService extends BaseService {
 
   async get(id: string): Promise<Exercise> {
     const { data } = await this.client.get<Exercise>(this.url(id));
+    return data;
+  }
+
+  async addFavorite(id: string): Promise<Exercise> {
+    const { data } = await this.client.put<Exercise>(this.url(id, 'favorite'));
+    return data;
+  }
+
+  async removeFavorite(id: string): Promise<Exercise> {
+    const { data } = await this.client.delete<Exercise>(this.url(id, 'favorite'));
     return data;
   }
 }

@@ -20,6 +20,7 @@ export {
   ExercisesQueries,
   useExercise,
   useExercisesByMuscle,
+  useToggleExerciseFavorite,
 } from './exercises.queries';
 export { useCreateMeasurement } from './measurements.queries';
 export { useSendOtp, useResendOtp, useVerifyOtp } from './otp.queries';

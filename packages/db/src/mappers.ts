@@ -104,7 +104,9 @@ export function toPlan(row: PlanRow): Plan {
   };
 }
 
-export function toExercise(row: ExerciseRow): Exercise {
+/** `isFavorite` is contextual to the requesting user, so it's never on the
+ * row itself — pass whether the caller has this exercise in their favorites. */
+export function toExercise(row: ExerciseRow, isFavorite = false): Exercise {
   return {
     id: row.id,
     name: row.name,
@@ -125,6 +127,7 @@ export function toExercise(row: ExerciseRow): Exercise {
     images: row.images ?? [],
     createdBy: row.createdById,
     isCustom: row.isCustom,
+    isFavorite,
     createdAt: iso(row.createdAt),
     updatedAt: iso(row.updatedAt),
   };

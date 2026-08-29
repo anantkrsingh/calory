@@ -29,6 +29,8 @@ export interface Exercise extends Entity {
   /** `null` for the built-in catalogue, a user id for custom exercises. */
   createdBy: Id | null;
   isCustom: boolean;
+  /** Whether the requesting user has favorited this exercise. */
+  isFavorite: boolean;
 }
 
 /** Exercises grouped by one primary muscle. An exercise with several primary
@@ -36,6 +38,14 @@ export interface Exercise extends Entity {
 export interface ExerciseMuscleGroup {
   muscle: MuscleGroup;
   exercises: Exercise[];
+}
+
+/** Build screen's browse-by-muscle payload — favorites pinned above the
+ * muscle groups. An exercise can appear in both: once in `favorites`, and
+ * again under each of its primary muscles in `groups`. */
+export interface ExerciseCatalogue {
+  favorites: Exercise[];
+  groups: ExerciseMuscleGroup[];
 }
 
 export interface ExerciseFilters {
