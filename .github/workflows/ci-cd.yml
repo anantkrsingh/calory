@@ -38,7 +38,11 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Typecheck
-        run: pnpm typecheck
+        # @fitness/mobile is excluded here only: its typecheck depends on
+        # expo-env.d.ts, which Expo's dev server writes on first `expo start`
+        # and isn't present on a clean checkout. `pnpm typecheck` locally
+        # still covers it.
+        run: pnpm exec turbo run typecheck --filter='!@fitness/mobile'
 
       - name: Lint
         run: pnpm lint
