@@ -1,6 +1,7 @@
 import {
   Inject,
   Injectable,
+  Logger,
   NotFoundException,
   HttpException,
   HttpStatus,
@@ -100,6 +101,8 @@ function buildAssistantContent(event: {
 
 @Injectable()
 export class ChatsService {
+  private readonly logger = new Logger(ChatsService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     @Inject(AI_MODEL) private readonly model: LanguageModel | null,
@@ -336,11 +339,24 @@ export class ChatsService {
         const content = buildAssistantContent(event);
         if (!content) return;
 
+        const inputTokens = event.totalUsage.inputTokens ?? 0;
+        const outputTokens = event.totalUsage.outputTokens ?? 0;
+        const totalTokens =
+          event.totalUsage.totalTokens ?? inputTokens + outputTokens;
+
+        this.logger.log(
+          `Chat reply for user ${userId} (conversation ${conversationId}): ` +
+            `${inputTokens} input + ${outputTokens} output = ${totalTokens} tokens`,
+        );
+
         await this.prisma.chatMessage.create({
           data: {
             conversationId,
             role: ChatMessageRole.Assistant,
             content,
+            inputTokens,
+            outputTokens,
+            totalTokens,
           },
         });
 
@@ -354,7 +370,12 @@ export class ChatsService {
 
         await this.prisma.user.updateMany({
           where: { id: userId, remainingCredits: { gt: 0 } },
-          data: { remainingCredits: { decrement: 1 } },
+          data: {
+            remainingCredits: { decrement: 1 },
+            lifetimeInputTokens: { increment: inputTokens },
+            lifetimeOutputTokens: { increment: outputTokens },
+            lifetimeTotalTokens: { increment: totalTokens },
+          },
         });
       },
     });

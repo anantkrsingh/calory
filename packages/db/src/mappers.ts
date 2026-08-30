@@ -82,6 +82,9 @@ export function toUser(row: UserRow): User {
     planId: orUndefined(row.planId),
     planName: orUndefined(row.planName),
     planExpiresAt: isoOrUndefined(row.planExpiresAt),
+    lifetimeInputTokens: row.lifetimeInputTokens ?? 0,
+    lifetimeOutputTokens: row.lifetimeOutputTokens ?? 0,
+    lifetimeTotalTokens: row.lifetimeTotalTokens ?? 0,
     createdAt: iso(row.createdAt),
     updatedAt: iso(row.updatedAt),
   };
@@ -361,6 +364,9 @@ export function toChatMessage(row: ChatMessageRow): ChatMessage {
     conversationId: row.conversationId,
     role: row.role,
     content: row.content,
+    inputTokens: orUndefined(row.inputTokens),
+    outputTokens: orUndefined(row.outputTokens),
+    totalTokens: orUndefined(row.totalTokens),
     createdAt: iso(row.createdAt),
     updatedAt: iso(row.updatedAt),
   };

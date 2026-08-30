@@ -12,6 +12,10 @@ export interface ChatMessage extends Entity {
   conversationId: Id;
   role: ChatMessageRole;
   content: string;
+  /** Token usage for this turn — assistant replies only. */
+  inputTokens?: number;
+  outputTokens?: number;
+  totalTokens?: number;
 }
 
 /** Conversation detail with the latest page of messages (oldest → newest). */

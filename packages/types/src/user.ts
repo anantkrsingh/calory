@@ -28,6 +28,10 @@ export interface User extends Entity {
   planId?: Id;
   planName?: string;
   planExpiresAt?: IsoDate;
+  /** Lifetime chat token usage, summed across every assistant reply. */
+  lifetimeInputTokens?: number;
+  lifetimeOutputTokens?: number;
+  lifetimeTotalTokens?: number;
 }
 
 export interface UserSummary {

@@ -1,13 +1,17 @@
 import { useChat } from "@ai-sdk/react";
 import type { UIMessage } from "ai";
+import { ChevronDown } from "lucide-react-native";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
   FlatList,
   Platform,
+  Pressable,
   StyleSheet,
   View,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
 } from "react-native";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -25,6 +29,7 @@ import { QuestionCard } from "@/components/chat/QuestionCard";
 import { ThinkingIndicator } from "@/components/chat/ThinkingIndicator";
 import { ThemedText } from "@/components/themed-text";
 import { Brand, MaxContentWidth, Spacing } from "@/constants/theme";
+import { useTheme } from "@/hooks/use-theme";
 import {
   askQuestionFromUIMessage,
   isMessageStreaming,
@@ -39,13 +44,20 @@ type ChatThreadProps = {
   conversationId: string;
 };
 
+const SCROLL_BOTTOM_THRESHOLD = 120;
+
 export function ChatThread({ conversationId }: ChatThreadProps) {
   const insets = useSafeAreaInsets();
+  const theme = useTheme();
   const queryClient = useQueryClient();
   const { data, isLoading, isError, error } = useChatDetail(conversationId);
   const [draft, setDraft] = useState("");
+  const [isAtBottom, setIsAtBottom] = useState(true);
+  const [flyingMessageId, setFlyingMessageId] = useState<string | null>(null);
   const listRef = useRef<FlatList<UIMessage>>(null);
   const seededRef = useRef<string | null>(null);
+  const knownMessageIdsRef = useRef<Set<string>>(new Set());
+  const seedingInFlightRef = useRef(false);
 
   const transport = useMemo(
     () => createCoachChatTransport(conversationId),
@@ -75,8 +87,23 @@ export function ChatThread({ conversationId }: ChatThreadProps) {
     if (status !== "ready") return;
 
     seededRef.current = conversationId;
+    seedingInFlightRef.current = true;
     setMessages(toUIMessages(data.messages) as never);
   }, [conversationId, data, setMessages, status]);
+
+  useEffect(() => {
+    const known = knownMessageIdsRef.current;
+    const newUserMessage = messages.find(
+      (message) => message.role === "user" && !known.has(message.id),
+    );
+    for (const message of messages) known.add(message.id);
+
+    if (seedingInFlightRef.current) {
+      seedingInFlightRef.current = false;
+      return;
+    }
+    if (newUserMessage) setFlyingMessageId(newUserMessage.id);
+  }, [messages]);
 
   const sending = status === "submitted" || status === "streaming";
 
@@ -101,15 +128,27 @@ export function ChatThread({ conversationId }: ChatThreadProps) {
     });
   }, []);
 
+  const handleScroll = useCallback(
+    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      const { contentOffset, contentSize, layoutMeasurement } =
+        event.nativeEvent;
+      const distanceFromBottom =
+        contentSize.height - contentOffset.y - layoutMeasurement.height;
+      setIsAtBottom(distanceFromBottom < SCROLL_BOTTOM_THRESHOLD);
+    },
+    [],
+  );
+
   useEffect(() => {
-    scrollToEnd();
-  }, [messages, scrollToEnd, showThinking]);
+    if (isAtBottom) scrollToEnd();
+  }, [messages, scrollToEnd, showThinking, isAtBottom]);
 
   const send = useCallback(async () => {
     const content = draft.trim();
     if (!content || sending) return;
 
     setDraft("");
+    setIsAtBottom(true);
     scrollToEnd(true);
     await sendMessage({ text: content });
   }, [draft, scrollToEnd, sendMessage, sending]);
@@ -117,6 +156,7 @@ export function ChatThread({ conversationId }: ChatThreadProps) {
   const answerQuestion = useCallback(
     (selected: string[]) => {
       if (sending || selected.length === 0) return;
+      setIsAtBottom(true);
       scrollToEnd(true);
       void sendMessage({ text: selected.join(", ") });
     },
@@ -132,7 +172,13 @@ export function ChatThread({ conversationId }: ChatThreadProps) {
   const renderItem = useCallback(
     ({ item, index }: { item: UIMessage; index: number }) => {
       if (item.role === "user") {
-        return <MessageBubble role="user" content={textFromUIMessage(item)} />;
+        return (
+          <MessageBubble
+            role="user"
+            content={textFromUIMessage(item)}
+            animateIn={item.id === flyingMessageId}
+          />
+        );
       }
       if (item.role !== "assistant") return null;
 
@@ -180,7 +226,7 @@ export function ChatThread({ conversationId }: ChatThreadProps) {
         />
       );
     },
-    [answerQuestion, lastMessageId, messages, status],
+    [answerQuestion, flyingMessageId, lastMessageId, messages, status],
   );
 
   const listEmpty = useMemo(() => {
@@ -241,24 +287,50 @@ export function ChatThread({ conversationId }: ChatThreadProps) {
           </ThemedText>
         </View>
       ) : (
-        <FlatList
-          ref={listRef}
-          style={styles.flatList}
-          data={messages}
-          keyExtractor={keyExtractor}
-          renderItem={renderItem}
-          contentContainerStyle={[
-            styles.list,
-            messages.length === 0 && styles.listEmpty,
-          ]}
-          ListEmptyComponent={listEmpty}
-          ListFooterComponent={
-            showThinking ? <ThinkingIndicator label={thinkingLabel} /> : null
-          }
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-          onContentSizeChange={() => scrollToEnd()}
-        />
+        <View style={styles.listWrap}>
+          <FlatList
+            ref={listRef}
+            style={styles.flatList}
+            data={messages}
+            keyExtractor={keyExtractor}
+            renderItem={renderItem}
+            contentContainerStyle={[
+              styles.list,
+              messages.length === 0 && styles.listEmpty,
+            ]}
+            ListEmptyComponent={listEmpty}
+            ListFooterComponent={
+              showThinking ? <ThinkingIndicator label={thinkingLabel} /> : null
+            }
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            onScroll={handleScroll}
+            scrollEventThrottle={100}
+            onContentSizeChange={() => {
+              if (isAtBottom) scrollToEnd();
+            }}
+          />
+
+          {!isAtBottom && messages.length > 0 ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Scroll to latest message"
+              onPress={() => {
+                setIsAtBottom(true);
+                scrollToEnd(true);
+              }}
+              style={({ pressed }) => [
+                styles.scrollDownButton,
+                {
+                  backgroundColor: theme.surface,
+                  borderColor: theme.border,
+                  opacity: pressed ? 0.85 : 1,
+                },
+              ]}>
+              <ChevronDown color={theme.text} size={20} strokeWidth={2.4} />
+            </Pressable>
+          ) : null}
+        </View>
       )}
 
       <View style={[styles.composerBar, composerBarSpacing]}>
@@ -274,6 +346,26 @@ const styles = StyleSheet.create({
   },
   flatList: {
     flex: 1,
+  },
+  listWrap: {
+    flex: 1,
+  },
+  scrollDownButton: {
+    alignItems: "center",
+    borderCurve: "continuous",
+    borderRadius: 20,
+    borderWidth: StyleSheet.hairlineWidth || 1,
+    bottom: Spacing.three,
+    elevation: 4,
+    height: 40,
+    justifyContent: "center",
+    position: "absolute",
+    right: Spacing.four,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    width: 40,
   },
   list: {
     paddingTop: Spacing.three,

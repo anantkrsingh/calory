@@ -7,10 +7,8 @@ import { ThemedText } from '@/components/themed-text';
 import { Brand, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
-// Accent-tinted surface, matching the highlight treatment used elsewhere
-// (e.g. exercise badges) instead of a flat, always-dark bubble.
-const USER_BUBBLE_BG = 'rgba(239, 90, 36, 0.12)';
-const USER_BUBBLE_BORDER = 'rgba(239, 90, 36, 0.24)';
+const USER_BUBBLE_BG = Brand.accent;
+const USER_BUBBLE_RADIUS = 20;
 
 type MessageBubbleProps = {
   role: 'user' | 'assistant';
@@ -132,23 +130,29 @@ function MessageBubbleComponent({
   if (isUser) {
     return (
       <View style={[styles.row, styles.rowUser]}>
-        <View
-          style={[
-            styles.bubble,
-            {
-              backgroundColor: USER_BUBBLE_BG,
-              borderColor: USER_BUBBLE_BORDER,
-              borderWidth: StyleSheet.hairlineWidth || 1,
-            },
-          ]}>
-          <ThemedText style={styles.text}>{body}</ThemedText>
+        <View style={styles.bubbleWrap}>
+          <View
+            style={[
+              styles.bubble,
+              styles.userBubble,
+              { backgroundColor: USER_BUBBLE_BG },
+            ]}>
+            <ThemedText style={[styles.text, styles.userText]}>
+              {body}
+            </ThemedText>
+          </View>
+          <View style={styles.rightArrow} />
+          <View
+            style={[
+              styles.rightArrowOverlap,
+              { backgroundColor: theme.background },
+            ]}
+          />
         </View>
       </View>
     );
   }
 
-  // Plain, card-free assistant response — just the coach avatar and text,
-  // consistent with the rest of the app's response-first chat style.
   return (
     <View style={[styles.row, styles.rowAssistant]}>
       <View style={styles.assistantRow}>
@@ -182,9 +186,27 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.three,
     paddingVertical: Spacing.two + 2,
   },
+  userBubble: {
+    borderRadius: USER_BUBBLE_RADIUS,
+  },
+  bubbleWrap: {
+    alignSelf: 'flex-end',
+  },
+  tail: {
+    position: 'absolute',
+    bottom: -8,
+    right: -8,
+    width: 16,
+    height: 16,
+    borderRadius: 4,
+    transform: [{ rotate: '45deg' }],
+  },
   text: {
     fontSize: 16,
     lineHeight: 22,
+  },
+  userText: {
+    color: '#FFFFFF',
   },
   assistantRow: {
     flexDirection: 'row',
@@ -194,5 +216,22 @@ const styles = StyleSheet.create({
   assistantBody: {
     flex: 1,
     paddingTop: 2,
+  },
+  rightArrow:{
+    position: 'absolute',
+    backgroundColor:USER_BUBBLE_BG,
+    width: 18,
+    height: 20,
+    bottom: -2,
+    right: -5,
+    borderBottomLeftRadius: 25,
+  },
+  rightArrowOverlap:{
+    position: 'absolute',
+    width:20,
+    height:35,
+    bottom:-6,
+    right:-20,
+    borderBottomLeftRadius:18
   },
 });
