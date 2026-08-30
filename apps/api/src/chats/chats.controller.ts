@@ -144,16 +144,19 @@ export class ChatsController {
 
   @Post(':id/messages')
   @ApiOperation({
-    summary: 'Send a message and stream the assistant reply (AI SDK text stream)',
+    summary:
+      'Send a message and stream the assistant reply (AI SDK UI message stream)',
   })
   @ApiZodBody(sendChatMessageSchema)
-  @ApiProduces('text/plain')
+  @ApiProduces('text/event-stream')
   @ApiResponse({
     status: 200,
     description:
-      'Plain-text stream of the assistant reply. Headers include X-User-Message-Id.',
+      'SSE stream of UI message chunks (text, and tool calls such as ' +
+      'getUserDetails/askQuestion) for the assistant reply. Headers include ' +
+      'X-User-Message-Id.',
     content: {
-      'text/plain': {
+      'text/event-stream': {
         schema: { type: 'string', format: 'binary' },
       },
     },
@@ -181,6 +184,6 @@ export class ChatsController {
       'X-User-Message-Id, X-Conversation-Id',
     );
 
-    await result.pipeTextStreamToResponse(res);
+    await result.pipeUIMessageStreamToResponse(res);
   }
 }

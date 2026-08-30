@@ -9,7 +9,7 @@ import {
   StyleSheet,
   View,
 } from "react-native";
-import { KeyboardStickyView } from "react-native-keyboard-controller";
+import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -18,18 +18,22 @@ import {
   ANDROID_TAB_BAR_HEIGHT,
   ANDROID_TAB_BAR_MARGIN_BOTTOM,
 } from "@/components/android-tabbar/constants";
+import { BotAvatar } from "@/components/chat/BotAvatar";
 import { ChatComposer } from "@/components/chat/ChatComposer";
 import { MessageBubble } from "@/components/chat/MessageBubble";
+import { QuestionCard } from "@/components/chat/QuestionCard";
+import { ThinkingIndicator } from "@/components/chat/ThinkingIndicator";
 import { ThemedText } from "@/components/themed-text";
 import { Brand, MaxContentWidth, Spacing } from "@/constants/theme";
 import {
+  askQuestionFromUIMessage,
   isMessageStreaming,
+  pendingToolLabel,
   textFromUIMessage,
   toUIMessages,
 } from "@/lib/chat-messages";
 import { createCoachChatTransport } from "@/lib/chat-transport";
 import { ChatsQueries, useChatDetail } from "@/queries/chats.queries";
-import { LinearGradient } from "expo-linear-gradient";
 
 type ChatThreadProps = {
   conversationId: string;
@@ -50,7 +54,6 @@ export function ChatThread({ conversationId }: ChatThreadProps) {
 
   const { messages, sendMessage, setMessages, status } = useChat({
     id: conversationId,
-    // AI SDK react/ai package versions can drift in the monorepo; transport is compatible at runtime.
     transport: transport as never,
     onFinish: () => {
       void queryClient.invalidateQueries({ queryKey: ChatsQueries.keys.all });
@@ -77,36 +80,108 @@ export function ChatThread({ conversationId }: ChatThreadProps) {
 
   const sending = status === "submitted" || status === "streaming";
 
-  const scrollToEnd = useCallback(() => {
+  const lastMessage = messages.length ? messages[messages.length - 1] : null;
+  const lastAssistantText =
+    lastMessage?.role === "assistant" ? textFromUIMessage(lastMessage) : "";
+  const lastAssistantQuestion =
+    lastMessage?.role === "assistant"
+      ? askQuestionFromUIMessage(lastMessage)
+      : null;
+  const showThinking =
+    (status === "submitted" || status === "streaming") &&
+    !lastAssistantQuestion &&
+    (lastMessage?.role !== "assistant" || lastAssistantText.length === 0);
+  const thinkingLabel =
+    (lastMessage?.role === "assistant" && pendingToolLabel(lastMessage)) ||
+    "Thinking…";
+
+  const scrollToEnd = useCallback((animated = false) => {
     requestAnimationFrame(() => {
-      listRef.current?.scrollToEnd({ animated: true });
+      listRef.current?.scrollToEnd({ animated });
     });
   }, []);
 
   useEffect(() => {
     scrollToEnd();
-  }, [messages, scrollToEnd]);
+  }, [messages, scrollToEnd, showThinking]);
 
   const send = useCallback(async () => {
     const content = draft.trim();
     if (!content || sending) return;
 
     setDraft("");
+    scrollToEnd(true);
     await sendMessage({ text: content });
-  }, [draft, sendMessage, sending]);
+  }, [draft, scrollToEnd, sendMessage, sending]);
+
+  const answerQuestion = useCallback(
+    (selected: string[]) => {
+      if (sending || selected.length === 0) return;
+      scrollToEnd(true);
+      void sendMessage({ text: selected.join(", ") });
+    },
+    [scrollToEnd, sendMessage, sending],
+  );
+
+  const lastMessageId = messages.length
+    ? messages[messages.length - 1].id
+    : null;
 
   const keyExtractor = useCallback((item: UIMessage) => item.id, []);
 
-  const renderItem = useCallback(({ item }: { item: UIMessage }) => {
-    if (item.role !== "user" && item.role !== "assistant") return null;
-    return (
-      <MessageBubble
-        role={item.role}
-        content={textFromUIMessage(item)}
-        streaming={isMessageStreaming(item)}
-      />
-    );
-  }, []);
+  const renderItem = useCallback(
+    ({ item, index }: { item: UIMessage; index: number }) => {
+      if (item.role === "user") {
+        return <MessageBubble role="user" content={textFromUIMessage(item)} />;
+      }
+      if (item.role !== "assistant") return null;
+
+      const question = askQuestionFromUIMessage(item);
+      const text = textFromUIMessage(item);
+
+      if (question) {
+        const next = messages[index + 1];
+        const nextText =
+          next?.role === "user" ? textFromUIMessage(next).trim() : "";
+        const tokens = nextText
+          ? nextText.split(",").map((token) => token.trim())
+          : [];
+        const chosen = question.options.filter((option: string) =>
+          tokens.includes(option),
+        );
+
+        return (
+          <View style={styles.row}>
+            <View style={styles.assistantRow}>
+              <BotAvatar size={22} />
+              <View style={styles.assistantBody}>
+                {text ? (
+                  <ThemedText style={styles.leadText}>{text}</ThemedText>
+                ) : null}
+                <QuestionCard
+                  question={question}
+                  interactive={item.id === lastMessageId && status === "ready"}
+                  chosen={chosen}
+                  onSubmit={answerQuestion}
+                />
+              </View>
+            </View>
+          </View>
+        );
+      }
+
+      if (!text) return null;
+
+      return (
+        <MessageBubble
+          role="assistant"
+          content={text}
+          streaming={isMessageStreaming(item)}
+        />
+      );
+    },
+    [answerQuestion, lastMessageId, messages, status],
+  );
 
   const listEmpty = useMemo(() => {
     if (isLoading) return null;
@@ -122,21 +197,14 @@ export function ChatThread({ conversationId }: ChatThreadProps) {
     );
   }, [isLoading]);
 
-  const composerBarSpacing = {
-    paddingBottom: Spacing.two,
-  };
-
-  const stickyOffset =
+  const bottomClearance =
     Platform.OS === "android"
-      ? {
-          closed: -(
-            insets.bottom +
-            ANDROID_TAB_BAR_HEIGHT +
-            ANDROID_TAB_BAR_MARGIN_BOTTOM
-          ),
-          opened: 0,
-        }
-      : { closed: -insets.bottom, opened: 0 };
+      ? insets.bottom + ANDROID_TAB_BAR_HEIGHT + ANDROID_TAB_BAR_MARGIN_BOTTOM
+      : insets.bottom;
+
+  const composerBarSpacing = {
+    paddingBottom: Spacing.two + bottomClearance,
+  };
 
   const composerContent = (
     <View style={styles.composerInner}>
@@ -153,7 +221,10 @@ export function ChatThread({ conversationId }: ChatThreadProps) {
   );
 
   return (
-    <View style={styles.flex}>
+    <KeyboardAvoidingView
+      style={styles.flex}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      keyboardVerticalOffset={-bottomClearance}>
       {isLoading && messages.length === 0 ? (
         <View style={styles.centered}>
           <ActivityIndicator color={Brand.accent} />
@@ -172,27 +243,28 @@ export function ChatThread({ conversationId }: ChatThreadProps) {
       ) : (
         <FlatList
           ref={listRef}
+          style={styles.flatList}
           data={messages}
           keyExtractor={keyExtractor}
           renderItem={renderItem}
           contentContainerStyle={[
             styles.list,
             messages.length === 0 && styles.listEmpty,
-            { paddingBottom: Platform.OS === "android" ? Spacing.two : 400 },
           ]}
           ListEmptyComponent={listEmpty}
+          ListFooterComponent={
+            showThinking ? <ThinkingIndicator label={thinkingLabel} /> : null
+          }
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
-          onContentSizeChange={scrollToEnd}
+          onContentSizeChange={() => scrollToEnd()}
         />
       )}
 
-      <KeyboardStickyView offset={stickyOffset}>
-        <View style={[styles.composerBar, composerBarSpacing]}>
-          {composerContent}
-        </View>
-      </KeyboardStickyView>
-    </View>
+      <View style={[styles.composerBar, composerBarSpacing]}>
+        {composerContent}
+      </View>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -200,10 +272,31 @@ const styles = StyleSheet.create({
   flex: {
     flex: 1,
   },
-  gradientBackground: {},
+  flatList: {
+    flex: 1,
+  },
   list: {
     paddingTop: Spacing.three,
     paddingBottom: Spacing.three,
+  },
+  row: {
+    marginBottom: Spacing.two,
+    paddingHorizontal: Spacing.four,
+    width: "100%",
+  },
+  assistantRow: {
+    flexDirection: "row",
+    gap: Spacing.two,
+    maxWidth: "100%",
+  },
+  assistantBody: {
+    flex: 1,
+    gap: Spacing.two,
+    paddingTop: 2,
+  },
+  leadText: {
+    fontSize: 16,
+    lineHeight: 22,
   },
   listEmpty: {
     flexGrow: 1,

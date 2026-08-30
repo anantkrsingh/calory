@@ -2,9 +2,15 @@ import { memo, useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 import Markdown from 'react-native-markdown-display';
 
+import { BotAvatar } from '@/components/chat/BotAvatar';
 import { ThemedText } from '@/components/themed-text';
 import { Brand, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+
+// Accent-tinted surface, matching the highlight treatment used elsewhere
+// (e.g. exercise badges) instead of a flat, always-dark bubble.
+const USER_BUBBLE_BG = 'rgba(239, 90, 36, 0.12)';
+const USER_BUBBLE_BORDER = 'rgba(239, 90, 36, 0.24)';
 
 type MessageBubbleProps = {
   role: 'user' | 'assistant';
@@ -19,7 +25,7 @@ function MessageBubbleComponent({
 }: MessageBubbleProps) {
   const theme = useTheme();
   const isUser = role === 'user';
-  const body = content.length > 0 ? content : streaming ? '…' : '';
+  const body = content;
 
   const markdownStyles = useMemo(
     () =>
@@ -123,30 +129,33 @@ function MessageBubbleComponent({
     [theme],
   );
 
+  if (isUser) {
+    return (
+      <View style={[styles.row, styles.rowUser]}>
+        <View
+          style={[
+            styles.bubble,
+            {
+              backgroundColor: USER_BUBBLE_BG,
+              borderColor: USER_BUBBLE_BORDER,
+              borderWidth: StyleSheet.hairlineWidth || 1,
+            },
+          ]}>
+          <ThemedText style={styles.text}>{body}</ThemedText>
+        </View>
+      </View>
+    );
+  }
+
+  // Plain, card-free assistant response — just the coach avatar and text,
+  // consistent with the rest of the app's response-first chat style.
   return (
-    <View
-      style={[
-        styles.row,
-        isUser ? styles.rowUser : styles.rowAssistant,
-      ]}>
-      <View
-        style={[
-          styles.bubble,
-          isUser
-            ? { backgroundColor: Brand.ink }
-            : {
-                backgroundColor: theme.surface,
-                borderColor: theme.border,
-                borderWidth: StyleSheet.hairlineWidth || 1,
-              },
-        ]}>
-        {isUser ? (
-          <ThemedText style={[styles.text, { color: '#FFFFFF' }]}>
-            {body}
-          </ThemedText>
-        ) : (
+    <View style={[styles.row, styles.rowAssistant]}>
+      <View style={styles.assistantRow}>
+        <BotAvatar active={streaming} size={22} />
+        <View style={styles.assistantBody}>
           <Markdown style={markdownStyles}>{body}</Markdown>
-        )}
+        </View>
       </View>
     </View>
   );
@@ -176,5 +185,14 @@ const styles = StyleSheet.create({
   text: {
     fontSize: 16,
     lineHeight: 22,
+  },
+  assistantRow: {
+    flexDirection: 'row',
+    gap: Spacing.two,
+    maxWidth: '100%',
+  },
+  assistantBody: {
+    flex: 1,
+    paddingTop: 2,
   },
 });

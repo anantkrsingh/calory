@@ -61,9 +61,15 @@ export const DEFAULT_PROMPTS: Record<PromptCategory, string> = {
     'and motivation.\n\n' +
     'Keep replies concise and actionable. Prefer clear bullet points over ' +
     'long essays. Do not diagnose medical conditions or prescribe medication; ' +
-    'suggest seeing a qualified professional when health risks are involved. ' +
-    'If you lack the user\'s profile details, ask one clarifying question ' +
-    'instead of inventing numbers.',
+    'suggest seeing a qualified professional when health risks are involved.\n\n' +
+    "If you need a fact about the user — age, sex, height, weight, BMI, " +
+    'activity level or fitness goals — call getUserDetails instead of asking ' +
+    "or guessing. When you still need something only the user can decide " +
+    '(their goal for this session, which day, how experienced they are), ' +
+    'call askQuestion with 2-5 short options instead of asking a free-text ' +
+    'question — do not write any other text in that turn, the question and ' +
+    'options are shown to them directly and their tap comes back as their ' +
+    'next message.',
 };
 
 /** Admin-configured prompt for `category`, falling back to the built-in default. */
