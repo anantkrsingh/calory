@@ -53,11 +53,8 @@ export function ChatThread({ conversationId }: ChatThreadProps) {
   const { data, isLoading, isError, error } = useChatDetail(conversationId);
   const [draft, setDraft] = useState("");
   const [isAtBottom, setIsAtBottom] = useState(true);
-  const [flyingMessageId, setFlyingMessageId] = useState<string | null>(null);
   const listRef = useRef<FlatList<UIMessage>>(null);
   const seededRef = useRef<string | null>(null);
-  const knownMessageIdsRef = useRef<Set<string>>(new Set());
-  const seedingInFlightRef = useRef(false);
 
   const transport = useMemo(
     () => createCoachChatTransport(conversationId),
@@ -87,23 +84,8 @@ export function ChatThread({ conversationId }: ChatThreadProps) {
     if (status !== "ready") return;
 
     seededRef.current = conversationId;
-    seedingInFlightRef.current = true;
     setMessages(toUIMessages(data.messages) as never);
   }, [conversationId, data, setMessages, status]);
-
-  useEffect(() => {
-    const known = knownMessageIdsRef.current;
-    const newUserMessage = messages.find(
-      (message) => message.role === "user" && !known.has(message.id),
-    );
-    for (const message of messages) known.add(message.id);
-
-    if (seedingInFlightRef.current) {
-      seedingInFlightRef.current = false;
-      return;
-    }
-    if (newUserMessage) setFlyingMessageId(newUserMessage.id);
-  }, [messages]);
 
   const sending = status === "submitted" || status === "streaming";
 
@@ -173,11 +155,7 @@ export function ChatThread({ conversationId }: ChatThreadProps) {
     ({ item, index }: { item: UIMessage; index: number }) => {
       if (item.role === "user") {
         return (
-          <MessageBubble
-            role="user"
-            content={textFromUIMessage(item)}
-            animateIn={item.id === flyingMessageId}
-          />
+          <MessageBubble role="user" content={textFromUIMessage(item)} />
         );
       }
       if (item.role !== "assistant") return null;
@@ -226,7 +204,7 @@ export function ChatThread({ conversationId }: ChatThreadProps) {
         />
       );
     },
-    [answerQuestion, flyingMessageId, lastMessageId, messages, status],
+    [answerQuestion, lastMessageId, messages, status],
   );
 
   const listEmpty = useMemo(() => {
