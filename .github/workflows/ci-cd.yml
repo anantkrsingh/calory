@@ -45,7 +45,8 @@ jobs:
         run: pnpm exec turbo run typecheck --filter='!@fitness/mobile'
 
       - name: Lint
-        run: pnpm lint
+        # @fitness/mobile excluded here only, same reason as Typecheck above.
+        run: pnpm exec turbo run lint --filter='!@fitness/mobile'
 
   deploy:
     name: Deploy (self-hosted)
