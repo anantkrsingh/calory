@@ -18,15 +18,15 @@ function makeService(user: UserRecord | null) {
   const prisma = {
     user: {
       findFirst: jest
-        .fn<(args?: unknown) => Promise<UserRecord | null>>()
+        .fn<Promise<UserRecord | null>, [unknown?]>()
         .mockResolvedValue(
           user && (user.linkedAccounts as unknown[])?.length ? user : null,
         ),
       findUnique: jest
-        .fn<(args?: unknown) => Promise<UserRecord | null>>()
+        .fn<Promise<UserRecord | null>, [unknown?]>()
         .mockResolvedValue(user),
       update: jest
-        .fn<(args: { where: { id: string }; data: UserRecord }) => UserRecord>()
+        .fn<UserRecord, [{ where: { id: string }; data: UserRecord }]>()
         .mockImplementation(({ data }) => ({
           ...baseUser,
           ...user,
@@ -34,11 +34,8 @@ function makeService(user: UserRecord | null) {
         })),
       upsert: jest
         .fn<
-          (args: {
-            where: unknown;
-            create: UserRecord;
-            update: UserRecord;
-          }) => UserRecord
+          UserRecord,
+          [{ where: unknown; create: UserRecord; update: UserRecord }]
         >()
         .mockImplementation(({ create, update }) => ({
           ...baseUser,
@@ -46,7 +43,7 @@ function makeService(user: UserRecord | null) {
           id: user ? 'existing-id' : 'new-id',
         })),
       create: jest
-        .fn<(args: { data: UserRecord }) => UserRecord>()
+        .fn<UserRecord, [{ data: UserRecord }]>()
         .mockImplementation(({ data }) => ({
           id: 'new-id',
           role: 'user',
@@ -122,7 +119,7 @@ describe('AuthService.loginSocial', () => {
 
     await service.loginSocial(AuthProvider.Google, { token: 't' });
 
-    const update = prisma.user.update.mock.calls[0][0];
+    const update = prisma.user.update.mock.calls[0]![0];
     expect(update.where).toEqual({ id: 'existing-id' });
     expect(update.data.linkedAccounts.push).toMatchObject({
       provider: 'google',
@@ -147,7 +144,7 @@ describe('AuthService.loginSocial', () => {
 
     await service.loginSocial(AuthProvider.Google, { token: 't' });
 
-    const created = prisma.user.create.mock.calls[0][0].data;
+    const created = prisma.user.create.mock.calls[0]![0].data;
     expect(created.email).toBe('ada@example.com');
     expect(created.linkedAccounts).toEqual([
       { provider: 'google', subject: 'google-123', email: 'ada@example.com' },
@@ -176,7 +173,7 @@ describe('AuthService.register', () => {
 
     const result = await service.register(input);
 
-    expect(prisma.user.upsert.mock.calls[0][0].create.emailVerified).toBe(
+    expect(prisma.user.upsert.mock.calls[0]![0].create.emailVerified).toBe(
       false,
     );
     expect(otp.sendOtp).toHaveBeenCalledWith(
@@ -237,7 +234,9 @@ describe('AuthService.verifyRegistration', () => {
       '123456',
       'registration',
     );
-    expect(prisma.user.update.mock.calls[0][0].data.emailVerified).toBe(true);
+    expect(prisma.user.update.mock.calls[0]![0].data.emailVerified).toBe(
+      true,
+    );
     expect(session.tokens.accessToken).toBe('token');
   });
 
