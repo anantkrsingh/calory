@@ -60,7 +60,7 @@ export function AndroidTabbar({
   });
   const [isDraggingState, setIsDraggingState] = useState(false);
   // Remount BlurView once the target has a native node (findNodeHandle needs it).
-  const [blurReady, setBlurReady] = useState(false);
+  const [blurReady, setBlurReady] = useState(() => Boolean(blurTarget.current));
 
   const buttonWidth = (dimensions.width + 50) / state.routes.length;
   const pillHeight = TAB_BAR_HEIGHT - VERTICAL_PADDING * 1.5;
@@ -70,15 +70,12 @@ export function AndroidTabbar({
   const isDragging = useSharedValue(0);
 
   useEffect(() => {
-    if (blurTarget.current) {
-      setBlurReady(true);
-      return;
-    }
+    if (blurReady) return;
     const id = requestAnimationFrame(() => {
       if (blurTarget.current) setBlurReady(true);
     });
     return () => cancelAnimationFrame(id);
-  }, [blurTarget]);
+  }, [blurTarget, blurReady]);
 
   const onTabbarLayout = (e: LayoutChangeEvent) => {
     setDimensions({
