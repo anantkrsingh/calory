@@ -41,10 +41,10 @@ export default function EmailStep({ email, onChange, submitError }: EmailStepPro
   return (
     <ThemedView style={styles.container}>
       <ThemedText type="subtitle" style={styles.title}>
-        What's your email?
+        What&apos;s your email?
       </ThemedText>
       <ThemedText type="small" style={[styles.subtitle, { color: theme.textSecondary }]}>
-        We'll use this to verify your account and send important updates
+        We&apos;ll use this to verify your account and send important updates
       </ThemedText>
 
       <View style={styles.inputContainer}>
@@ -72,7 +72,7 @@ export default function EmailStep({ email, onChange, submitError }: EmailStepPro
       </View>
 
       <ThemedText type="small" style={[styles.hint, { color: theme.textSecondary }]}>
-        We'll send a verification code to this email
+        We&apos;ll send a verification code to this email
       </ThemedText>
     </ThemedView>
   );

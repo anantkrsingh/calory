@@ -1,5 +1,5 @@
 import type { ApiErrorBody } from '@fitness/types';
-import axios from 'axios';
+import { isAxiosError } from 'axios';
 
 /** A non-2xx response that carried (or was coerced into) the API error shape. */
 export class ApiError extends Error {
@@ -97,7 +97,7 @@ function messageFromBody(body: unknown, status: number, url: string): string {
  * to reason about axios internals.
  */
 export function normaliseError(error: unknown): Error {
-  if (!axios.isAxiosError(error)) {
+  if (!isAxiosError(error)) {
     return error instanceof Error ? error : new Error(String(error));
   }
 

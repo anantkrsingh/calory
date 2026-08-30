@@ -26,7 +26,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
 
     const { status, message, error, details } = this.describe(exception);
 
-    if (status >= HttpStatus.INTERNAL_SERVER_ERROR) {
+    if (status >= Number(HttpStatus.INTERNAL_SERVER_ERROR)) {
       this.logger.error(
         `${request.method} ${request.url} -> ${status}`,
         exception instanceof Error ? exception.stack : String(exception),
@@ -94,9 +94,12 @@ export class AllExceptionsFilter implements ExceptionFilter {
     };
   }
 
-  private describePrisma(
-    exception: Prisma.PrismaClientKnownRequestError,
-  ): { status: number; message: string; error: string; details?: Record<string, string[]> } {
+  private describePrisma(exception: Prisma.PrismaClientKnownRequestError): {
+    status: number;
+    message: string;
+    error: string;
+    details?: Record<string, string[]>;
+  } {
     switch (exception.code) {
       case 'P2002': {
         // Unique constraint violation — surface the offending field to the form.

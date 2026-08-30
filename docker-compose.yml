@@ -20,14 +20,13 @@ services:
       dockerfile: apps/api/Dockerfile
     container_name: fitness_api
     ports:
-      - "${PORT:-3000}:3000"
+      - "${API_PORT:-3001}:3000"
     env_file:
       - path: .env
         required: true
     environment:
       NODE_ENV: production
       PORT: 3000
-      # Always talk to the compose Redis service; password still comes from .env
       REDIS_HOST: redis
       REDIS_PORT: 6379
     depends_on:
@@ -46,6 +45,26 @@ services:
       timeout: 5s
       retries: 5
       start_period: 30s
+    networks:
+      - fitness
+
+  admin:
+    build:
+      context: .
+      dockerfile: apps/admin/Dockerfile
+    container_name: fitness_admin
+    ports:
+      - "${ADMIN_PORT:-3002}:3002"
+    env_file:
+      - path: apps/admin/.env
+        required: false
+    environment:
+      NODE_ENV: production
+      API_BASE_URL: http://api:3000/api/v1
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
     networks:
       - fitness
 

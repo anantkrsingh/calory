@@ -1,7 +1,9 @@
 {
   "extends": "@fitness/config/tsconfig/nest.json",
   "compilerOptions": {
-    "rootDir": "./src",
+    // No rootDir here: this config's `include` spans src/ and test/, and an
+    // explicit rootDir requires every included file to live under it. The
+    // build only emits src/, so it sets rootDir itself — see tsconfig.build.json.
     "outDir": "./dist",
     "baseUrl": "./",
     "types": ["node", "jest"],

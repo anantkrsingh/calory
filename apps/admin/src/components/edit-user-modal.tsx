@@ -2,7 +2,7 @@
 
 import type { Plan, User } from "@fitness/types";
 import { AlertCircle, Calendar, CreditCard, Sparkles, User as UserIcon, X } from "lucide-react";
-import { useEffect, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 
 import { CustomDatePicker } from "@/components/custom-date-picker";
 import { CustomDropdown, type CustomDropdownOption } from "@/components/custom-dropdown";
@@ -47,19 +47,9 @@ export function EditUserModal({
     user?.emailVerified ?? false,
   );
 
-  // Sync state whenever the active user prop changes
-  useEffect(() => {
-    if (user) {
-      setTotalCredits(user.totalCredits ?? defaultCredits);
-      setRemainingCredits(user.remainingCredits ?? defaultCredits);
-      setSelectedPlanId(user.planId ?? "");
-      setCustomPlanName(user.planName ?? "");
-      setPlanExpiresAt(user.planExpiresAt ? user.planExpiresAt.split("T")[0] : "");
-      setRole(user.role);
-      setEmailVerified(user.emailVerified);
-      setError(null);
-    }
-  }, [user, defaultCredits]);
+  // State is re-initialized from the `user` prop by the `key={user.id}` the
+  // caller puts on this component, so it remounts fresh per user instead of
+  // syncing via an effect (see user-table-client.tsx).
 
   // Early return AFTER all hooks
   if (!isOpen || !user) return null;

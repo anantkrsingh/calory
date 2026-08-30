@@ -52,7 +52,11 @@ export class RoutinesController {
   @Get()
   @ApiOperation({ summary: 'List your routines' })
   @ApiZodQuery(routineQuerySchema)
-  @ApiZodResponse(routineSummarySchema, { paginated: true, description: 'Page of routines', name: 'RoutineSummary' })
+  @ApiZodResponse(routineSummarySchema, {
+    paginated: true,
+    description: 'Page of routines',
+    name: 'RoutineSummary',
+  })
   list(
     @CurrentUser() user: AuthenticatedUser,
     @Query(zodPipe(routineQuerySchema)) query: RoutineQueryInput,
@@ -63,7 +67,10 @@ export class RoutinesController {
   @Get(':id')
   @ApiOperation({ summary: 'Get one routine with its planned exercises' })
   @ApiResponse({ status: 404, description: 'Not found' })
-  @ApiZodResponse(routineSchema, { description: 'The routine', name: 'Routine' })
+  @ApiZodResponse(routineSchema, {
+    description: 'The routine',
+    name: 'Routine',
+  })
   get(
     @CurrentUser() user: AuthenticatedUser,
     @Param('id', zodPipe(objectIdSchema)) id: string,
@@ -74,7 +81,11 @@ export class RoutinesController {
   @Post()
   @ApiOperation({ summary: 'Create a routine' })
   @ApiZodBody(createRoutineSchema)
-  @ApiZodResponse(routineSchema, { status: 201, description: 'Created routine', name: 'Routine' })
+  @ApiZodResponse(routineSchema, {
+    status: 201,
+    description: 'Created routine',
+    name: 'Routine',
+  })
   create(
     @CurrentUser() user: AuthenticatedUser,
     @Body(zodPipe(createRoutineSchema)) body: CreateRoutineInput,
@@ -86,7 +97,10 @@ export class RoutinesController {
   @ApiOperation({ summary: 'Update a routine' })
   @ApiZodBody(updateRoutineSchema)
   @ApiResponse({ status: 404, description: 'Not found' })
-  @ApiZodResponse(routineSchema, { description: 'Updated routine', name: 'Routine' })
+  @ApiZodResponse(routineSchema, {
+    description: 'Updated routine',
+    name: 'Routine',
+  })
   update(
     @CurrentUser() user: AuthenticatedUser,
     @Param('id', zodPipe(objectIdSchema)) id: string,
@@ -101,7 +115,11 @@ export class RoutinesController {
   @ApiZodBody(startRoutineSchema)
   @ApiResponse({ status: 404, description: 'Not found' })
   @ApiResponse({ status: 409, description: 'Conflicts with current state' })
-  @ApiZodResponse(workoutSchema, { status: 201, description: 'Workout started from the routine', name: 'Workout' })
+  @ApiZodResponse(workoutSchema, {
+    status: 201,
+    description: 'Workout started from the routine',
+    name: 'Workout',
+  })
   start(
     @CurrentUser() user: AuthenticatedUser,
     @Param('id', zodPipe(objectIdSchema)) id: string,

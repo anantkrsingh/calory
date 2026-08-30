@@ -1,6 +1,7 @@
 import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import type { OpenAPIObject } from '@nestjs/swagger';
 import { API_VERSION } from '@fitness/config';
 import type { Env } from '@fitness/config/server';
 import helmet from 'helmet';
@@ -49,10 +50,25 @@ async function bootstrap(): Promise<void> {
       schemas: { ...document.components?.schemas, ...registeredSchemas() },
     };
 
+    type PathItem = OpenAPIObject['paths'][string];
+    type Operation = NonNullable<PathItem['get']>;
+    const methods = [
+      'get',
+      'put',
+      'post',
+      'delete',
+      'options',
+      'head',
+      'patch',
+      'trace',
+    ] as const satisfies readonly (keyof PathItem)[];
+
     for (const path of Object.values(document.paths)) {
-      for (const operation of Object.values(path)) {
-        if (!operation || typeof operation !== 'object') continue;
-        if (!('responses' in operation) || !operation.responses) continue;
+      const operations = methods
+        .map((method) => path[method])
+        .filter((operation): operation is Operation => !!operation);
+
+      for (const operation of operations) {
         if (!operation.security?.length) continue;
         operation.responses['401'] ??= {
           description: 'Missing or invalid access token',

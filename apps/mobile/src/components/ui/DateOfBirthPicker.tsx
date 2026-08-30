@@ -52,10 +52,10 @@ function pad2(value: number): string {
 // including a partial trailing one — divides the row width into equal flex
 // columns instead of relying on flexWrap, which can misalign across rows when
 // fractional pixel widths round differently per item.
-function chunkWithPadding<T>(items: T[], size: number): Array<Array<T | null>> {
-  const rows: Array<Array<T | null>> = [];
+function chunkWithPadding<T>(items: T[], size: number): (T | null)[][] {
+  const rows: (T | null)[][] = [];
   for (let i = 0; i < items.length; i += size) {
-    const row: Array<T | null> = items.slice(i, i + size);
+    const row: (T | null)[] = items.slice(i, i + size);
     while (row.length < size) row.push(null);
     rows.push(row);
   }
@@ -171,7 +171,7 @@ export default forwardRef<DateOfBirthPickerRef, DateOfBirthPickerProps>(function
   const dayCells = useMemo(() => {
     const firstWeekday = new Date(Date.UTC(viewYear, viewMonth, 1)).getUTCDay();
     const total = daysInMonth(viewYear, viewMonth);
-    const cells: Array<number | null> = Array.from({ length: CELLS_PER_MONTH }, () => null);
+    const cells: (number | null)[] = Array.from({ length: CELLS_PER_MONTH }, () => null);
     for (let day = 1; day <= total; day += 1) {
       cells[firstWeekday + day - 1] = day;
     }

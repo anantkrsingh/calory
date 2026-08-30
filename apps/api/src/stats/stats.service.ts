@@ -57,7 +57,10 @@ export class StatsService {
         Math.round(
           completed.reduce((sum, w) => sum + w.stats.totalVolumeKg, 0) * 100,
         ) / 100,
-      totalDurationSec: completed.reduce((sum, w) => sum + (w.durationSec ?? 0), 0),
+      totalDurationSec: completed.reduce(
+        (sum, w) => sum + (w.durationSec ?? 0),
+        0,
+      ),
       streak: computeStreak(completed),
       volumeByMuscleGroup: await this.aggregateVolume(recent),
       recentActivity: aggregateDaily(recent, query.days),
@@ -123,7 +126,10 @@ export class StatsService {
       catalogue.map((row) => [row.id, row.primaryMuscles]),
     );
 
-    const totals = new Map<MuscleGroup, { volumeKg: number; setCount: number }>();
+    const totals = new Map<
+      MuscleGroup,
+      { volumeKg: number; setCount: number }
+    >();
 
     for (const workout of workouts) {
       for (const exercise of workout.exercises) {

@@ -33,7 +33,7 @@ export class OtpQueueProcessor implements OnModuleInit, OnModuleDestroy {
     this.transporter = createTransport({
       host: env.SMTP_HOST,
       port: env.SMTP_PORT,
-      secure: process.env.SMTP_SECURE === "true",
+      secure: process.env.SMTP_SECURE === 'true',
       auth:
         env.SMTP_USER && env.SMTP_PASSWORD
           ? { user: env.SMTP_USER, pass: env.SMTP_PASSWORD }

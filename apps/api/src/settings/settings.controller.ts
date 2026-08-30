@@ -21,7 +21,10 @@ export class SettingsController {
 
   @Get()
   @ApiOperation({ summary: 'Get app-wide configuration (admin only)' })
-  @ApiZodResponse(appSettingsSchema, { description: 'Current settings', name: 'AppSettings' })
+  @ApiZodResponse(appSettingsSchema, {
+    description: 'Current settings',
+    name: 'AppSettings',
+  })
   get(): Promise<AppSettings> {
     return this.settings.get();
   }
@@ -29,7 +32,10 @@ export class SettingsController {
   @Patch()
   @ApiOperation({ summary: 'Update app-wide configuration (admin only)' })
   @ApiZodBody(updateSettingsSchema)
-  @ApiZodResponse(appSettingsSchema, { description: 'Updated settings', name: 'AppSettings' })
+  @ApiZodResponse(appSettingsSchema, {
+    description: 'Updated settings',
+    name: 'AppSettings',
+  })
   update(
     @Body(zodPipe(updateSettingsSchema)) body: UpdateSettingsInput,
   ): Promise<AppSettings> {

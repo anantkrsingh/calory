@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+} from '@nestjs/common';
 import { toPlan } from '@fitness/db';
 import type { Id, Plan } from '@fitness/types';
 import type { CreatePlanInput, UpdatePlanInput } from '@fitness/validation';
@@ -65,14 +69,22 @@ export class PlansService {
       where: { id },
       data: {
         ...(input.name ? { name: input.name } : {}),
-        ...(input.description !== undefined ? { description: input.description } : {}),
+        ...(input.description !== undefined
+          ? { description: input.description }
+          : {}),
         ...(input.duration ? { duration: input.duration } : {}),
-        ...(input.durationDays !== undefined ? { durationDays: input.durationDays } : {}),
+        ...(input.durationDays !== undefined
+          ? { durationDays: input.durationDays }
+          : {}),
         ...(typeof input.price === 'number' ? { price: input.price } : {}),
         ...(input.currency ? { currency: input.currency } : {}),
         ...(input.benefits ? { benefits: input.benefits } : {}),
-        ...(input.storeProductId !== undefined ? { storeProductId: input.storeProductId } : {}),
-        ...(typeof input.isActive === 'boolean' ? { isActive: input.isActive } : {}),
+        ...(input.storeProductId !== undefined
+          ? { storeProductId: input.storeProductId }
+          : {}),
+        ...(typeof input.isActive === 'boolean'
+          ? { isActive: input.isActive }
+          : {}),
       },
     });
 

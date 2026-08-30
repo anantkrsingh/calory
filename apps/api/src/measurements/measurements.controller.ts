@@ -50,7 +50,11 @@ export class MeasurementsController {
   @Get()
   @ApiOperation({ summary: 'List body measurements, newest first' })
   @ApiZodQuery(measurementQuerySchema)
-  @ApiZodResponse(bodyMeasurementSchema, { paginated: true, description: 'Page of measurements', name: 'BodyMeasurement' })
+  @ApiZodResponse(bodyMeasurementSchema, {
+    paginated: true,
+    description: 'Page of measurements',
+    name: 'BodyMeasurement',
+  })
   list(
     @CurrentUser() user: AuthenticatedUser,
     @Query(zodPipe(measurementQuerySchema)) query: MeasurementQueryInput,
@@ -61,7 +65,10 @@ export class MeasurementsController {
   // Static segments must precede `:id` so they are not read as ids.
   @Get('latest')
   @ApiOperation({ summary: 'Get the most recent measurement, or null' })
-  @ApiZodResponse(bodyMeasurementSchema, { description: 'Most recent measurement, or null', name: 'BodyMeasurement' })
+  @ApiZodResponse(bodyMeasurementSchema, {
+    description: 'Most recent measurement, or null',
+    name: 'BodyMeasurement',
+  })
   latest(
     @CurrentUser() user: AuthenticatedUser,
   ): Promise<BodyMeasurement | null> {
@@ -71,7 +78,10 @@ export class MeasurementsController {
   @Get('trend')
   @ApiOperation({ summary: 'Get a measurement series over a date range' })
   @ApiZodQuery(measurementTrendQuerySchema)
-  @ApiZodResponse(measurementTrendSchema, { description: 'Measurement series', name: 'MeasurementTrend' })
+  @ApiZodResponse(measurementTrendSchema, {
+    description: 'Measurement series',
+    name: 'MeasurementTrend',
+  })
   trend(
     @CurrentUser() user: AuthenticatedUser,
     @Query(zodPipe(measurementTrendQuerySchema))
@@ -83,7 +93,10 @@ export class MeasurementsController {
   @Get(':id')
   @ApiOperation({ summary: 'Get one measurement' })
   @ApiResponse({ status: 404, description: 'Not found' })
-  @ApiZodResponse(bodyMeasurementSchema, { description: 'The measurement', name: 'BodyMeasurement' })
+  @ApiZodResponse(bodyMeasurementSchema, {
+    description: 'The measurement',
+    name: 'BodyMeasurement',
+  })
   get(
     @CurrentUser() user: AuthenticatedUser,
     @Param('id', zodPipe(objectIdSchema)) id: string,
@@ -94,7 +107,11 @@ export class MeasurementsController {
   @Post()
   @ApiOperation({ summary: 'Record a body measurement' })
   @ApiZodBody(createMeasurementSchema)
-  @ApiZodResponse(bodyMeasurementSchema, { status: 201, description: 'Created measurement', name: 'BodyMeasurement' })
+  @ApiZodResponse(bodyMeasurementSchema, {
+    status: 201,
+    description: 'Created measurement',
+    name: 'BodyMeasurement',
+  })
   create(
     @CurrentUser() user: AuthenticatedUser,
     @Body(zodPipe(createMeasurementSchema)) body: CreateMeasurementInput,
@@ -106,7 +123,10 @@ export class MeasurementsController {
   @ApiOperation({ summary: 'Update a measurement' })
   @ApiZodBody(updateMeasurementSchema)
   @ApiResponse({ status: 404, description: 'Not found' })
-  @ApiZodResponse(bodyMeasurementSchema, { description: 'Updated measurement', name: 'BodyMeasurement' })
+  @ApiZodResponse(bodyMeasurementSchema, {
+    description: 'Updated measurement',
+    name: 'BodyMeasurement',
+  })
   update(
     @CurrentUser() user: AuthenticatedUser,
     @Param('id', zodPipe(objectIdSchema)) id: string,

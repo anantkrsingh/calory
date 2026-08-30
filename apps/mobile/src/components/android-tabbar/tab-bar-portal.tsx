@@ -1,11 +1,11 @@
 import {
   createContext,
   useContext,
+  type ComponentProps,
   type Dispatch,
   type ReactNode,
   type SetStateAction,
 } from 'react';
-import type { ComponentProps } from 'react';
 import type { Tabs } from 'expo-router';
 
 export type TabBarProps = Parameters<

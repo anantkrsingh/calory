@@ -1,7 +1,11 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { paginate, toSkipTake, toUser, type Prisma } from '@fitness/db';
 import type { Id, Paginated, User } from '@fitness/types';
-import type { AdminUpdateUserInput, ListUsersQueryInput, UpdateUserInput } from '@fitness/validation';
+import type {
+  AdminUpdateUserInput,
+  ListUsersQueryInput,
+  UpdateUserInput,
+} from '@fitness/validation';
 
 import { PrismaService } from '../prisma/prisma.service';
 import { UploadsService } from '../uploads/uploads.service';
@@ -21,7 +25,13 @@ export class UsersService {
       ? {
           OR: [
             { email: { contains: query.search, mode: 'insensitive' } },
-            { profile: { is: { displayName: { contains: query.search, mode: 'insensitive' } } } },
+            {
+              profile: {
+                is: {
+                  displayName: { contains: query.search, mode: 'insensitive' },
+                },
+              },
+            },
           ],
         }
       : {};
@@ -90,15 +100,23 @@ export class UsersService {
     const updateData: Prisma.UserUpdateInput = {};
 
     if (input.role) updateData.role = input.role;
-    if (typeof input.emailVerified === 'boolean') updateData.emailVerified = input.emailVerified;
-    if (typeof input.totalCredits === 'number') updateData.totalCredits = input.totalCredits;
-    if (typeof input.remainingCredits === 'number') updateData.remainingCredits = input.remainingCredits;
+    if (typeof input.emailVerified === 'boolean')
+      updateData.emailVerified = input.emailVerified;
+    if (typeof input.totalCredits === 'number')
+      updateData.totalCredits = input.totalCredits;
+    if (typeof input.remainingCredits === 'number')
+      updateData.remainingCredits = input.remainingCredits;
     if (input.planId !== undefined) {
-      updateData.plan = input.planId ? { connect: { id: input.planId } } : { disconnect: true };
+      updateData.plan = input.planId
+        ? { connect: { id: input.planId } }
+        : { disconnect: true };
     }
-    if (input.planName !== undefined) updateData.planName = input.planName ?? null;
+    if (input.planName !== undefined)
+      updateData.planName = input.planName ?? null;
     if (input.planExpiresAt !== undefined) {
-      updateData.planExpiresAt = input.planExpiresAt ? new Date(input.planExpiresAt) : null;
+      updateData.planExpiresAt = input.planExpiresAt
+        ? new Date(input.planExpiresAt)
+        : null;
     }
 
     if (input.profile) {

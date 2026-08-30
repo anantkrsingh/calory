@@ -1,9 +1,4 @@
-import {
-  ConflictException,
-  Injectable,
-  Inject,
-  Logger,
-} from '@nestjs/common';
+import { ConflictException, Injectable, Inject, Logger } from '@nestjs/common';
 import type { Env } from '@fitness/config/server';
 
 import { ENV } from '../config/env.module';

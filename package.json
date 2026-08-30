@@ -31,9 +31,11 @@
     "db:push": "turbo run db:push --filter=@fitness/db",
     "db:seed": "turbo run db:seed --filter=@fitness/db",
     "db:studio": "turbo run db:studio --filter=@fitness/db",
-    "clean": "turbo run clean && rm -rf node_modules"
+    "clean": "turbo run clean && rm -rf node_modules",
+    "prepare": "husky"
   },
   "devDependencies": {
+    "husky": "^9.1.7",
     "turbo": "^2.10.9",
     "typescript": "^7.0.2"
   }

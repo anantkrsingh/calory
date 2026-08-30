@@ -20,7 +20,6 @@ import SocialButton from "@/components/welcome/SocialButton";
 import { useSocialLogin } from "@/hooks/use-social-login";
 import LoginSheet, { type LoginSheetRef } from "@/components/auth/LoginSheet";
 
-// eslint-disable-next-line @typescript-eslint/no-require-imports -- no ambient *.png module types in SDK 57
 const heroArt = require("../../../assets/images/arts/welcome/main.png");
 
 export default function WelcomeScreen() {
@@ -45,8 +44,6 @@ export default function WelcomeScreen() {
 
   const fade = (alpha: number): ColorValue =>
     isDark ? `rgba(0, 0, 0, ${alpha})` : `rgba(255, 255, 255, ${alpha})`;
-
-  const hairline = isDark ? "rgba(255, 255, 255, 0.14)" : "rgba(0, 0, 0, 0.10)";
 
   return (
     <View style={[styles.root, { backgroundColor: theme.background }]}>

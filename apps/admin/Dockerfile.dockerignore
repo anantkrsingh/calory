@@ -1,0 +1,35 @@
+# Per-Dockerfile override for apps/admin/Dockerfile — the root .dockerignore
+# excludes apps/admin/** (it's not needed to build api/worker), but this
+# build needs it, so re-include it here while keeping the rest of the
+# root rules in effect.
+
+# Git / IDE
+.git
+.github
+.agents
+.claude
+.cursor
+.turbo
+.pnpm-store
+**/.DS_Store
+
+# Dependencies & build outputs (rebuilt in image)
+**/node_modules
+**/dist
+**/.next
+**/.expo
+**/coverage
+**/*.tsbuildinfo
+
+# Env & secrets — injected at runtime via compose / CI
+.env
+.env.*
+!.env.example
+
+# Heavy app tree not needed to build admin
+apps/mobile/**
+!apps/mobile/package.json
+
+# Docs & misc
+docs
+skills-lock.json
