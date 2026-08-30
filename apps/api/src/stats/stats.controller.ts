@@ -30,7 +30,10 @@ export class StatsController {
   @Get('dashboard')
   @ApiOperation({ summary: 'Get the home dashboard summary' })
   @ApiZodQuery(dashboardQuerySchema)
-  @ApiZodResponse(dashboardStatsSchema, { description: 'Dashboard summary', name: 'DashboardStats' })
+  @ApiZodResponse(dashboardStatsSchema, {
+    description: 'Dashboard summary',
+    name: 'DashboardStats',
+  })
   dashboard(
     @CurrentUser() user: AuthenticatedUser,
     @Query(zodPipe(dashboardQuerySchema)) query: DashboardQueryInput,
@@ -41,7 +44,11 @@ export class StatsController {
   @Get('volume')
   @ApiOperation({ summary: 'Get training volume grouped by muscle group' })
   @ApiZodQuery(statsRangeSchema)
-  @ApiZodResponse(volumeByMuscleGroupSchema, { isArray: true, description: 'Volume per muscle group', name: 'VolumeByMuscleGroup' })
+  @ApiZodResponse(volumeByMuscleGroupSchema, {
+    isArray: true,
+    description: 'Volume per muscle group',
+    name: 'VolumeByMuscleGroup',
+  })
   volume(
     @CurrentUser() user: AuthenticatedUser,
     @Query(zodPipe(statsRangeSchema)) query: StatsRangeInput,
@@ -52,7 +59,11 @@ export class StatsController {
   @Get('activity')
   @ApiOperation({ summary: 'Get daily activity over a date range' })
   @ApiZodQuery(statsRangeSchema)
-  @ApiZodResponse(dailyActivitySchema, { isArray: true, description: 'Daily activity series', name: 'DailyActivity' })
+  @ApiZodResponse(dailyActivitySchema, {
+    isArray: true,
+    description: 'Daily activity series',
+    name: 'DailyActivity',
+  })
   activity(
     @CurrentUser() user: AuthenticatedUser,
     @Query(zodPipe(statsRangeSchema)) query: StatsRangeInput,

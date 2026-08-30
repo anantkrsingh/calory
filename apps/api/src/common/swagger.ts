@@ -9,10 +9,10 @@ type ReferenceObject = { $ref: string };
 const registry = new Map<string, SchemaObject>();
 
 const toJsonSchema = (schema: ZodType, io: 'input' | 'output') => {
-  const json = z.toJSONSchema(schema, { io, target: 'draft-2020-12' }) as Record<
-    string,
-    unknown
-  >;
+  const json = z.toJSONSchema(schema, {
+    io,
+    target: 'draft-2020-12',
+  }) as Record<string, unknown>;
   delete json.$schema;
   return json as SchemaObject;
 };
@@ -60,7 +60,9 @@ export function ApiZodResponse(
     paginated = false,
   } = options;
 
-  const base = name ? registerSchema(name, schema) : toJsonSchema(schema, 'output');
+  const base = name
+    ? registerSchema(name, schema)
+    : toJsonSchema(schema, 'output');
 
   if (paginated) {
     return ApiResponse({

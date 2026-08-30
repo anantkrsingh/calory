@@ -61,7 +61,11 @@ export class AuthController {
       'verified at POST /auth/verify-registration.',
   })
   @ApiZodBody(registerSchema)
-  @ApiZodResponse(pendingVerificationSchema, { status: 201, name: 'PendingVerification', description: 'Account pending verification' })
+  @ApiZodResponse(pendingVerificationSchema, {
+    status: 201,
+    name: 'PendingVerification',
+    description: 'Account pending verification',
+  })
   @ApiResponse({ status: 409, description: 'Email is already registered' })
   register(
     @Body(zodPipe(registerSchema)) body: RegisterInput,
@@ -77,7 +81,11 @@ export class AuthController {
     description: 'Sets emailVerified to true and issues the token pair.',
   })
   @ApiZodBody(verifyRegistrationSchema)
-  @ApiZodResponse(authSessionSchema, { status: 200, name: 'AuthSession', description: 'Email verified; session issued' })
+  @ApiZodResponse(authSessionSchema, {
+    status: 200,
+    name: 'AuthSession',
+    description: 'Email verified; session issued',
+  })
   @ApiResponse({ status: 401, description: 'Code is invalid or expired' })
   verifyRegistration(
     @Body(zodPipe(verifyRegistrationSchema)) body: VerifyRegistrationInput,
@@ -90,7 +98,11 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Sign in with email and password' })
   @ApiZodBody(loginSchema)
-  @ApiZodResponse(authSessionSchema, { status: 200, name: 'AuthSession', description: 'Session issued' })
+  @ApiZodResponse(authSessionSchema, {
+    status: 200,
+    name: 'AuthSession',
+    description: 'Session issued',
+  })
   @ApiResponse({ status: 401, description: 'Incorrect email or password' })
   login(@Body(zodPipe(loginSchema)) body: LoginInput): Promise<AuthSession> {
     return this.auth.login(body);
@@ -106,7 +118,11 @@ export class AuthController {
       'already registered with this email is linked rather than rejected.',
   })
   @ApiZodBody(socialLoginSchema)
-  @ApiZodResponse(authSessionSchema, { status: 200, name: 'AuthSession', description: 'Session issued' })
+  @ApiZodResponse(authSessionSchema, {
+    status: 200,
+    name: 'AuthSession',
+    description: 'Session issued',
+  })
   @ApiResponse({ status: 400, description: 'Token failed verification' })
   @ApiResponse({ status: 501, description: 'Google sign-in is not configured' })
   loginGoogle(
@@ -125,10 +141,17 @@ export class AuthController {
       'the `email` permission, or account creation has nothing to key on.',
   })
   @ApiZodBody(socialLoginSchema)
-  @ApiZodResponse(authSessionSchema, { status: 200, name: 'AuthSession', description: 'Session issued' })
+  @ApiZodResponse(authSessionSchema, {
+    status: 200,
+    name: 'AuthSession',
+    description: 'Session issued',
+  })
   @ApiResponse({ status: 400, description: 'Token failed verification' })
   @ApiResponse({ status: 409, description: 'Provider shared no email address' })
-  @ApiResponse({ status: 501, description: 'Facebook sign-in is not configured' })
+  @ApiResponse({
+    status: 501,
+    description: 'Facebook sign-in is not configured',
+  })
   loginFacebook(
     @Body(zodPipe(socialLoginSchema)) body: SocialLoginInput,
   ): Promise<AuthSession> {
@@ -145,7 +168,11 @@ export class AuthController {
       'with the `redirectUri` and `codeVerifier` used to obtain it.',
   })
   @ApiZodBody(socialLoginSchema)
-  @ApiZodResponse(authSessionSchema, { status: 200, name: 'AuthSession', description: 'Session issued' })
+  @ApiZodResponse(authSessionSchema, {
+    status: 200,
+    name: 'AuthSession',
+    description: 'Session issued',
+  })
   @ApiResponse({ status: 400, description: 'Code exchange failed' })
   @ApiResponse({ status: 409, description: 'Provider shared no email address' })
   @ApiResponse({ status: 501, description: 'X sign-in is not configured' })
@@ -163,8 +190,15 @@ export class AuthController {
     description: 'The refresh token rotates; the presented one stops working.',
   })
   @ApiZodBody(refreshTokenSchema)
-  @ApiZodResponse(authTokensSchema, { status: 200, name: 'AuthTokens', description: 'New token pair issued' })
-  @ApiResponse({ status: 401, description: 'Token is invalid, expired, or revoked' })
+  @ApiZodResponse(authTokensSchema, {
+    status: 200,
+    name: 'AuthTokens',
+    description: 'New token pair issued',
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Token is invalid, expired, or revoked',
+  })
   refresh(
     @Body(zodPipe(refreshTokenSchema)) body: RefreshTokenInput,
   ): Promise<AuthTokens> {
@@ -181,7 +215,11 @@ export class AuthController {
 
   @Get('me')
   @ApiOperation({ summary: 'Get the signed-in user' })
-  @ApiZodResponse(userSchema, { status: 200, name: 'User', description: 'The current user' })
+  @ApiZodResponse(userSchema, {
+    status: 200,
+    name: 'User',
+    description: 'The current user',
+  })
   me(@CurrentUser() user: AuthenticatedUser): Promise<User> {
     return this.auth.me(user.id);
   }

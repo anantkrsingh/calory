@@ -1,4 +1,7 @@
-import type { WorkoutExerciseComposite, WorkoutStatsComposite } from '@fitness/db';
+import type {
+  WorkoutExerciseComposite,
+  WorkoutStatsComposite,
+} from '@fitness/db';
 
 /**
  * Recomputes a workout's totals from its sets. Always derived server-side —

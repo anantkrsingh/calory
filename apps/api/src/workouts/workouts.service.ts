@@ -132,7 +132,9 @@ export class WorkoutsService {
         ...(input.completedAt
           ? { completedAt: new Date(input.completedAt) }
           : {}),
-        ...(input.durationSec != null ? { durationSec: input.durationSec } : {}),
+        ...(input.durationSec != null
+          ? { durationSec: input.durationSec }
+          : {}),
         ...(input.notes != null ? { notes: input.notes } : {}),
         ...(input.exercises ? { exercises } : {}),
         stats: computeStats(exercises),
@@ -169,9 +171,10 @@ export class WorkoutsService {
       const sets = exercise.sets.filter((set) => set.id !== input.set.id);
       return {
         ...exercise,
-        sets: [...sets, input.set as WorkoutExerciseComposite['sets'][number]].sort(
-          (a, b) => a.order - b.order,
-        ),
+        sets: [
+          ...sets,
+          input.set as WorkoutExerciseComposite['sets'][number],
+        ].sort((a, b) => a.order - b.order),
       };
     });
 
@@ -202,7 +205,9 @@ export class WorkoutsService {
       input.durationSec ??
       Math.max(
         0,
-        Math.round((completedAt.getTime() - current.startedAt.getTime()) / 1000),
+        Math.round(
+          (completedAt.getTime() - current.startedAt.getTime()) / 1000,
+        ),
       );
 
     const workout = await this.prisma.workout.update({
@@ -230,7 +235,9 @@ export class WorkoutsService {
     const current = await this.getOwned(userId, id);
 
     if (current.status !== 'in_progress') {
-      throw new BadRequestException('Only an in-progress workout can be cancelled');
+      throw new BadRequestException(
+        'Only an in-progress workout can be cancelled',
+      );
     }
 
     const workout = await this.prisma.workout.update({

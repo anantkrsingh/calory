@@ -1,5 +1,11 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { Prisma, paginate, toGoal, toSkipTake, type GoalRow } from '@fitness/db';
+import {
+  Prisma,
+  paginate,
+  toGoal,
+  toSkipTake,
+  type GoalRow,
+} from '@fitness/db';
 import type { Goal, GoalProgress, Id, Paginated } from '@fitness/types';
 import type {
   CreateGoalInput,
@@ -73,7 +79,9 @@ export class GoalsService {
       where: { id },
       data: {
         ...(input.title ? { title: input.title } : {}),
-        ...(input.targetValue != null ? { targetValue: input.targetValue } : {}),
+        ...(input.targetValue != null
+          ? { targetValue: input.targetValue }
+          : {}),
         ...(input.currentValue != null
           ? { currentValue: input.currentValue }
           : {}),

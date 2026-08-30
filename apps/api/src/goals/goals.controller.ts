@@ -48,7 +48,11 @@ export class GoalsController {
   @Get()
   @ApiOperation({ summary: 'List your goals' })
   @ApiZodQuery(goalQuerySchema)
-  @ApiZodResponse(goalSchema, { paginated: true, description: 'Page of goals', name: 'Goal' })
+  @ApiZodResponse(goalSchema, {
+    paginated: true,
+    description: 'Page of goals',
+    name: 'Goal',
+  })
   list(
     @CurrentUser() user: AuthenticatedUser,
     @Query(zodPipe(goalQuerySchema)) query: GoalQueryInput,
@@ -70,7 +74,10 @@ export class GoalsController {
   @Get(':id/progress')
   @ApiOperation({ summary: 'Get current progress towards a goal' })
   @ApiResponse({ status: 404, description: 'Not found' })
-  @ApiZodResponse(goalProgressSchema, { description: 'Progress towards the goal', name: 'GoalProgress' })
+  @ApiZodResponse(goalProgressSchema, {
+    description: 'Progress towards the goal',
+    name: 'GoalProgress',
+  })
   progress(
     @CurrentUser() user: AuthenticatedUser,
     @Param('id', zodPipe(objectIdSchema)) id: string,
@@ -81,7 +88,11 @@ export class GoalsController {
   @Post()
   @ApiOperation({ summary: 'Create a goal' })
   @ApiZodBody(createGoalSchema)
-  @ApiZodResponse(goalSchema, { status: 201, description: 'Created goal', name: 'Goal' })
+  @ApiZodResponse(goalSchema, {
+    status: 201,
+    description: 'Created goal',
+    name: 'Goal',
+  })
   create(
     @CurrentUser() user: AuthenticatedUser,
     @Body(zodPipe(createGoalSchema)) body: CreateGoalInput,

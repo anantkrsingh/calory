@@ -1,4 +1,8 @@
-import { BadRequestException, Logger, NotImplementedException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Logger,
+  NotImplementedException,
+} from '@nestjs/common';
 import type { Env } from '@fitness/config/server';
 import { AuthProvider, type SocialProfile } from '@fitness/types';
 import type { SocialLoginInput } from '@fitness/validation';
@@ -65,10 +69,11 @@ export async function verifyGoogle(
   }
 
   if (!payload?.sub) {
-    logger.warn(`Google ID token verified but payload had no subject: ${JSON.stringify(payload)}`);
+    logger.warn(
+      `Google ID token verified but payload had no subject: ${JSON.stringify(payload)}`,
+    );
     reject(AuthProvider.Google);
   }
-
 
   return {
     provider: AuthProvider.Google,
@@ -85,10 +90,15 @@ export async function verifyFacebook(
   env: Env,
 ): Promise<SocialProfile> {
   const appId = requireConfig(env.FACEBOOK_APP_ID, AuthProvider.Facebook);
-  const appSecret = requireConfig(env.FACEBOOK_APP_SECRET, AuthProvider.Facebook);
+  const appSecret = requireConfig(
+    env.FACEBOOK_APP_SECRET,
+    AuthProvider.Facebook,
+  );
   const appToken = `${appId}|${appSecret}`;
 
-  let debug: { data?: { app_id?: string; is_valid?: boolean; user_id?: string } } | null;
+  let debug: {
+    data?: { app_id?: string; is_valid?: boolean; user_id?: string };
+  } | null;
   try {
     debug = (await getJson(
       `https://graph.facebook.com/debug_token?input_token=${encodeURIComponent(input.token)}&access_token=${encodeURIComponent(appToken)}`,

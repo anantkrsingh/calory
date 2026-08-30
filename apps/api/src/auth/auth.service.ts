@@ -14,7 +14,6 @@ import type {
   Id,
   JwtPayload,
   PendingVerification,
-  SocialProfile,
   User,
 } from '@fitness/types';
 import type {
@@ -45,7 +44,7 @@ export class AuthService {
     private readonly measurements: MeasurementsService,
     private readonly workoutRoutines: WorkoutRoutineService,
     @Inject(ENV) private readonly env: Env,
-  ) { }
+  ) {}
 
   async register(input: RegisterInput): Promise<PendingVerification> {
     const existing = await this.prisma.user.findUnique({
@@ -62,7 +61,9 @@ export class AuthService {
 
     const profile = {
       displayName: input.displayName,
-      ...(input.profile?.avatarUrl ? { avatarUrl: input.profile.avatarUrl } : {}),
+      ...(input.profile?.avatarUrl
+        ? { avatarUrl: input.profile.avatarUrl }
+        : {}),
       ...(input.profile?.dateOfBirth
         ? { dateOfBirth: input.profile.dateOfBirth }
         : {}),
@@ -157,7 +158,8 @@ export class AuthService {
     // the same time, leaving no timing signal for account enumeration.
     const passwordMatches = await compare(
       input.password,
-      user?.passwordHash ?? '$2a$12$invalidinvalidinvalidinvalidinvalidinvalidinvalidinvalidinv',
+      user?.passwordHash ??
+        '$2a$12$invalidinvalidinvalidinvalidinvalidinvalidinvalidinvalidinv',
     );
 
     if (!user || !user.passwordHash || !passwordMatches) {
@@ -204,23 +206,25 @@ export class AuthService {
           ...(alreadyLinked
             ? {}
             : {
-              linkedAccounts: {
-                push: {
-                  provider: profile.provider,
-                  subject: profile.subject,
-                  email: profile.email ?? null,
+                linkedAccounts: {
+                  push: {
+                    provider: profile.provider,
+                    subject: profile.subject,
+                    email: profile.email ?? null,
+                  },
                 },
-              },
-            }),
+              }),
           ...(profile.emailVerified && !existing.emailVerified
             ? { emailVerified: true }
             : {}),
-          ...(profile.avatarUrl ?
-            {
-              profile: { ...(existing.profile ?? {}), avatarUrl: profile.avatarUrl },
-            }
-            : {}
-          )
+          ...(profile.avatarUrl
+            ? {
+                profile: {
+                  ...(existing.profile ?? {}),
+                  avatarUrl: profile.avatarUrl,
+                },
+              }
+            : {}),
         },
       });
 
@@ -310,10 +314,7 @@ export class AuthService {
     return toUser(user);
   }
 
-  async changePassword(
-    userId: Id,
-    input: ChangePasswordInput,
-  ): Promise<void> {
+  async changePassword(userId: Id, input: ChangePasswordInput): Promise<void> {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new UnauthorizedException('Account no longer exists');
 
@@ -363,7 +364,7 @@ export class AuthService {
       data: { refreshTokenHash: await hash(refreshToken, BCRYPT_ROUNDS) },
     });
 
-    const decoded = this.jwt.decode(accessToken) as JwtPayload;
+    const decoded = this.jwt.decode<JwtPayload>(accessToken);
 
     return {
       user,

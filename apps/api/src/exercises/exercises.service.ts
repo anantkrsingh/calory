@@ -40,7 +40,9 @@ export class ExercisesService {
         : {}),
       ...(query.category ? { category: query.category } : {}),
       ...(query.equipment ? { equipment: query.equipment } : {}),
-      ...(query.muscleGroup ? { primaryMuscles: { has: query.muscleGroup } } : {}),
+      ...(query.muscleGroup
+        ? { primaryMuscles: { has: query.muscleGroup } }
+        : {}),
     };
 
     const { skip, take } = toSkipTake(query);
@@ -104,7 +106,9 @@ export class ExercisesService {
       this.prisma.exercise.findMany({ where, orderBy: { name: 'asc' } }),
       this.getFavoriteIds(userId),
     ]);
-    const exercises = rows.map((row) => toExercise(row, favoriteIds.has(row.id)));
+    const exercises = rows.map((row) =>
+      toExercise(row, favoriteIds.has(row.id)),
+    );
 
     const groups = new Map<MuscleGroup, Exercise[]>();
     for (const exercise of exercises) {
@@ -243,7 +247,10 @@ export class ExercisesService {
 
           let improved = false;
 
-          if (set.weightKg != null && set.weightKg > (record.bestWeightKg ?? 0)) {
+          if (
+            set.weightKg != null &&
+            set.weightKg > (record.bestWeightKg ?? 0)
+          ) {
             record.bestWeightKg = set.weightKg;
             improved = true;
           }
@@ -251,7 +258,10 @@ export class ExercisesService {
             record.bestReps = set.reps;
             improved = true;
           }
-          if (set.distanceM != null && set.distanceM > (record.bestDistanceM ?? 0)) {
+          if (
+            set.distanceM != null &&
+            set.distanceM > (record.bestDistanceM ?? 0)
+          ) {
             record.bestDistanceM = set.distanceM;
             improved = true;
           }
@@ -292,7 +302,10 @@ export class ExercisesService {
   private async getVisibleExerciseRow(userId: Id, id: Id) {
     const exercise = await this.prisma.exercise.findUnique({ where: { id } });
 
-    if (!exercise || (exercise.createdById && exercise.createdById !== userId)) {
+    if (
+      !exercise ||
+      (exercise.createdById && exercise.createdById !== userId)
+    ) {
       throw new NotFoundException('Exercise not found');
     }
 
@@ -337,6 +350,9 @@ function estimateOneRepMax(weightKg: number, reps: number): number {
  * enum value or its spaced-out label ("full body" / "full-body" → full_body).
  */
 function matchMuscleGroup(search: string): MuscleGroup | undefined {
-  const normalized = search.trim().toLowerCase().replace(/[\s-]+/g, '_');
+  const normalized = search
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, '_');
   return Object.values(MuscleGroup).find((muscle) => muscle === normalized);
 }

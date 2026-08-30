@@ -54,7 +54,11 @@ export class UsersController {
   @Roles('admin')
   @ApiOperation({ summary: 'List all users (admin only)' })
   @ApiZodQuery(listUsersQuerySchema)
-  @ApiZodResponse(userSchema, { paginated: true, description: 'Page of users', name: 'User' })
+  @ApiZodResponse(userSchema, {
+    paginated: true,
+    description: 'Page of users',
+    name: 'User',
+  })
   list(
     @Query(zodPipe(listUsersQuerySchema)) query: ListUsersQueryInput,
   ): Promise<Paginated<User>> {
@@ -81,8 +85,7 @@ export class UsersController {
 
   @Post('me/avatar')
   @ApiOperation({
-    summary:
-      'Upload and set your profile avatar. JPEG/PNG/WebP/GIF, max 5MB.',
+    summary: 'Upload and set your profile avatar. JPEG/PNG/WebP/GIF, max 5MB.',
   })
   @ApiConsumes('multipart/form-data')
   @ApiBody({
@@ -139,7 +142,9 @@ export class UsersController {
 
   @Patch(':id')
   @Roles('admin')
-  @ApiOperation({ summary: 'Update user credits, plan, role, or profile (admin only)' })
+  @ApiOperation({
+    summary: 'Update user credits, plan, role, or profile (admin only)',
+  })
   @ApiZodBody(adminUpdateUserSchema)
   @ApiZodResponse(userSchema, { description: 'Updated user', name: 'User' })
   adminUpdate(

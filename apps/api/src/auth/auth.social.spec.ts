@@ -12,32 +12,50 @@ const PROFILE: SocialProfile = {
   emailVerified: true,
 };
 
-function makeService(user: Record<string, unknown> | null) {
+type UserRecord = Record<string, any>;
+
+function makeService(user: UserRecord | null) {
   const prisma = {
     user: {
-      findFirst: jest.fn().mockResolvedValue(
-        user && (user.linkedAccounts as unknown[])?.length ? user : null,
-      ),
-      findUnique: jest.fn().mockResolvedValue(user),
-      update: jest.fn().mockImplementation(({ data }) => ({
-        ...baseUser,
-        ...user,
-        ...data,
-      })),
-      upsert: jest.fn().mockImplementation(({ create, update }) => ({
-        ...baseUser,
-        ...(user ? { ...user, ...update } : create),
-        id: user ? 'existing-id' : 'new-id',
-      })),
-      create: jest.fn().mockImplementation(({ data }) => ({
-        id: 'new-id',
-        role: 'user',
-        planExpiresAt: null,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        ...data,
-        preferences: { ...baseUser.preferences, ...data.preferences },
-      })),
+      findFirst: jest
+        .fn<(args?: unknown) => Promise<UserRecord | null>>()
+        .mockResolvedValue(
+          user && (user.linkedAccounts as unknown[])?.length ? user : null,
+        ),
+      findUnique: jest
+        .fn<(args?: unknown) => Promise<UserRecord | null>>()
+        .mockResolvedValue(user),
+      update: jest
+        .fn<(args: { where: { id: string }; data: UserRecord }) => UserRecord>()
+        .mockImplementation(({ data }) => ({
+          ...baseUser,
+          ...user,
+          ...data,
+        })),
+      upsert: jest
+        .fn<
+          (args: {
+            where: unknown;
+            create: UserRecord;
+            update: UserRecord;
+          }) => UserRecord
+        >()
+        .mockImplementation(({ create, update }) => ({
+          ...baseUser,
+          ...(user ? { ...user, ...update } : create),
+          id: user ? 'existing-id' : 'new-id',
+        })),
+      create: jest
+        .fn<(args: { data: UserRecord }) => UserRecord>()
+        .mockImplementation(({ data }) => ({
+          id: 'new-id',
+          role: 'user',
+          planExpiresAt: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          ...data,
+          preferences: { ...baseUser.preferences, ...data.preferences },
+        })),
     },
     appSettings: {
       findFirst: jest.fn().mockResolvedValue({ freeChatsLimit: 5 }),
@@ -156,9 +174,11 @@ describe('AuthService.register', () => {
   it('saves the account unverified, sends an OTP, and issues no tokens', async () => {
     const { service, prisma, otp } = makeService(null);
 
-    const result = await service.register(input as never);
+    const result = await service.register(input);
 
-    expect(prisma.user.upsert.mock.calls[0][0].create.emailVerified).toBe(false);
+    expect(prisma.user.upsert.mock.calls[0][0].create.emailVerified).toBe(
+      false,
+    );
     expect(otp.sendOtp).toHaveBeenCalledWith(
       'email',
       'ada@example.com',
@@ -172,7 +192,10 @@ describe('AuthService.register', () => {
   it('upserts the body measurement when one is supplied', async () => {
     const { service, measurements } = makeService(null);
 
-    await service.register({ ...input, measurement: { weightKg: 70 } } as never);
+    await service.register({
+      ...input,
+      measurement: { weightKg: 70 },
+    } as never);
 
     expect(measurements.create).toHaveBeenCalledWith('new-id', {
       weightKg: 70,
@@ -188,9 +211,12 @@ describe('AuthService.register', () => {
   });
 
   it('lets an unverified signup retry, replacing the pending account', async () => {
-    const { service, prisma } = makeService({ ...baseUser, emailVerified: false });
+    const { service, prisma } = makeService({
+      ...baseUser,
+      emailVerified: false,
+    });
 
-    await service.register(input as never);
+    await service.register(input);
 
     expect(prisma.user.upsert).toHaveBeenCalled();
   });

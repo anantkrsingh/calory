@@ -10,7 +10,12 @@ import {
   Post,
   Query,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 import type { Plan } from '@fitness/types';
 import {
   createPlanSchema,
@@ -34,7 +39,11 @@ export class PlansController {
 
   @Get()
   @ApiOperation({ summary: 'List all plans' })
-  @ApiZodResponse(planSchema, { isArray: true, description: 'List of plans', name: 'Plan' })
+  @ApiZodResponse(planSchema, {
+    isArray: true,
+    description: 'List of plans',
+    name: 'Plan',
+  })
   list(@Query('activeOnly') activeOnly?: string): Promise<Plan[]> {
     return this.plansService.list(activeOnly === 'true');
   }
@@ -52,7 +61,9 @@ export class PlansController {
   @ApiOperation({ summary: 'Create a premium plan (admin only)' })
   @ApiZodBody(createPlanSchema)
   @ApiZodResponse(planSchema, { description: 'Created plan', name: 'Plan' })
-  create(@Body(zodPipe(createPlanSchema)) body: CreatePlanInput): Promise<Plan> {
+  create(
+    @Body(zodPipe(createPlanSchema)) body: CreatePlanInput,
+  ): Promise<Plan> {
     return this.plansService.create(body);
   }
 

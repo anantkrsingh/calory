@@ -4,7 +4,7 @@ import type { Plan } from "@fitness/types";
 import { Check, Edit, Plus, Trash2, X } from "lucide-react";
 import { useState, useTransition } from "react";
 
-import { CustomDropdown, type CustomDropdownOption } from "@/components/custom-dropdown";
+import { CustomDropdown } from "@/components/custom-dropdown";
 import { createPlanAction, deletePlanAction, updatePlanAction } from "@/lib/plan-actions";
 
 interface PlanManagementClientProps {

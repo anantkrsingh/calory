@@ -101,15 +101,15 @@ export class RoutinesService {
   ): Promise<Routine> {
     await this.getOwned(userId, id);
 
-    const exercises = input.exercises as
-      | RoutineExerciseComposite[]
-      | undefined;
+    const exercises = input.exercises as RoutineExerciseComposite[] | undefined;
 
     const routine = await this.prisma.routine.update({
       where: { id },
       data: {
         ...(input.name ? { name: input.name } : {}),
-        ...(input.description != null ? { description: input.description } : {}),
+        ...(input.description != null
+          ? { description: input.description }
+          : {}),
         ...(input.estimatedDurationSec != null
           ? { estimatedDurationSec: input.estimatedDurationSec }
           : {}),
@@ -135,11 +135,7 @@ export class RoutinesService {
    * Instantiates the routine as a live workout: target values become the first
    * draft of each set, uncompleted, for the user to confirm as they train.
    */
-  async start(
-    userId: Id,
-    id: Id,
-    input: StartRoutineInput,
-  ): Promise<Workout> {
+  async start(userId: Id, id: Id, input: StartRoutineInput): Promise<Workout> {
     const routine = await this.getOwned(userId, id);
 
     const exercises: WorkoutExerciseComposite[] = routine.exercises.map(

@@ -61,7 +61,6 @@ jobs:
           CORS_ORIGIN: ${{ secrets.CORS_ORIGIN }}
           API_PREFIX: ${{ secrets.API_PREFIX }}
           SWAGGER_ENABLED: ${{ secrets.SWAGGER_ENABLED }}
-          REDIS_PASSWORD: ${{ secrets.REDIS_PASSWORD }}
           OTP_EXPIRY_MINUTES: ${{ secrets.OTP_EXPIRY_MINUTES }}
           OTP_LENGTH: ${{ secrets.OTP_LENGTH }}
           SMTP_HOST: ${{ secrets.SMTP_HOST }}
@@ -104,7 +103,6 @@ jobs:
           append JWT_EXPIRES_IN "${JWT_EXPIRES_IN:-7d}"
           append SWAGGER_ENABLED "${SWAGGER_ENABLED:-false}"
           append DEFAULT_PAGE_SIZE "${DEFAULT_PAGE_SIZE:-20}"
-          append REDIS_PASSWORD "${REDIS_PASSWORD:-}"
           append OTP_EXPIRY_MINUTES "${OTP_EXPIRY_MINUTES:-10}"
           append OTP_LENGTH "${OTP_LENGTH:-6}"
           append SMTP_HOST "${SMTP_HOST:-localhost}"

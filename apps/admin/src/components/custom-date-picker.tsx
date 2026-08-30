@@ -24,15 +24,18 @@ export function CustomDatePicker({
   const [viewYear, setViewYear] = useState<number>(parsedDate.getUTCFullYear());
   const [viewMonth, setViewMonth] = useState<number>(parsedDate.getUTCMonth()); // 0-indexed
 
-  useEffect(() => {
-    if (value) {
-      const d = new Date(value + "T00:00:00Z");
-      if (!isNaN(d.getTime())) {
-        setViewYear(d.getUTCFullYear());
-        setViewMonth(d.getUTCMonth());
-      }
+  // Re-sync the visible month/year when `value` changes from outside (e.g.
+  // the parent resets the field) without clobbering in-progress navigation.
+  // Adjusting state during render, per React's docs, instead of an effect.
+  const [prevValue, setPrevValue] = useState(value);
+  if (value !== prevValue) {
+    setPrevValue(value);
+    const d = new Date(value + "T00:00:00Z");
+    if (!isNaN(d.getTime())) {
+      setViewYear(d.getUTCFullYear());
+      setViewMonth(d.getUTCMonth());
     }
-  }, [value]);
+  }
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {

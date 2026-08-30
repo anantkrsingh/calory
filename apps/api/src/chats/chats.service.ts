@@ -165,10 +165,7 @@ export class ChatsService {
     return paginate(rows.map(toChatMessage), query, total);
   }
 
-  async create(
-    userId: Id,
-    input: CreateChatInput,
-  ): Promise<ChatConversation> {
+  async create(userId: Id, input: CreateChatInput): Promise<ChatConversation> {
     const row = await this.prisma.chatConversation.create({
       data: {
         userId,
@@ -200,7 +197,6 @@ export class ChatsService {
     await this.prisma.chatMessage.deleteMany({ where: { conversationId: id } });
     await this.prisma.chatConversation.delete({ where: { id } });
   }
-
 
   private userDetailsTool(userId: Id) {
     return tool({
@@ -296,9 +292,7 @@ export class ChatsService {
       data: {
         messageCount: { increment: 1 },
         lastMessageAt: now,
-        ...(shouldSetTitle
-          ? { title: titleFromContent(input.content) }
-          : {}),
+        ...(shouldSetTitle ? { title: titleFromContent(input.content) } : {}),
       },
     });
 
@@ -386,10 +380,7 @@ export class ChatsService {
     };
   }
 
-  private async getOwned(
-    userId: Id,
-    id: Id,
-  ): Promise<ChatConversationRow> {
+  private async getOwned(userId: Id, id: Id): Promise<ChatConversationRow> {
     const conversation = await this.prisma.chatConversation.findUnique({
       where: { id },
     });

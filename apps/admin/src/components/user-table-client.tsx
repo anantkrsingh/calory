@@ -160,6 +160,7 @@ export function UserTableClient({
       ) : null}
 
       <EditUserModal
+        key={selectedUser?.id ?? "none"}
         user={selectedUser}
         plans={plans}
         defaultCredits={defaultCredits}
