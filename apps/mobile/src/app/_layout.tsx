@@ -21,6 +21,7 @@ import { setOnUnauthorized } from "@/api/http";
 import { queryClient } from "@/api/query-client";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { hasCompletedOnboarding } from "@/lib/onboarding";
+import { configurePurchases, syncPurchasesUser } from "@/lib/purchases";
 import {
   selectHydrated,
   selectIsAuthenticated,
@@ -30,6 +31,7 @@ import {
 import { selectThemeHydrated, useThemeStore } from "@/stores/theme.store";
 
 SplashScreen.preventAutoHideAsync();
+configurePurchases();
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
@@ -55,6 +57,11 @@ export default function RootLayout() {
     setOnUnauthorized(() => queryClient.clear());
     return () => setOnUnauthorized(undefined);
   }, []);
+
+  useEffect(() => {
+    if (!isHydrated) return;
+    syncPurchasesUser(isAuthenticated ? (user?.id ?? null) : null);
+  }, [isHydrated, isAuthenticated, user?.id]);
 
   useEffect(() => {
     if (isHydrated && isThemeHydrated && fontsLoaded) {
