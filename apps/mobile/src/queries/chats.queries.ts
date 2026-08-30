@@ -1,7 +1,6 @@
 import type {
   ChatConversation,
   ChatConversationDetail,
-  ChatMessage,
   Paginated,
 } from '@fitness/types';
 import type {

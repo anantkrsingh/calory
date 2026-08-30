@@ -1,6 +1,6 @@
 import { API_PREFIX, API_VERSION, AUTH } from '@fitness/config';
 import type { AuthTokens } from '@fitness/types';
-import axios, { type AxiosInstance } from 'axios';
+import axios, { create, isAxiosError, type AxiosInstance } from 'axios';
 
 import { authState } from '@/stores/auth.store';
 
@@ -41,7 +41,7 @@ function serialiseParams(query: Record<string, unknown>): string {
  * The single axios instance every service talks through. Auth headers and the
  * refresh-once-on-401 dance live in the interceptors below.
  */
-export const http: AxiosInstance = axios.create({
+export const http: AxiosInstance = create({
   baseURL: API_BASE_URL,
   timeout: DEFAULT_TIMEOUT_MS,
   headers: { accept: 'application/json' },
@@ -106,10 +106,8 @@ http.interceptors.response.use(
     return response;
   },
   async (error: unknown) => {
-    const config = axios.isAxiosError(error) ? error.config : undefined;
-    const status = axios.isAxiosError(error)
-      ? error.response?.status
-      : undefined;
+    const config = isAxiosError(error) ? error.config : undefined;
+    const status = isAxiosError(error) ? error.response?.status : undefined;
 
     if (status === 401 && config && !config.skipAuth && !config.skipRetry) {
       const refreshed = await tryRefresh();
