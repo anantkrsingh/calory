@@ -313,6 +313,11 @@ model User {
   planExpiresAt    DateTime?
   plan             Plan?     @relation(fields: [planId], references: [id])
 
+  /// Lifetime chat token usage, summed across every assistant reply.
+  lifetimeInputTokens  Int @default(0)
+  lifetimeOutputTokens Int @default(0)
+  lifetimeTotalTokens  Int @default(0)
+
   /// Exercise ids this user has favorited — shown pinned above the muscle-wise
   /// browse on the Build screen.
   favoriteExerciseIds String[] @db.ObjectId @default([])
@@ -583,6 +588,12 @@ model ChatMessage {
 
   role    ChatMessageRole
   content String
+
+  /// Token usage for this turn (assistant replies only) — the whole
+  /// `streamText` call's `totalUsage`, including any tool round-trips.
+  inputTokens  Int?
+  outputTokens Int?
+  totalTokens  Int?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

@@ -32,6 +32,12 @@ function formatDate(dateStr: string): string {
   });
 }
 
+function formatTokenCount(count: number): string {
+  if (count >= 1_000_000) return `${(count / 1_000_000).toFixed(1)}M`;
+  if (count >= 1_000) return `${(count / 1_000).toFixed(1)}k`;
+  return String(count);
+}
+
 export function UserTableClient({
   users,
   meta,
@@ -55,6 +61,7 @@ export function UserTableClient({
               <th className="px-4 py-3">Role</th>
               <th className="px-4 py-3">Plan</th>
               <th className="px-4 py-3">Credits</th>
+              <th className="px-4 py-3">Tokens used</th>
               <th className="px-4 py-3">Joined</th>
               <th className="px-4 py-3 text-right">Actions</th>
             </tr>
@@ -97,6 +104,9 @@ export function UserTableClient({
                       </span>
                     </div>
                   </td>
+                  <td className="px-4 py-3 text-xs text-neutral-600" title={`${user.lifetimeInputTokens ?? 0} in / ${user.lifetimeOutputTokens ?? 0} out`}>
+                    {formatTokenCount(user.lifetimeTotalTokens ?? 0)}
+                  </td>
                   <td className="px-4 py-3 text-xs text-neutral-500" suppressHydrationWarning>
                     {formatDate(user.createdAt)}
                   </td>
@@ -114,7 +124,7 @@ export function UserTableClient({
             })}
             {users.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-neutral-500">
+                <td colSpan={8} className="px-4 py-8 text-center text-neutral-500">
                   No users found.
                 </td>
               </tr>

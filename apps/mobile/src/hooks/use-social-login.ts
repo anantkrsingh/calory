@@ -9,6 +9,7 @@ import { useSocialLogin as useSocialLoginMutation } from '@/queries/auth.queries
 interface UseSocialLoginResult {
   signIn: (provider: AuthProvider) => Promise<void>;
   isPending: boolean;
+  pendingProvider: AuthProvider | undefined;
   error: string | null;
   clearError: () => void;
 }
@@ -45,6 +46,7 @@ export function useSocialLogin(disabled = false): UseSocialLoginResult {
   return {
     signIn,
     isPending: socialLogin.isPending,
+    pendingProvider: socialLogin.isPending ? socialLogin.variables : undefined,
     error,
     clearError: useCallback(() => setError(null), []),
   };

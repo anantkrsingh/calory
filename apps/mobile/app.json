@@ -1,10 +1,10 @@
 {
   "expo": {
     "name": "Calory Fitness",
-    "slug": "mobicalory-fitness",
+    "slug": "calory-fitness",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/ios-icon-default.png",
     "scheme": "calory-fitness",
     "userInterfaceStyle": "automatic",
     "ios": {
@@ -25,7 +25,7 @@
     },
     "web": {
       "output": "static",
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/images/ios-icon-default.png"
     },
     "plugins": [
       "expo-router",
@@ -33,14 +33,16 @@
         "expo-splash-screen",
         {
           "backgroundColor": "#000C21",
-          "image": "./assets/images/android-icon-foreground.png",
+          "image": "./assets/images/ios-icon-default.png",
           "imageWidth": 76
         }
       ],
       [
         "expo-font",
         {
-          "fonts": ["./assets/fonts/lucon.ttf"]
+          "fonts": [
+            "./assets/fonts/lucon.ttf"
+          ]
         }
       ],
       [
@@ -86,7 +88,7 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "cf1b9b98-a385-49f9-bfba-020d43611aaa"
+                "projectId": "8ccbd88c-34e0-4bee-ab83-3ff5f63d8ae0"
       }
     }
   }

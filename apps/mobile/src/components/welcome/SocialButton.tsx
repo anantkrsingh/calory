@@ -1,24 +1,28 @@
 import { Spacing } from "@/constants/theme";
 import React from "react";
 import {
+  ActivityIndicator,
   GestureResponderEvent,
   Pressable,
   StyleSheet,
-  Text,
   View,
 } from "react-native";
 
 type SocialButtonPros = {
   onClick: (event: GestureResponderEvent) => void | null;
   icon: React.ReactElement;
+  loading?: boolean;
 };
-const SocialButton = ({ onClick, icon }: SocialButtonPros) => {
+const SocialButton = ({ onClick, icon, loading }: SocialButtonPros) => {
   return (
     <Pressable
       onPress={onClick}
+      disabled={loading}
       style={({ pressed }) => [styles.frame, pressed && styles.pressed]}
     >
-      <View style={styles.fill}>{icon && icon}</View>
+      <View style={styles.fill}>
+        {loading ? <ActivityIndicator color="#000" /> : icon}
+      </View>
     </Pressable>
   );
 };

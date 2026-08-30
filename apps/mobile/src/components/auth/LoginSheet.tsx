@@ -2,13 +2,21 @@ import { TrueSheet } from '@lodev09/react-native-true-sheet';
 import { useRouter } from 'expo-router';
 import { Eye, EyeOff } from 'lucide-react-native';
 import { forwardRef, useImperativeHandle, useRef, useState } from 'react';
-import { Pressable, StyleSheet, TextInput, View } from 'react-native';
-import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
+import {
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  TextInput,
+  View,
+} from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import PrimaryButton from '@/components/ui/PrimaryButton';
 import { Pressed, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { hasCompletedOnboarding } from '@/lib/onboarding';
 import { authService } from '@/services/auth.service';
 
 export type LoginSheetRef = {
@@ -74,9 +82,12 @@ export default forwardRef<LoginSheetRef>(function LoginSheet(_props, ref) {
     setFormError(null);
 
     try {
-      await authService.login({ email: email.trim().toLowerCase(), password });
+      const session = await authService.login({
+        email: email.trim().toLowerCase(),
+        password,
+      });
       await sheetRef.current?.dismiss();
-      router.replace('/');
+      router.replace(hasCompletedOnboarding(session.user) ? '/' : '/auth/onboarding');
     } catch {
       setFormError('Invalid email or password. Please try again.');
     } finally {
@@ -98,117 +109,118 @@ export default forwardRef<LoginSheetRef>(function LoginSheet(_props, ref) {
       backgroundColor="transparent"
       cornerRadius={0}
       grabber={false}>
-      <KeyboardAwareScrollView
-        bottomOffset={Spacing.four}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}>
-        <View style={styles.sheetPadding}>
-          <View style={[styles.card, { backgroundColor: theme.background }]}>
-            <View style={styles.handle} />
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <ScrollView
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}>
+          <View style={styles.sheetPadding}>
+            <View style={[styles.card, { backgroundColor: theme.background }]}>
+              <View style={styles.handle} />
 
-            <ThemedText type="subtitle" style={styles.title}>
-              Welcome back
-            </ThemedText>
-            <ThemedText type="small" style={[styles.subtitle, { color: theme.textSecondary }]}>
-              Sign in to continue
-            </ThemedText>
-
-            <View style={styles.inputGroup}>
-              <ThemedText type="smallBold" style={styles.label}>
-                Email
+              <ThemedText type="subtitle" style={styles.title}>
+                Welcome back
               </ThemedText>
-              <TextInput
-                style={[
-                  styles.input,
-                  {
-                    backgroundColor: theme.backgroundElement,
-                    color: theme.text,
-                    borderWidth: errors.email ? 1.5 : 0,
-                    borderColor: '#ff3b30',
-                  },
-                ]}
-                placeholder="Enter your email"
-                placeholderTextColor={theme.textSecondary}
-                value={email}
-                onChangeText={handleEmailChange}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                autoCorrect={false}
-                returnKeyType="next"
-              />
-              {errors.email ? (
-                <ThemedText type="small" style={styles.errorText}>{errors.email}</ThemedText>
-              ) : null}
-            </View>
-
-            <View style={styles.inputGroup}>
-              <ThemedText type="smallBold" style={styles.label}>
-                Password
+              <ThemedText type="small" style={[styles.subtitle, { color: theme.textSecondary }]}>
+                Sign in to continue
               </ThemedText>
-              <View style={styles.passwordWrapper}>
+
+              <View style={styles.inputGroup}>
+                <ThemedText type="smallBold" style={styles.label}>
+                  Email
+                </ThemedText>
                 <TextInput
                   style={[
                     styles.input,
-                    styles.passwordInput,
                     {
                       backgroundColor: theme.backgroundElement,
                       color: theme.text,
-                      borderWidth: errors.password ? 1.5 : 0,
+                      borderWidth: errors.email ? 1.5 : 0,
                       borderColor: '#ff3b30',
                     },
                   ]}
-                  placeholder="Enter your password"
+                  placeholder="Enter your email"
                   placeholderTextColor={theme.textSecondary}
-                  value={password}
-                  onChangeText={handlePasswordChange}
-                  secureTextEntry={!showPassword}
+                  value={email}
+                  onChangeText={handleEmailChange}
+                  keyboardType="email-address"
                   autoCapitalize="none"
                   autoCorrect={false}
-                  returnKeyType="done"
-                  onSubmitEditing={handleSubmit}
+                  returnKeyType="next"
                 />
-                <Pressable
-                  style={({ pressed }) => [
-                    styles.eyeButton,
-                    pressed && { opacity: Pressed.opacity, transform: [{ translateY: -12 }, { scale: 0.99 }] },
-                  ]}
-                  onPress={() => setShowPassword((value) => !value)}
-                  hitSlop={8}>
-                  {showPassword ? (
-                    <EyeOff size={20} color={theme.textSecondary} />
-                  ) : (
-                    <Eye size={20} color={theme.textSecondary} />
-                  )}
-                </Pressable>
+                {errors.email ? (
+                  <ThemedText type="small" style={styles.errorText}>{errors.email}</ThemedText>
+                ) : null}
               </View>
-              {errors.password ? (
-                <ThemedText type="small" style={styles.errorText}>{errors.password}</ThemedText>
+
+              <View style={styles.inputGroup}>
+                <ThemedText type="smallBold" style={styles.label}>
+                  Password
+                </ThemedText>
+                <View style={styles.passwordWrapper}>
+                  <TextInput
+                    style={[
+                      styles.input,
+                      styles.passwordInput,
+                      {
+                        backgroundColor: theme.backgroundElement,
+                        color: theme.text,
+                        borderWidth: errors.password ? 1.5 : 0,
+                        borderColor: '#ff3b30',
+                      },
+                    ]}
+                    placeholder="Enter your password"
+                    placeholderTextColor={theme.textSecondary}
+                    value={password}
+                    onChangeText={handlePasswordChange}
+                    secureTextEntry={!showPassword}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    returnKeyType="done"
+                    onSubmitEditing={handleSubmit}
+                  />
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.eyeButton,
+                      pressed && { opacity: Pressed.opacity, transform: [{ translateY: -12 }, { scale: 0.99 }] },
+                    ]}
+                    onPress={() => setShowPassword((value) => !value)}
+                    hitSlop={8}>
+                    {showPassword ? (
+                      <EyeOff size={20} color={theme.textSecondary} />
+                    ) : (
+                      <Eye size={20} color={theme.textSecondary} />
+                    )}
+                  </Pressable>
+                </View>
+                {errors.password ? (
+                  <ThemedText type="small" style={styles.errorText}>{errors.password}</ThemedText>
+                ) : null}
+              </View>
+
+              <Pressable
+                style={({ pressed }) => [styles.forgotPassword, pressed && Pressed]}
+                onPress={handleForgotPassword}
+                hitSlop={8}>
+                <ThemedText type="linkPrimary" style={styles.forgotPasswordText}>
+                  Forgot Password?
+                </ThemedText>
+              </Pressable>
+
+              {formError ? (
+                <ThemedText type="small" style={styles.formError}>
+                  {formError}
+                </ThemedText>
               ) : null}
+
+              <PrimaryButton
+                label={isLoading ? 'Signing In...' : 'Sign In'}
+                onPress={handleSubmit}
+                disabled={isLoading}
+              />
             </View>
-
-            <Pressable
-              style={({ pressed }) => [styles.forgotPassword, pressed && Pressed]}
-              onPress={handleForgotPassword}
-              hitSlop={8}>
-              <ThemedText type="linkPrimary" style={styles.forgotPasswordText}>
-                Forgot Password?
-              </ThemedText>
-            </Pressable>
-
-            {formError ? (
-              <ThemedText type="small" style={styles.formError}>
-                {formError}
-              </ThemedText>
-            ) : null}
-
-            <PrimaryButton
-              label={isLoading ? 'Signing In...' : 'Sign In'}
-              onPress={handleSubmit}
-              disabled={isLoading}
-            />
           </View>
-        </View>
-      </KeyboardAwareScrollView>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </TrueSheet>
   );
 });

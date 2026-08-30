@@ -70,6 +70,9 @@ export const userSchema = z.object({
   role: userRoleSchema,
   profile: userProfileResponseSchema,
   preferences: userPreferencesResponseSchema,
+  lifetimeInputTokens: z.number().int().min(0).optional(),
+  lifetimeOutputTokens: z.number().int().min(0).optional(),
+  lifetimeTotalTokens: z.number().int().min(0).optional(),
 });
 
 export const authTokensSchema = z.object({
@@ -413,6 +416,9 @@ export const chatMessageSchema = z.object({
   conversationId: objectIdSchema,
   role: chatMessageRoleSchema,
   content: z.string(),
+  inputTokens: z.number().int().min(0).optional(),
+  outputTokens: z.number().int().min(0).optional(),
+  totalTokens: z.number().int().min(0).optional(),
 });
 
 export const chatConversationDetailSchema = chatConversationSchema.extend({

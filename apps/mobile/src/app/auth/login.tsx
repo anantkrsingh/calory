@@ -229,6 +229,7 @@ export default function LoginScreen() {
             style={[styles.socialRow, socialLogin.isPending && styles.socialRowBusy]}>
             <SocialButton
               onClick={() => void socialLogin.signIn('google')}
+              loading={socialLogin.pendingProvider === 'google'}
               icon={
                 <Image
                   style={styles.socialIcon}
@@ -238,6 +239,7 @@ export default function LoginScreen() {
             />
             <SocialButton
               onClick={() => void socialLogin.signIn('facebook')}
+              loading={socialLogin.pendingProvider === 'facebook'}
               icon={
                 <Image
                   style={styles.socialIcon}
@@ -247,6 +249,7 @@ export default function LoginScreen() {
             />
             <SocialButton
               onClick={() => void socialLogin.signIn('x')}
+              loading={socialLogin.pendingProvider === 'x'}
               icon={
                 <Image
                   style={styles.socialIcon}

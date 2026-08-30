@@ -44,7 +44,7 @@ export function ChatComposer({
         onChangeText={onChangeText}
         placeholder={placeholder}
         placeholderTextColor={theme.textSecondary}
-        editable={!disabled && !sending}
+        editable={!disabled}
         multiline
         maxLength={4000}
         style={[styles.input, { color: theme.text }]}

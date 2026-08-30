@@ -1,6 +1,6 @@
 import { AUTH } from '@fitness/config';
 import type { AuthTokens } from '@fitness/types';
-import { TextStreamChatTransport, isTextUIPart, type UIMessage } from 'ai';
+import { DefaultChatTransport, isTextUIPart, type UIMessage } from 'ai';
 import axios from 'axios';
 import { fetch as expoFetch } from 'expo/fetch';
 
@@ -67,7 +67,7 @@ function lastUserText(messages: UIMessage[]): string {
 }
 
 export function createCoachChatTransport(conversationId: string) {
-  return new TextStreamChatTransport({
+  return new DefaultChatTransport({
     api: `${API_BASE_URL}/chats/${conversationId}/messages`,
     fetch: authenticatedExpoFetch as unknown as typeof globalThis.fetch,
     prepareSendMessagesRequest: ({ messages, headers, api }) => ({
