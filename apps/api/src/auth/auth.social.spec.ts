@@ -234,9 +234,7 @@ describe('AuthService.verifyRegistration', () => {
       '123456',
       'registration',
     );
-    expect(prisma.user.update.mock.calls[0]![0].data.emailVerified).toBe(
-      true,
-    );
+    expect(prisma.user.update.mock.calls[0]![0].data.emailVerified).toBe(true);
     expect(session.tokens.accessToken).toBe('token');
   });
 
