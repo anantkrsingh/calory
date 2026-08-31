@@ -17,7 +17,6 @@ export default function AuthLayout() {
         contentStyle: { backgroundColor: theme.background },
       }}>
       <Stack.Screen name="welcome" />
-      <Stack.Screen name="login" />
       <Stack.Screen
         name="onboarding"
         options={{ presentation: 'modal', animation: 'slide_from_bottom' }}

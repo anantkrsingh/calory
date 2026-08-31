@@ -33,7 +33,11 @@ export {
   useStepsRange,
   useUpsertSteps,
 } from './steps.queries';
-export { useUpdateProfile, useUploadAvatar } from './users.queries';
+export {
+  useRegisterPushToken,
+  useUpdateProfile,
+  useUploadAvatar,
+} from './users.queries';
 export {
   WorkoutRoutinesQueries,
   useRegenerateRoutine,

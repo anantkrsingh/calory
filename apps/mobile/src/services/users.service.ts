@@ -1,5 +1,5 @@
 import type { User } from '@fitness/types';
-import type { UpdateUserInput } from '@fitness/validation';
+import type { RegisterPushTokenInput, UpdateUserInput } from '@fitness/validation';
 
 import type { AxiosInstance } from 'axios';
 
@@ -27,6 +27,16 @@ export class UsersService extends BaseService {
   async update(input: UpdateUserInput): Promise<User> {
     const { data } = await this.client.patch<User>(this.url('me'), input);
     return data;
+  }
+
+  async registerPushToken(input: RegisterPushTokenInput): Promise<void> {
+    await this.client.post<void>(this.url('me', 'push-token'), input);
+  }
+
+  async unregisterPushToken(token: string): Promise<void> {
+    await this.client.delete<void>(this.url('me', 'push-token'), {
+      data: { token },
+    });
   }
 
   async uploadAvatar(file: LocalImageFile): Promise<User> {

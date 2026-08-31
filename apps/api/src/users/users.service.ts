@@ -78,6 +78,44 @@ export class UsersService {
     return toUser(user);
   }
 
+  /** Saves an Expo push token for this device and flips notifications on. Safe to call again with the same token. */
+  async registerPushToken(id: Id, token: string): Promise<void> {
+    const current = await this.prisma.user.findUnique({ where: { id } });
+    if (!current) throw new NotFoundException('User not found');
+
+    if (
+      current.pushTokens.includes(token) &&
+      current.preferences.notificationsEnabled
+    ) {
+      return;
+    }
+
+    await this.prisma.user.update({
+      where: { id },
+      data: {
+        pushTokens: current.pushTokens.includes(token)
+          ? current.pushTokens
+          : [...current.pushTokens, token],
+        preferences: { ...current.preferences, notificationsEnabled: true },
+      },
+    });
+  }
+
+  /** Drops a push token, e.g. on logout — a stale token must not keep this device subscribed. */
+  async unregisterPushToken(id: Id, token: string): Promise<void> {
+    const current = await this.prisma.user.findUnique({ where: { id } });
+    if (!current) throw new NotFoundException('User not found');
+
+    if (!current.pushTokens.includes(token)) return;
+
+    await this.prisma.user.update({
+      where: { id },
+      data: {
+        pushTokens: current.pushTokens.filter((existing) => existing !== token),
+      },
+    });
+  }
+
   /** Uploads the image to Cloudinary and points `profile.avatarUrl` at it. */
   async updateAvatar(id: Id, file: Express.Multer.File): Promise<User> {
     const current = await this.prisma.user.findUnique({ where: { id } });

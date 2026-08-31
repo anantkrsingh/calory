@@ -322,6 +322,10 @@ model User {
   /// browse on the Build screen.
   favoriteExerciseIds String[] @db.ObjectId @default([])
 
+  /// Expo push tokens, one per device the user has granted notification
+  /// permission on. Never exposed on the public User contract.
+  pushTokens String[] @default([])
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

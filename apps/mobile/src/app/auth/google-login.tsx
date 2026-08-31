@@ -26,7 +26,7 @@ export default function GoogleLoginScreen() {
 
           <TouchableOpacity
             style={[styles.primaryButton, { backgroundColor: Brand.accent }]}
-            onPress={() => router.replace('/auth/login')}>
+            onPress={() => router.replace('/auth/welcome')}>
             <ThemedText type="smallBold" style={styles.primaryButtonText}>
               Sign in with email
             </ThemedText>

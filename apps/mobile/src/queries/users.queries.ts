@@ -1,5 +1,5 @@
 import type { User } from '@fitness/types';
-import type { UpdateUserInput } from '@fitness/validation';
+import type { RegisterPushTokenInput, UpdateUserInput } from '@fitness/validation';
 import {
   useMutation,
   useQueryClient,
@@ -41,6 +41,23 @@ export function useUploadAvatar(): UseMutationResult<
     onSuccess: (user) => {
       queryClient.setQueryData(AuthQueries.keys.me(), user);
       authState.setUser(user);
+    },
+  });
+}
+
+/** Saves this device's Expo push token; the backend flips `preferences.notificationsEnabled` on. */
+export function useRegisterPushToken(): UseMutationResult<
+  void,
+  Error,
+  RegisterPushTokenInput
+> {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: RegisterPushTokenInput) =>
+      usersService.registerPushToken(input),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: AuthQueries.keys.me() });
     },
   });
 }

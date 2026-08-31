@@ -40,9 +40,7 @@
       [
         "expo-font",
         {
-          "fonts": [
-            "./assets/fonts/lucon.ttf"
-          ]
+          "fonts": ["./assets/fonts/lucon.ttf"]
         }
       ],
       [
@@ -55,6 +53,14 @@
         "expo-sensors",
         {
           "motionPermission": "Allow $(PRODUCT_NAME) to access your motion data to count your daily steps."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/android-icon-monochrome.png",
+          "color": "#EF5A24",
+          "defaultChannel": "default"
         }
       ],
       [
@@ -88,7 +94,7 @@
     "extra": {
       "router": {},
       "eas": {
-                "projectId": "8ccbd88c-34e0-4bee-ab83-3ff5f63d8ae0"
+        "projectId": "6f797983-023b-4b57-8c20-b5a3b7938ddd"
       }
     }
   }
