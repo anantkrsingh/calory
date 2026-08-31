@@ -11,12 +11,12 @@ function makeService(user: { emailVerified: boolean } | null) {
   };
 
   const queue = {
-    generateOtp: jest.fn().mockReturnValue('123456'),
+    generateOtp: jest.fn().mockReturnValue('1234'),
     sendOtp: jest.fn().mockResolvedValue({ id: 'job-1' }),
   };
 
   const service = new OtpService(
-    { OTP_EXPIRY_MINUTES: 10, OTP_LENGTH: 6 } as never,
+    { OTP_EXPIRY_MINUTES: 10, OTP_LENGTH: 4 } as never,
     queue as never,
     prisma as never,
   );
@@ -66,7 +66,7 @@ describe('OtpService.verifyOtp', () => {
     const result = await service.verifyOtp(
       'email',
       'ada@example.com',
-      '123456',
+      '1234',
       'registration',
     );
 
@@ -85,7 +85,7 @@ describe('OtpService.verifyOtp', () => {
     const result = await service.verifyOtp(
       'email',
       'ada@example.com',
-      '999999',
+    '9999',
       'registration',
     );
 
@@ -99,7 +99,7 @@ describe('OtpService.verifyOtp', () => {
     const result = await service.verifyOtp(
       'email',
       'ada@example.com',
-      '123456',
+      '1234',
       'registration',
     );
 

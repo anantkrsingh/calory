@@ -225,13 +225,13 @@ describe('AuthService.verifyRegistration', () => {
 
     const session = await service.verifyRegistration({
       email: 'ada@example.com',
-      code: '123456',
+      code: '1234',
     });
 
     expect(otp.verifyOtp).toHaveBeenCalledWith(
       'email',
       'ada@example.com',
-      '123456',
+      '1234',
       'registration',
     );
     expect(prisma.user.update.mock.calls[0]![0].data.emailVerified).toBe(true);
@@ -243,7 +243,7 @@ describe('AuthService.verifyRegistration', () => {
 
     await service.verifyRegistration({
       email: 'ada@example.com',
-      code: '123456',
+      code: '1234',
     });
 
     expect(workoutRoutines.requestGeneration).toHaveBeenCalledWith(
@@ -257,7 +257,7 @@ describe('AuthService.verifyRegistration', () => {
 
     const session = await service.verifyRegistration({
       email: 'ada@example.com',
-      code: '123456',
+      code: '1234',
     });
 
     expect(session.tokens.accessToken).toBe('token');

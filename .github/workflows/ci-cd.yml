@@ -110,7 +110,7 @@ jobs:
           append SWAGGER_ENABLED "${SWAGGER_ENABLED:-false}"
           append DEFAULT_PAGE_SIZE "${DEFAULT_PAGE_SIZE:-20}"
           append OTP_EXPIRY_MINUTES "${OTP_EXPIRY_MINUTES:-10}"
-          append OTP_LENGTH "${OTP_LENGTH:-6}"
+          append OTP_LENGTH "${OTP_LENGTH:-4}"
           append SMTP_HOST "${SMTP_HOST:-localhost}"
           append SMTP_PORT "${SMTP_PORT:-587}"
           append SMTP_SECURE "${SMTP_SECURE:-false}"
