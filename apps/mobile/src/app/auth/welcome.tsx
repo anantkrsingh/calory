@@ -110,6 +110,7 @@ export default function WelcomeScreen() {
         <View style={{ flexDirection: "row" ,justifyContent:"space-evenly",gap:10}}>
           <SocialButton
             onClick={() => void socialLogin.signIn("google")}
+            loading={socialLogin.pendingProvider === "google"}
             icon={
               <Image
                 style={{ width: 28, height: 28 }}
@@ -119,6 +120,7 @@ export default function WelcomeScreen() {
           />
           <SocialButton
             onClick={() => void socialLogin.signIn("facebook")}
+            loading={socialLogin.pendingProvider === "facebook"}
             icon={
               <Image
                 style={{ width: 28, height: 28 }}
@@ -128,6 +130,7 @@ export default function WelcomeScreen() {
           />
           <SocialButton
             onClick={() => void socialLogin.signIn("x")}
+            loading={socialLogin.pendingProvider === "x"}
             icon={
               <Image
                 style={{ width: 28, height: 28 }}

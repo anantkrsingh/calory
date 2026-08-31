@@ -1,7 +1,7 @@
 import { AUTH } from '@fitness/config';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -132,7 +132,9 @@ export default function ResetPasswordScreen() {
 
     try {
       await resetPassword.mutateAsync({ email, code: otp, password });
-      router.replace('/auth/login');
+      Alert.alert('Reset password successful', 'Please login again', [
+        { text: 'OK', onPress: () => router.dismissTo('/auth/welcome') },
+      ]);
     } catch (cause) {
       setError(getErrorMessage(cause, 'Could not reset your password. Please try again.'));
     }
