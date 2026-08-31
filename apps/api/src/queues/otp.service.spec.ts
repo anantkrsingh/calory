@@ -85,7 +85,7 @@ describe('OtpService.verifyOtp', () => {
     const result = await service.verifyOtp(
       'email',
       'ada@example.com',
-    '9999',
+      '9999',
       'registration',
     );
 
