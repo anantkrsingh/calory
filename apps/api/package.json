@@ -19,7 +19,6 @@
   },
   "dependencies": {
     "@fitness/ai": "workspace:*",
-    "@fitness/config": "workspace:*",
     "@fitness/db": "workspace:*",
     "@fitness/types": "workspace:*",
     "@fitness/validation": "workspace:*",

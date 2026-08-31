@@ -6,9 +6,8 @@ import {
   type OnModuleInit,
 } from '@nestjs/common';
 import { PrismaClient } from '@fitness/db';
-import type { Env } from '@fitness/config/server';
 
-import { ENV } from '../config/env.module';
+import { ENV, type Env } from '../config/env.module';
 
 @Injectable()
 export class PrismaService

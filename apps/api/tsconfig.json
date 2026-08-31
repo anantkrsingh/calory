@@ -1,14 +1,32 @@
 {
-  "extends": "@fitness/config/tsconfig/nest.json",
+  "$schema": "https://json.schemastore.org/tsconfig",
   "compilerOptions": {
+    "target": "ES2023",
+    "lib": ["ES2023"],
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "isolatedModules": true,
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "declaration": false,
+    "sourceMap": true,
+    "removeComments": true,
     // No rootDir here: this config's `include` spans src/ and test/, and an
     // explicit rootDir requires every included file to live under it. The
     // build only emits src/, so it sets rootDir itself — see tsconfig.build.json.
     "outDir": "./dist",
     "baseUrl": "./",
     "types": ["node", "jest", "multer"],
-    "incremental":false,
+    "incremental": false
   },
-
+  "exclude": ["node_modules", "dist"],
   "include": ["src/**/*.ts", "test/**/*.ts"]
 }

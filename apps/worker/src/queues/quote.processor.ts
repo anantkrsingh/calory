@@ -6,7 +6,6 @@ import {
   type OnModuleInit,
 } from '@nestjs/common';
 import { quoteOfTheDaySchema, resolvePrompt } from '@fitness/ai';
-import type { Env } from '@fitness/config/server';
 import {
   QUOTE_QUEUE_NAME,
   type QuoteJobData,
@@ -16,7 +15,7 @@ import { generateObject, type LanguageModel } from 'ai';
 import { Queue, Worker, type Job } from 'bullmq';
 
 import { AI_MODEL } from '../ai/ai.module';
-import { ENV } from '../config/env.module';
+import { ENV, type Env } from '../config/env.module';
 import { PrismaService } from '../prisma/prisma.service';
 
 const REPEAT_JOB_KEY = 'daily-quote';

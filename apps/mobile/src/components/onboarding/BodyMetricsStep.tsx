@@ -1,4 +1,4 @@
-import { LIMITS, UNIT_CONVERSION } from '@fitness/config';
+import { LIMITS, UNIT_CONVERSION } from '@/constants/app';
 import type { UnitSystem } from '@fitness/types';
 import { SegmentedControl } from '@expo/ui/community/segmented-control';
 import { useState } from 'react';

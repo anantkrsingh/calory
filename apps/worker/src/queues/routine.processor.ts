@@ -7,7 +7,6 @@ import {
 } from '@nestjs/common';
 import { resolvePrompt, weeklyRoutineSchema } from '@fitness/ai';
 import type { WeeklyRoutine } from '@fitness/ai';
-import type { Env } from '@fitness/config/server';
 import {
   ROUTINE_QUEUE_NAME,
   ROUTINE_RECONCILE_QUEUE_NAME,
@@ -28,7 +27,7 @@ import { Queue, Worker, type Job } from 'bullmq';
 import { z } from 'zod';
 
 import { AI_MODEL } from '../ai/ai.module';
-import { ENV } from '../config/env.module';
+import { ENV, type Env } from '../config/env.module';
 import { PrismaService } from '../prisma/prisma.service';
 
 const MAX_EXERCISES = 60;

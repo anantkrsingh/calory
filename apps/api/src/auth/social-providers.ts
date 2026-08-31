@@ -3,10 +3,11 @@ import {
   Logger,
   NotImplementedException,
 } from '@nestjs/common';
-import type { Env } from '@fitness/config/server';
 import { AuthProvider, type SocialProfile } from '@fitness/types';
 import type { SocialLoginInput } from '@fitness/validation';
 import { OAuth2Client } from 'google-auth-library';
+
+import type { Env } from '../config/env';
 
 const logger = new Logger('SocialProviders');
 

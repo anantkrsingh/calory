@@ -6,8 +6,9 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { JwtService } from '@nestjs/jwt';
-import { AUTH } from '@fitness/config';
 import type { AuthenticatedUser, JwtPayload } from '@fitness/types';
+
+import { AUTH } from '../config/constants';
 
 import { IS_PUBLIC_KEY, type AuthenticatedRequest } from '../common/decorators';
 

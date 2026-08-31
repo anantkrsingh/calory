@@ -1,9 +1,28 @@
 {
-  "extends": "@fitness/config/tsconfig/library.json",
+  "$schema": "https://json.schemastore.org/tsconfig",
   "compilerOptions": {
+    "target": "ES2023",
+    "lib": ["ES2023"],
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "isolatedModules": true,
+    // `nodenext` + a package.json without `"type": "module"` emits CommonJS,
+    // which both the Nest build and Metro consume without interop shims.
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "incremental": true,
     "rootDir": "./src",
-    "outDir": "./dist",
-    
+    "outDir": "./dist"
   },
+  "exclude": ["node_modules", "dist"],
   "include": ["src/**/*.ts"]
 }

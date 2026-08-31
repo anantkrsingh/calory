@@ -1,4 +1,4 @@
-import { API_PREFIX, API_VERSION, AUTH } from '@fitness/config';
+import { API_PREFIX, API_VERSION, AUTH } from '@/constants/app';
 import type { AuthTokens } from '@fitness/types';
 import axios, { create, isAxiosError, type AxiosInstance } from 'axios';
 

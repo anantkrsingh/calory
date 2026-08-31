@@ -1,9 +1,10 @@
 # Environment setup
 
-Both the API and the worker validate the **same** schema
-(`packages/config/src/server/env.ts`) and fail fast at boot, listing every
-problem at once. Each app has its own `.env`, and both need the shared values —
-`MONGODB_URI` and `JWT_SECRET` in one file are not visible to the other process.
+The API and the worker each validate their own env schema
+(`apps/api/src/config/env.ts` and `apps/worker/src/config/env.ts`, kept in
+sync by hand) and fail fast at boot, listing every problem at once. Each app
+has its own `.env`, and both need the shared values — `MONGODB_URI` and
+`JWT_SECRET` in one file are not visible to the other process.
 
 Copy the examples to start:
 

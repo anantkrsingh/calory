@@ -30,7 +30,6 @@
     "seed": "node dist/seed/run.js"
   },
   "dependencies": {
-    "@fitness/config": "workspace:*",
     "@fitness/types": "workspace:*",
     "@prisma/client": "^6.19.3"
   },

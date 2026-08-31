@@ -1,8 +1,7 @@
 import { Global, Module } from '@nestjs/common';
 import { JwtModule, type JwtSignOptions } from '@nestjs/jwt';
-import type { Env } from '@fitness/config/server';
 
-import { ENV } from '../config/env.module';
+import { ENV, type Env } from '../config/env.module';
 import { MeasurementsModule } from '../measurements/measurements.module';
 import { RoutinesModule } from '../routines/routines.module';
 import { AuthController } from './auth.controller';

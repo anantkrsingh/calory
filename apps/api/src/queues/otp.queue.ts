@@ -1,13 +1,12 @@
 import { Injectable, Inject, Logger } from '@nestjs/common';
 import { Job, Queue } from 'bullmq';
-import type { Env } from '@fitness/config/server';
 import {
   OTP_QUEUE_NAME,
   type OtpJobData,
   type OtpJobResult,
 } from '@fitness/types';
 
-import { ENV } from '../config/env.module';
+import { ENV, type Env } from '../config/env.module';
 import { BULL_QUEUE_PROVIDER, type QueueProvider } from './queues.constants';
 
 export { OTP_QUEUE_NAME, type OtpJobData, type OtpJobResult };

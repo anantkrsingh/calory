@@ -1,5 +1,11 @@
-import { PAGINATION } from '@fitness/config';
 import type { Paginated, PaginationMeta } from '@fitness/types';
+
+/** Kept in sync by hand with `packages/validation/src/constants.ts`. */
+const PAGINATION = {
+  defaultPage: 1,
+  defaultLimit: 20,
+  maxLimit: 100,
+} as const;
 
 export interface PageArgs {
   page?: number;

@@ -1,4 +1,4 @@
-import { AUTH, LIMITS } from '@fitness/config';
+import { AUTH, LIMITS } from './constants';
 import { z } from 'zod';
 
 import { createMeasurementSchema } from './measurement';

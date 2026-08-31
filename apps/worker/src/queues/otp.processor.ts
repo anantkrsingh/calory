@@ -7,14 +7,13 @@ import {
 } from '@nestjs/common';
 import { Worker, type Job } from 'bullmq';
 import { createTransport, type Transporter } from 'nodemailer';
-import type { Env } from '@fitness/config/server';
 import {
   OTP_QUEUE_NAME,
   type OtpJobData,
   type OtpJobResult,
 } from '@fitness/types';
 
-import { ENV } from '../config/env.module';
+import { ENV, type Env } from '../config/env.module';
 
 /**
  * OTP Queue Processor - sends OTP codes by email via nodemailer.

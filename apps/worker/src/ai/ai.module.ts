@@ -1,9 +1,8 @@
 import { Global, Module } from '@nestjs/common';
 import { createModel } from '@fitness/ai';
-import type { Env } from '@fitness/config/server';
 import type { LanguageModel } from 'ai';
 
-import { ENV } from '../config/env.module';
+import { ENV, type Env } from '../config/env.module';
 
 export const AI_MODEL = Symbol('AI_MODEL');
 

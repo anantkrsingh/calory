@@ -1,4 +1,4 @@
-import { PAGINATION } from '@fitness/config';
+import { PAGINATION } from './constants';
 import { z } from 'zod';
 
 /** A MongoDB ObjectId in its 24-char hex form. */
