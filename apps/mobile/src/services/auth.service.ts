@@ -7,8 +7,10 @@ import type {
 } from '@fitness/types';
 import type {
   ChangePasswordInput,
+  ForgotPasswordInput,
   LoginInput,
   RegisterInput,
+  ResetPasswordInput,
   SocialLoginInput,
   VerifyRegistrationInput,
 } from '@fitness/validation';
@@ -113,6 +115,25 @@ export class AuthService extends BaseService {
 
   async changePassword(input: ChangePasswordInput): Promise<void> {
     await this.client.post<void>(this.url('change-password'), input);
+  }
+
+  /** Emails a password_reset code. Calling it again resends — the previous code stops working. */
+  async forgotPassword(
+    input: ForgotPasswordInput,
+  ): Promise<{ success: boolean; message?: string }> {
+    const { data } = await this.client.post<{ success: boolean; message?: string }>(
+      this.url('forgot-password'),
+      input,
+      { skipAuth: true },
+    );
+    return data;
+  }
+
+  /** Confirms the emailed code and sets a new password. */
+  async resetPassword(input: ResetPasswordInput): Promise<void> {
+    await this.client.post<void>(this.url('reset-password'), input, {
+      skipAuth: true,
+    });
   }
 }
 

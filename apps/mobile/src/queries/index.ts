@@ -1,10 +1,12 @@
 export {
   AuthQueries,
   useChangePassword,
+  useForgotPassword,
   useLogin,
   useLogout,
   useMe,
   useRegister,
+  useResetPassword,
   useVerifyRegistration,
 } from './auth.queries';
 export {

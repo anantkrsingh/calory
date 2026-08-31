@@ -18,8 +18,10 @@ import type {
 } from '@fitness/types';
 import type {
   ChangePasswordInput,
+  ForgotPasswordInput,
   LoginInput,
   RegisterInput,
+  ResetPasswordInput,
   SocialLoginInput,
   VerifyRegistrationInput,
 } from '@fitness/validation';
@@ -312,6 +314,46 @@ export class AuthService {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new UnauthorizedException('Account no longer exists');
     return toUser(user);
+  }
+
+  /** Emails a password_reset code. Always reports success — never confirm an email is registered. */
+  async forgotPassword(
+    input: ForgotPasswordInput,
+  ): Promise<{ success: boolean; message?: string }> {
+    return this.otp.sendOtp('email', input.email, 'password_reset');
+  }
+
+  /** Confirms the emailed code and sets a new password, same as changePassword does for other sessions. */
+  async resetPassword(input: ResetPasswordInput): Promise<void> {
+    const result = await this.otp.verifyOtp(
+      'email',
+      input.email,
+      input.code,
+      'password_reset',
+    );
+
+    if (!result.success) {
+      throw new UnauthorizedException({
+        message: result.message ?? 'Invalid OTP code',
+        details: { code: [result.message ?? 'Invalid OTP code'] },
+      });
+    }
+
+    const user = await this.prisma.user.findUnique({
+      where: { email: input.email },
+    });
+    if (!user) {
+      throw new UnauthorizedException('Account no longer exists');
+    }
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        passwordHash: await hash(input.password, BCRYPT_ROUNDS),
+        // Resetting the password ends every other session.
+        refreshTokenHash: null,
+      },
+    });
   }
 
   async changePassword(userId: Id, input: ChangePasswordInput): Promise<void> {

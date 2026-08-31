@@ -16,19 +16,24 @@ import {
 } from '@fitness/types';
 import {
   changePasswordSchema,
+  forgotPasswordSchema,
   loginSchema,
   refreshTokenSchema,
   registerSchema,
+  resetPasswordSchema,
   socialLoginSchema,
   authSessionSchema,
+  otpSendResponseSchema,
   pendingVerificationSchema,
   userSchema,
   authTokensSchema,
   verifyRegistrationSchema,
   type ChangePasswordInput,
+  type ForgotPasswordInput,
   type LoginInput,
   type RefreshTokenInput,
   type RegisterInput,
+  type ResetPasswordInput,
   type SocialLoginInput,
   type VerifyRegistrationInput,
 } from '@fitness/validation';
@@ -222,6 +227,44 @@ export class AuthController {
   })
   me(@CurrentUser() user: AuthenticatedUser): Promise<User> {
     return this.auth.me(user.id);
+  }
+
+  @Public()
+  @Post('forgot-password')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Send a password reset code',
+    description:
+      'Emails an OTP for the password_reset purpose. Always reports success, ' +
+      'whether or not the address is registered. Confirm the code and a new ' +
+      'password at POST /auth/reset-password.',
+  })
+  @ApiZodBody(forgotPasswordSchema)
+  @ApiZodResponse(otpSendResponseSchema, {
+    status: 200,
+    name: 'OtpSendResult',
+    description: 'Code queued',
+  })
+  forgotPassword(
+    @Body(zodPipe(forgotPasswordSchema)) body: ForgotPasswordInput,
+  ): Promise<{ success: boolean; message?: string }> {
+    return this.auth.forgotPassword(body);
+  }
+
+  @Public()
+  @Post('reset-password')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({
+    summary: 'Reset the password using an emailed code',
+    description: 'Succeeding here signs out every other session.',
+  })
+  @ApiZodBody(resetPasswordSchema)
+  @ApiResponse({ status: 204, description: 'Password reset' })
+  @ApiResponse({ status: 401, description: 'Code is invalid or expired' })
+  resetPassword(
+    @Body(zodPipe(resetPasswordSchema)) body: ResetPasswordInput,
+  ): Promise<void> {
+    return this.auth.resetPassword(body);
   }
 
   @Post('change-password')

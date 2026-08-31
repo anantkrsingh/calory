@@ -1,8 +1,10 @@
 import type { AuthProvider, AuthSession, PendingVerification, User } from '@fitness/types';
 import type {
   ChangePasswordInput,
+  ForgotPasswordInput,
   LoginInput,
   RegisterInput,
+  ResetPasswordInput,
   SocialLoginInput,
   VerifyRegistrationInput,
 } from '@fitness/validation';
@@ -135,5 +137,28 @@ export function useChangePassword(): UseMutationResult<
   return useMutation({
     mutationFn: (input: ChangePasswordInput) =>
       authService.changePassword(input),
+  });
+}
+
+/** Sends (or resends) a password_reset code to an email address. */
+export function useForgotPassword(): UseMutationResult<
+  { success: boolean; message?: string },
+  Error,
+  ForgotPasswordInput
+> {
+  return useMutation({
+    mutationFn: (input: ForgotPasswordInput) =>
+      authService.forgotPassword(input),
+  });
+}
+
+/** Confirms the emailed code and sets a new password. */
+export function useResetPassword(): UseMutationResult<
+  void,
+  Error,
+  ResetPasswordInput
+> {
+  return useMutation({
+    mutationFn: (input: ResetPasswordInput) => authService.resetPassword(input),
   });
 }
