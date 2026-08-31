@@ -18,6 +18,7 @@ import {
 } from "@/components/home/WeekProgressSheet";
 import { Brand, BottomTabInset, Spacing } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
+import { useRegisterPushNotifications } from "@/hooks/use-register-push-notifications";
 import { useStepsTracker } from "@/hooks/use-steps-tracker";
 import { currentWeekDates, todayIsoDate } from "@/lib/date";
 import { useTodayQuote } from "@/queries/quotes.queries";
@@ -38,6 +39,8 @@ export default function HomeScreen() {
   const { data: routine } = useTodayRoutine(today);
   const { data: weekCalories } = useWeekCalories(weekDates[0], weekDates[6]);
   const { steps } = useStepsTracker();
+
+  useRegisterPushNotifications();
 
   const stepsGoal = routine?.day?.stepsTarget ?? DEFAULT_DAILY_STEPS_GOAL;
   const burned = routine?.caloriesBurned ?? 0;

@@ -18,9 +18,11 @@ import type {
 import type { AxiosInstance } from 'axios';
 
 import { http } from '@/api/http';
+import { getCurrentPushTokenAsync } from '@/lib/notifications';
 import { authState } from '@/stores/auth.store';
 
 import { BaseService } from './base.service';
+import { usersService } from './users.service';
 
 export class AuthService extends BaseService {
   constructor(client: AxiosInstance = http) {
@@ -101,6 +103,15 @@ export class AuthService extends BaseService {
 
   /** Clears the local session even if the server call fails — logout must not block. */
   async logout(): Promise<void> {
+    try {
+      // Best-effort: a signed-out device must stop receiving pushes for this
+      // account, but failing to unregister must never block sign-out itself.
+      const token = await getCurrentPushTokenAsync();
+      if (token) await usersService.unregisterPushToken(token);
+    } catch {
+      // ignore
+    }
+
     try {
       await this.client.post<void>(this.url('logout'));
     } finally {

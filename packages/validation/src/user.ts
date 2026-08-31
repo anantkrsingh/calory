@@ -33,6 +33,10 @@ export const updateUserSchema = z.object({
   preferences: updatePreferencesSchema.optional(),
 });
 
+export const registerPushTokenSchema = z.object({
+  token: z.string().min(1, 'Push token is required'),
+});
+
 export const adminUpdateUserSchema = updateUserSchema.extend({
   role: z.enum(['user', 'admin']).optional(),
   emailVerified: z.boolean().optional(),
@@ -48,6 +52,7 @@ export type UserPreferencesInput = z.infer<typeof userPreferencesSchema>;
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
 export type UpdatePreferencesInput = z.infer<typeof updatePreferencesSchema>;
 export type UpdateUserInput = z.infer<typeof updateUserSchema>;
+export type RegisterPushTokenInput = z.infer<typeof registerPushTokenSchema>;
 export type AdminUpdateUserInput = z.infer<typeof adminUpdateUserSchema>;
 
 /** Admin-only listing: search by email/display name on top of plain pagination. */

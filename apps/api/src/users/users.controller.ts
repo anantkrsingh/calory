@@ -27,10 +27,12 @@ import {
   adminUpdateUserSchema,
   listUsersQuerySchema,
   objectIdSchema,
+  registerPushTokenSchema,
   updateUserSchema,
   userSchema,
   type AdminUpdateUserInput,
   type ListUsersQueryInput,
+  type RegisterPushTokenInput,
   type UpdateUserInput,
 } from '@fitness/validation';
 
@@ -81,6 +83,37 @@ export class UsersController {
     @Body(zodPipe(updateUserSchema)) body: UpdateUserInput,
   ): Promise<User> {
     return this.users.update(user.id, body);
+  }
+
+  @Post('me/push-token')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({
+    summary: 'Register this device for push notifications',
+    description:
+      'Saves the Expo push token and turns preferences.notificationsEnabled ' +
+      'on. Safe to call again with the same token.',
+  })
+  @ApiZodBody(registerPushTokenSchema)
+  registerPushToken(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body(zodPipe(registerPushTokenSchema)) body: RegisterPushTokenInput,
+  ): Promise<void> {
+    return this.users.registerPushToken(user.id, body.token);
+  }
+
+  @Delete('me/push-token')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({
+    summary: 'Unregister this device from push notifications',
+    description:
+      'Called on logout so a signed-out device stops receiving pushes.',
+  })
+  @ApiZodBody(registerPushTokenSchema)
+  unregisterPushToken(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body(zodPipe(registerPushTokenSchema)) body: RegisterPushTokenInput,
+  ): Promise<void> {
+    return this.users.unregisterPushToken(user.id, body.token);
   }
 
   @Post('me/avatar')
