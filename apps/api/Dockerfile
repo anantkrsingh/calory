@@ -26,18 +26,27 @@ ENV MONGODB_URI=mongodb://127.0.0.1:27017/build
 RUN pnpm exec turbo run build --filter=@fitness/api...
 
 FROM base AS runner
+
 ENV NODE_ENV=production
+
 WORKDIR /app
 
 RUN addgroup -g 1001 -S nodejs && adduser -S nestjs -u 1001
 
-COPY --from=builder --chown=nestjs:nodejs /app/package.json /app/pnpm-lock.yaml /app/pnpm-workspace.yaml /app/.npmrc ./
+COPY --from=builder --chown=nestjs:nodejs /app/package.json ./package.json
+COPY --from=builder --chown=nestjs:nodejs /app/pnpm-lock.yaml ./pnpm-lock.yaml
+COPY --from=builder --chown=nestjs:nodejs /app/pnpm-workspace.yaml ./pnpm-workspace.yaml
+COPY --from=builder --chown=nestjs:nodejs /app/.npmrc ./.npmrc
+
 COPY --from=builder --chown=nestjs:nodejs /app/node_modules ./node_modules
-COPY --from=builder --chown=nestjs:nodejs /app/apps/api/package.json ./apps/api/
+
+COPY --from=builder --chown=nestjs:nodejs /app/apps/api/package.json ./apps/api/package.json
 COPY --from=builder --chown=nestjs:nodejs /app/apps/api/dist ./apps/api/dist
+
 COPY --from=builder --chown=nestjs:nodejs /app/packages ./packages
 
 USER nestjs
+
 EXPOSE 3000
 
 CMD ["node", "apps/api/dist/main.js"]
