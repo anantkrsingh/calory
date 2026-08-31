@@ -6,7 +6,6 @@ import {
   HttpException,
   HttpStatus,
 } from '@nestjs/common';
-import { LIMITS } from '@fitness/config';
 import {
   paginate,
   toChatConversation,
@@ -39,6 +38,7 @@ import { stepCountIs, streamText, tool, type LanguageModel } from 'ai';
 import { z } from 'zod';
 
 import { AI_MODEL, requireModel } from '../ai/ai.module';
+import { LIMITS } from '../config/constants';
 import { PrismaService } from '../prisma/prisma.service';
 
 const TITLE_MAX = LIMITS.chatTitle.max;

@@ -1,4 +1,4 @@
-import { DEFAULT_DAILY_STEPS_GOAL } from '@fitness/config';
+import { DEFAULT_DAILY_STEPS_GOAL } from '@/constants/app';
 import { Pedometer } from 'expo-sensors';
 import { useEffect, useRef, useState } from 'react';
 import { AppState, Platform } from 'react-native';

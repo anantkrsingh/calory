@@ -1,4 +1,4 @@
-import { LIMITS } from '@fitness/config';
+import { LIMITS } from './constants';
 import { z } from 'zod';
 
 import {

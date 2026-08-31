@@ -1,10 +1,9 @@
 import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
-import type { Env } from '@fitness/config/server';
 import { OTP_QUEUE_NAME } from '@fitness/types';
 
 import { AppModule } from './app.module';
-import { ENV } from './config/env.module';
+import { ENV, type Env } from './config/env.module';
 
 const logger = new Logger('Worker');
 

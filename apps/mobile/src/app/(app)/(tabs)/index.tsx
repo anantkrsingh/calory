@@ -1,4 +1,4 @@
-import { DEFAULT_DAILY_STEPS_GOAL } from "@fitness/config";
+import { DEFAULT_DAILY_STEPS_GOAL } from "@/constants/app";
 import type { TodayRoutineExercise } from "@fitness/types";
 import { useRouter } from "expo-router";
 import { Flame, Footprints } from "lucide-react-native";

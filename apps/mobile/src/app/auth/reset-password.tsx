@@ -1,4 +1,4 @@
-import { AUTH } from '@fitness/config';
+import { AUTH } from '@/constants/app';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Alert, Pressable, StyleSheet, TextInput, View } from 'react-native';

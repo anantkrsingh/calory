@@ -1,4 +1,4 @@
-import { AUTH } from '@fitness/config';
+import { AUTH } from '@/constants/app';
 import type { RegisterInput } from '@fitness/validation';
 import { useRouter } from 'expo-router';
 import { useRef, useState } from 'react';

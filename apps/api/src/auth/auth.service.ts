@@ -5,7 +5,6 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService, type JwtSignOptions } from '@nestjs/jwt';
-import type { Env } from '@fitness/config/server';
 import { toUser } from '@fitness/db';
 import type {
   AuthProvider,
@@ -27,7 +26,7 @@ import type {
 } from '@fitness/validation';
 import { compare, hash } from 'bcryptjs';
 
-import { ENV } from '../config/env.module';
+import { ENV, type Env } from '../config/env.module';
 import { MeasurementsService } from '../measurements/measurements.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { OtpService } from '../queues/otp.service';

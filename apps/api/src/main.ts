@@ -2,15 +2,14 @@ import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import type { OpenAPIObject } from '@nestjs/swagger';
-import { API_VERSION } from '@fitness/config';
-import type { Env } from '@fitness/config/server';
 import helmet from 'helmet';
 
 import { apiErrorSchema } from '@fitness/validation';
 
 import { AppModule } from './app.module';
 import { registerSchema, registeredSchemas } from './common/swagger';
-import { ENV } from './config/env.module';
+import { API_VERSION } from './config/constants';
+import { ENV, type Env } from './config/env.module';
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule);

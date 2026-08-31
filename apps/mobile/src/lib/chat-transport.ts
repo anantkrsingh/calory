@@ -1,4 +1,4 @@
-import { AUTH } from '@fitness/config';
+import { AUTH } from '@/constants/app';
 import type { AuthTokens } from '@fitness/types';
 import { DefaultChatTransport, isTextUIPart, type UIMessage } from 'ai';
 import axios from 'axios';

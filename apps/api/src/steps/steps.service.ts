@@ -1,5 +1,4 @@
 import { Injectable } from '@nestjs/common';
-import { DEFAULT_DAILY_STEPS_GOAL } from '@fitness/config';
 import { toDailySteps } from '@fitness/db';
 import type { DailySteps, Id, IsoDate, StepsSummary } from '@fitness/types';
 import type {
@@ -7,6 +6,7 @@ import type {
   UpsertStepsInput,
 } from '@fitness/validation';
 
+import { DEFAULT_DAILY_STEPS_GOAL } from '../config/constants';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()

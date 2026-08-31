@@ -1,10 +1,9 @@
 import { z } from 'zod';
 
-import { API_PREFIX, PAGINATION } from '../constants';
-
 /**
- * Server-side environment contract. Importing this module from the Expo app is a
- * mistake — it reads `process.env` and is only reachable via `@fitness/config/server`.
+ * Server-side environment contract, validated once at boot — see `env.module.ts`.
+ * Mirrors the API's schema (`apps/api/src/config/env.ts`) since both processes
+ * read from the same `.env` shape; kept in sync by hand.
  */
 export const envSchema = z.object({
   NODE_ENV: z
@@ -12,7 +11,7 @@ export const envSchema = z.object({
     .default('development'),
 
   PORT: z.coerce.number().int().min(1).max(65535).default(3000),
-  API_PREFIX: z.string().min(1).default(API_PREFIX),
+  API_PREFIX: z.string().min(1).default('api'),
   CORS_ORIGIN: z.string().default('*'),
 
   MONGODB_URI: z
@@ -43,7 +42,9 @@ export const envSchema = z.object({
   GOOGLE_CLIENT_IDS: z
     .string()
     .optional()
-    .describe('Comma-separated OAuth client ids accepted as ID token audiences'),
+    .describe(
+      'Comma-separated OAuth client ids accepted as ID token audiences',
+    ),
   FACEBOOK_APP_ID: z.string().optional(),
   FACEBOOK_APP_SECRET: z.string().optional(),
   X_CLIENT_ID: z.string().optional(),
@@ -62,18 +63,15 @@ export const envSchema = z.object({
   // registrations, or a routine stuck in `failed`).
   ROUTINE_RECONCILE_CRON: z.string().default('*/30 * * * *'),
 
-  DEFAULT_PAGE_SIZE: z.coerce
-    .number()
-    .int()
-    .positive()
-    .max(PAGINATION.maxLimit)
-    .default(PAGINATION.defaultLimit),
+  // Mirrors `PAGINATION.defaultLimit`/`PAGINATION.maxLimit` in
+  // `packages/validation/src/constants.ts`.
+  DEFAULT_PAGE_SIZE: z.coerce.number().int().positive().max(100).default(20),
 
   // BullMQ / Redis configuration for background jobs
   REDIS_HOST: z.string().default('localhost'),
   REDIS_PORT: z.coerce.number().int().min(1).max(65535).default(6379),
   REDIS_PASSWORD: z.string().optional(),
-  
+
   // OTP configuration
   OTP_EXPIRY_MINUTES: z.coerce.number().int().positive().default(10),
   OTP_LENGTH: z.coerce.number().int().min(4).max(8).default(4),
@@ -106,13 +104,12 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
 
   if (!result.success) {
     const details = result.error.issues
-      .map((issue) => `  - ${issue.path.join('.') || '(root)'}: ${issue.message}`)
+      .map(
+        (issue) => `  - ${issue.path.join('.') || '(root)'}: ${issue.message}`,
+      )
       .join('\n');
     throw new Error(`Invalid environment configuration:\n${details}`);
   }
 
   return result.data;
 }
-
-export const isProduction = (env: Env): boolean => env.NODE_ENV === 'production';
-export const isTest = (env: Env): boolean => env.NODE_ENV === 'test';

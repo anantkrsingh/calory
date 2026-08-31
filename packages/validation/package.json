@@ -21,7 +21,6 @@
     "clean": "rm -rf dist .turbo *.tsbuildinfo"
   },
   "dependencies": {
-    "@fitness/config": "workspace:*",
     "@fitness/types": "workspace:*",
     "zod": "^4.1.13"
   },

@@ -1,7 +1,6 @@
 import { ConflictException, Injectable, Inject, Logger } from '@nestjs/common';
-import type { Env } from '@fitness/config/server';
 
-import { ENV } from '../config/env.module';
+import { ENV, type Env } from '../config/env.module';
 import { PrismaService } from '../prisma/prisma.service';
 import { OtpQueue, type OtpJobData } from './otp.queue';
 
