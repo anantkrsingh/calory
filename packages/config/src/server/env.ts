@@ -76,7 +76,7 @@ export const envSchema = z.object({
   
   // OTP configuration
   OTP_EXPIRY_MINUTES: z.coerce.number().int().positive().default(10),
-  OTP_LENGTH: z.coerce.number().int().min(4).max(8).default(6),
+  OTP_LENGTH: z.coerce.number().int().min(4).max(8).default(4),
 
   // SMTP configuration for sending OTP emails via nodemailer
   SMTP_HOST: z.string().min(1, 'SMTP_HOST is required').default('localhost'),

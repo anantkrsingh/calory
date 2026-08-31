@@ -24,7 +24,7 @@ export type VerifyEmailSheetRef = {
 };
 
 const HANDLE_COLOR = 'rgba(120, 120, 128, 0.3)';
-const OTP_LENGTH = 6;
+const OTP_LENGTH = 4;
 const RESEND_SECONDS = 60;
 
 const formatSeconds = (total: number): string => {
@@ -110,7 +110,7 @@ export default forwardRef<VerifyEmailSheetRef>(function VerifyEmailSheet(_props,
 
   const handleVerify = async () => {
     if (otp.length !== OTP_LENGTH) {
-      setError('Please enter a 6-digit code');
+      setError('Please enter a 4-digit code');
       return;
     }
 
@@ -152,7 +152,7 @@ export default forwardRef<VerifyEmailSheetRef>(function VerifyEmailSheet(_props,
                 Verify your email
               </ThemedText>
               <ThemedText type="small" style={[styles.subtitle, { color: theme.textSecondary }]}>
-                We&apos;ve sent a 6-digit verification code to
+                We&apos;ve sent a 4-digit verification code to
               </ThemedText>
               <ThemedText type="smallBold" style={styles.email}>
                 {email}

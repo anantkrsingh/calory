@@ -51,7 +51,7 @@ export class OtpQueue {
   }
 
   generateOtp(): string {
-    const length = this.env.OTP_LENGTH || 6;
+    const length = this.env.OTP_LENGTH || 4;
     let otp = '';
     for (let i = 0; i < length; i++) {
       otp += Math.floor(Math.random() * 10);

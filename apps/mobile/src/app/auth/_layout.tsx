@@ -31,6 +31,7 @@ export default function AuthLayout() {
         options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
       />
       <Stack.Screen name="forgot-password" />
+      <Stack.Screen name="reset-password" />
       <Stack.Screen name="google-login" />
     </Stack>
   );
