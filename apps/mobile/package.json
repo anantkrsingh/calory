@@ -68,6 +68,7 @@
   "scripts": {
     "start": "expo start",
     "mobile:dev": "expo start",
+    "eas-build-post-install": "cd ../.. && pnpm exec turbo run build --filter='@fitness/mobile^...'",
     "reset-project": "node ./scripts/reset-project.js",
     "android": "expo run:android",
     "ios": "expo run:ios",
