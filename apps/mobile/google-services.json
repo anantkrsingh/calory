@@ -14,19 +14,11 @@
       },
       "oauth_client": [
         {
-          "client_id": "670526577063-chcua5n7vrmgu88umbvq2ob8178iltp5.apps.googleusercontent.com",
+          "client_id": "670526577063-525marpfgkbqr34v4n5of5hrub9tugue.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
             "package_name": "com.calory.ai.fitness",
-            "certificate_hash": "c89db7402fb0964406b593b9bd10c9ef27b96ceb"
-          }
-        },
-        {
-          "client_id": "670526577063-frs51rg5dq46brlth0j78rkqi8h3qj7c.apps.googleusercontent.com",
-          "client_type": 1,
-          "android_info": {
-            "package_name": "com.calory.ai.fitness",
-            "certificate_hash": "1c048bc06f956fd41b7485fc151327212338950e"
+            "certificate_hash": "418951d37bfba37c11966dd5b87894e11abdef31"
           }
         }
       ],

@@ -56,6 +56,14 @@
         }
       ],
       [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/android-icon-monochrome.png",
+          "color": "#EF5A24",
+          "defaultChannel": "default"
+        }
+      ],
+      [
         "react-native-fbsdk-next",
         {
           "appID": "1372271290911323",
