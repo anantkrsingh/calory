@@ -1,6 +1,6 @@
 import { Image } from "expo-image";
 import { useLocalSearchParams } from "expo-router";
-import { Dumbbell, Heart } from "lucide-react-native";
+import { Dumbbell, Heart, Play } from "lucide-react-native";
 import type { ReactNode } from "react";
 import {
   ActivityIndicator,
@@ -22,6 +22,8 @@ import { muscleGroupLabel } from "@/lib/muscle-groups";
 import { useExercise, useToggleExerciseFavorite } from "@/queries/exercises.queries";
 
 const HAIRLINE = StyleSheet.hairlineWidth || 1;
+// Keeps the last bit of scroll content clear of the floating Start button.
+const START_BUTTON_CLEARANCE = 76;
 
 function capitalize(value: string): string {
   return value.charAt(0).toUpperCase() + value.slice(1);
@@ -75,7 +77,7 @@ export function ExerciseDetailScreen() {
         <ScrollView
           contentContainerStyle={[
             styles.scroll,
-            { paddingBottom: Spacing.four + insets.bottom },
+            { paddingBottom: Spacing.four + insets.bottom + START_BUTTON_CLEARANCE },
           ]}
           showsVerticalScrollIndicator={false}
         >
@@ -241,6 +243,28 @@ export function ExerciseDetailScreen() {
             </Section>
           ) : null}
         </ScrollView>
+      ) : null}
+
+      {!isLoading && !isError && exercise ? (
+        <View
+          pointerEvents="box-none"
+          style={[styles.startButtonWrap, { bottom: insets.bottom + Spacing.three }]}
+        >
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Start ${exercise.name}`}
+            hitSlop={8}
+            onPress={() => {
+              // TODO: wire up once the workout-session flow exists.
+            }}
+            style={({ pressed }) => [styles.startButton, pressed && Pressed]}
+          >
+            <Play color="#FFFFFF" size={18} fill="#FFFFFF" strokeWidth={2} />
+            <ThemedText fontWeight="700" style={styles.startButtonLabel}>
+              Start
+            </ThemedText>
+          </Pressable>
+        </View>
       ) : null}
     </TabScreen>
   );
@@ -430,5 +454,32 @@ const styles = StyleSheet.create({
   },
   stateButton: {
     marginTop: Spacing.two,
+  },
+  startButtonWrap: {
+    alignItems: "center",
+    left: 0,
+    position: "absolute",
+    right: 0,
+  },
+  startButton: {
+    alignItems: "center",
+    backgroundColor: Brand.accent,
+    borderCurve: "continuous",
+    borderRadius: 999,
+    elevation: 4,
+    flexDirection: "row",
+    gap: Spacing.two,
+    justifyContent: "center",
+    paddingHorizontal: Spacing.five,
+    paddingVertical: 14,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
+  },
+  startButtonLabel: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    lineHeight: 20,
   },
 });
