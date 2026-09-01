@@ -14,6 +14,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "670526577063-ji2qfj3k5ff8an52ebv23kee82s5qo5g.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.fitness.calory.ai",
+            "certificate_hash": "418951d37bfba37c11966dd5b87894e11abdef31"
+          }
+        },
+        {
           "client_id": "670526577063-kgu8ooflt550e0mfql9ftjjmu7gaadh1.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
