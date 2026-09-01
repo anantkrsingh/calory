@@ -12,7 +12,6 @@ COPY apps/worker/package.json ./apps/worker/
 COPY apps/admin/package.json ./apps/admin/
 COPY apps/mobile/package.json ./apps/mobile/
 COPY packages/ai/package.json ./packages/ai/
-COPY packages/config/package.json ./packages/config/
 COPY packages/db/package.json ./packages/db/
 COPY packages/types/package.json ./packages/types/
 COPY packages/validation/package.json ./packages/validation/
