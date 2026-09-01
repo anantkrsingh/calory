@@ -245,7 +245,7 @@ export function ExerciseDetailScreen() {
         </ScrollView>
       ) : null}
 
-      {!isLoading && !isError && exercise ? (
+      {/* {!isLoading && !isError && exercise ? (
         <View
           pointerEvents="box-none"
           style={[styles.startButtonWrap, { bottom: insets.bottom + Spacing.three }]}
@@ -255,7 +255,6 @@ export function ExerciseDetailScreen() {
             accessibilityLabel={`Start ${exercise.name}`}
             hitSlop={8}
             onPress={() => {
-              // TODO: wire up once the workout-session flow exists.
             }}
             style={({ pressed }) => [styles.startButton, pressed && Pressed]}
           >
@@ -265,7 +264,7 @@ export function ExerciseDetailScreen() {
             </ThemedText>
           </Pressable>
         </View>
-      ) : null}
+      ) : null} */}
     </TabScreen>
   );
 }

@@ -8,7 +8,7 @@
     "scheme": "calory-fitness",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "icon": "./assets/expo.icon",
+      "icon": "./assets/images/ios-icon-default.png",
       "bundleIdentifier": "com.fitness.calory.ai",
       "googleServicesFile": "./GoogleService-Info.plist"
     },
