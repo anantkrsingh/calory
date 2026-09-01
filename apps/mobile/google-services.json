@@ -7,114 +7,18 @@
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:670526577063:android:205356438e8c61cc587e82",
+        "mobilesdk_app_id": "1:670526577063:android:d814112bfe04d879587e82",
         "android_client_info": {
-          "package_name": "com.calory.ai.fitness"
+          "package_name": "com.fitness.calory.ai"
         }
       },
       "oauth_client": [
         {
-          "client_id": "670526577063-525marpfgkbqr34v4n5of5hrub9tugue.apps.googleusercontent.com",
+          "client_id": "670526577063-kgu8ooflt550e0mfql9ftjjmu7gaadh1.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
-            "package_name": "com.calory.ai.fitness",
-            "certificate_hash": "418951d37bfba37c11966dd5b87894e11abdef31"
-          }
-        }
-      ],
-      "api_key": [
-        {
-          "current_key": "AIzaSyDbUTduMTNSZ9tIFuvxhDnkKN7FshQmJW8"
-        }
-      ],
-      "services": {
-        "appinvite_service": {
-          "other_platform_oauth_client": [
-            {
-              "client_id": "670526577063-lt72on2ejdi12ffkrq4cjorc4bskc9jg.apps.googleusercontent.com",
-              "client_type": 3
-            },
-            {
-              "client_id": "670526577063-3vi0vi67rl3kvdikaqt1luo9ibsd57hp.apps.googleusercontent.com",
-              "client_type": 2,
-              "ios_info": {
-                "bundle_id": "com.calory.ai.fitness"
-              }
-            }
-          ]
-        }
-      }
-    },
-    {
-      "client_info": {
-        "mobilesdk_app_id": "1:670526577063:android:93b360f4f3168ce2587e82",
-        "android_client_info": {
-          "package_name": "com.calory.fitness"
-        }
-      },
-      "oauth_client": [
-        {
-          "client_id": "670526577063-loak8eef1ja9gcvkp99m0fj623lbs32s.apps.googleusercontent.com",
-          "client_type": 1,
-          "android_info": {
-            "package_name": "com.calory.fitness",
-            "certificate_hash": "c89db7402fb0964406b593b9bd10c9ef27b96ceb"
-          }
-        }
-      ],
-      "api_key": [
-        {
-          "current_key": "AIzaSyDbUTduMTNSZ9tIFuvxhDnkKN7FshQmJW8"
-        }
-      ],
-      "services": {
-        "appinvite_service": {
-          "other_platform_oauth_client": [
-            {
-              "client_id": "670526577063-lt72on2ejdi12ffkrq4cjorc4bskc9jg.apps.googleusercontent.com",
-              "client_type": 3
-            },
-            {
-              "client_id": "670526577063-3vi0vi67rl3kvdikaqt1luo9ibsd57hp.apps.googleusercontent.com",
-              "client_type": 2,
-              "ios_info": {
-                "bundle_id": "com.calory.ai.fitness"
-              }
-            }
-          ]
-        }
-      }
-    },
-    {
-      "client_info": {
-        "mobilesdk_app_id": "1:670526577063:android:e7a0082fed55963c587e82",
-        "android_client_info": {
-          "package_name": "com.hotshot.chatvid"
-        }
-      },
-      "oauth_client": [
-        {
-          "client_id": "670526577063-6hic1b1rukntchi42h02s69gr4fbb7ch.apps.googleusercontent.com",
-          "client_type": 1,
-          "android_info": {
-            "package_name": "com.hotshot.chatvid",
-            "certificate_hash": "9455307a6de7b6468c7368de03427bc303563c62"
-          }
-        },
-        {
-          "client_id": "670526577063-evg6vlqk3drlrtsc8ocn4icb662fon1e.apps.googleusercontent.com",
-          "client_type": 1,
-          "android_info": {
-            "package_name": "com.hotshot.chatvid",
-            "certificate_hash": "b58ca8fec1398af3e9141c2be7e8972c82337b63"
-          }
-        },
-        {
-          "client_id": "670526577063-j8skuvfjkm3cm9r57iuqc9hkl5sfpr64.apps.googleusercontent.com",
-          "client_type": 1,
-          "android_info": {
-            "package_name": "com.hotshot.chatvid",
-            "certificate_hash": "6d1685cc3df7b9443155b5377ff36fd9f40d69c1"
+            "package_name": "com.fitness.calory.ai",
+            "certificate_hash": "1a7393668851b4d84dd0ce8568613fcc64acf51d"
           }
         }
       ],

@@ -10,3 +10,20 @@ export const uploadedImageSchema = z.object({
 });
 
 export type UploadedImage = z.infer<typeof uploadedImageSchema>;
+
+/** Signed params a client uses to upload an image straight to Cloudinary. */
+export const uploadSignatureSchema = z.object({
+  cloudName: z.string().min(1),
+  apiKey: z.string().min(1),
+  timestamp: z.number().int().positive(),
+  signature: z.string().min(1),
+  folder: z.string().min(1),
+});
+
+export type UploadSignature = z.infer<typeof uploadSignatureSchema>;
+
+export const uploadSignatureRequestSchema = z.object({
+  folder: z.string().min(1).optional(),
+});
+
+export type UploadSignatureRequest = z.infer<typeof uploadSignatureRequestSchema>;

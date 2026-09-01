@@ -9,7 +9,7 @@
     "userInterfaceStyle": "automatic",
     "ios": {
       "icon": "./assets/expo.icon",
-      "bundleIdentifier": "com.calory.ai.fitness",
+      "bundleIdentifier": "com.fitness.calory.ai",
       "googleServicesFile": "./GoogleService-Info.plist"
     },
     "android": {
@@ -20,7 +20,7 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.calory.ai.fitness",
+      "package": "com.fitness.calory.ai",
       "googleServicesFile": "./google-services.json"
     },
     "web": {

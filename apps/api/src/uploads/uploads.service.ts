@@ -31,6 +31,16 @@ export interface UploadedImageResult {
   bytes?: number;
 }
 
+export interface UploadSignatureResult {
+  cloudName: string;
+  apiKey: string;
+  timestamp: number;
+  signature: string;
+  folder: string;
+}
+
+const DEFAULT_UPLOAD_FOLDER = 'fitness-tracker/exercises';
+
 @Injectable()
 export class UploadsService {
   private readonly configured: boolean;
@@ -53,9 +63,40 @@ export class UploadsService {
     }
   }
 
+  /**
+   * Signs upload params so the client can POST the file straight to
+   * Cloudinary — the bytes never pass through this server. Only `folder` and
+   * `timestamp` are signed; the client must send exactly these params back
+   * (plus `file`, `api_key`, and `signature`) or Cloudinary will reject it.
+   */
+  createSignature(folder = DEFAULT_UPLOAD_FOLDER): UploadSignatureResult {
+    const { CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET } =
+      this.env;
+
+    if (!this.configured || !CLOUDINARY_CLOUD_NAME || !CLOUDINARY_API_KEY) {
+      throw new ServiceUnavailableException(
+        'Cloudinary is not configured. Set CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET.',
+      );
+    }
+
+    const timestamp = Math.floor(Date.now() / 1000);
+    const signature = cloudinary.utils.api_sign_request(
+      { folder, timestamp },
+      CLOUDINARY_API_SECRET as string,
+    );
+
+    return {
+      cloudName: CLOUDINARY_CLOUD_NAME,
+      apiKey: CLOUDINARY_API_KEY,
+      timestamp,
+      signature,
+      folder,
+    };
+  }
+
   async uploadImage(
     file: Express.Multer.File,
-    folder = 'fitness-tracker/exercises',
+    folder = DEFAULT_UPLOAD_FOLDER,
   ): Promise<UploadedImageResult> {
     if (!this.configured) {
       throw new ServiceUnavailableException(

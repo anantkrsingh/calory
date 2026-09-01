@@ -1,16 +1,9 @@
 "use server";
 
-import type { CreateExerciseInput, UpdateExerciseInput, UploadedImage } from "@fitness/validation";
-import { cookies } from "next/headers";
+import type { CreateExerciseInput, UpdateExerciseInput, UploadSignature } from "@fitness/validation";
 import { revalidatePath } from "next/cache";
 
-import { ApiError, apiFetch } from "./api";
-import { SESSION_COOKIE } from "./session";
-
-const API_BASE_URL = (process.env.API_BASE_URL ?? "http://localhost:3000/api/v1").replace(
-  /\/+$/,
-  "",
-);
+import { apiFetch } from "./api";
 
 export async function createExerciseAction(data: CreateExerciseInput) {
   await apiFetch("/exercises", {
@@ -38,27 +31,13 @@ export async function deleteExerciseAction(id: string) {
   return { success: true };
 }
 
-/** Uploads an image file to Cloudinary via the API. Field name must be `file`. */
-export async function uploadImageAction(formData: FormData): Promise<UploadedImage> {
-  const cookieStore = await cookies();
-  const token = cookieStore.get(SESSION_COOKIE)?.value;
-
-  const response = await fetch(`${API_BASE_URL}/uploads/image`, {
+/**
+ * Signs Cloudinary upload params so the browser can POST the file straight
+ * to Cloudinary — the image bytes never pass through this server or the API.
+ */
+export async function getUploadSignatureAction(folder?: string): Promise<UploadSignature> {
+  return apiFetch<UploadSignature>("/uploads/signature", {
     method: "POST",
-    headers: {
-      ...(token ? { authorization: `Bearer ${token}` } : {}),
-    },
-    body: formData,
-    cache: "no-store",
+    body: JSON.stringify(folder ? { folder } : {}),
   });
-
-  if (!response.ok) {
-    const body = await response.json().catch(() => null);
-    const message = Array.isArray(body?.message)
-      ? body.message.join(", ")
-      : (body?.message ?? `Upload failed with ${response.status}`);
-    throw new ApiError(response.status, message);
-  }
-
-  return (await response.json()) as UploadedImage;
 }

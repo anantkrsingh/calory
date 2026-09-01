@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  Body,
   Controller,
   Post,
   UploadedFile,
@@ -13,15 +14,22 @@ import {
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
-import { uploadedImageSchema } from '@fitness/validation';
+import {
+  uploadedImageSchema,
+  uploadSignatureRequestSchema,
+  uploadSignatureSchema,
+  type UploadSignatureRequest,
+} from '@fitness/validation';
 
 import { Roles } from '../auth/roles.guard';
 import { ApiZodResponse } from '../common/swagger';
+import { zodPipe } from '../common/zod-validation.pipe';
 import {
   ALLOWED_MIME_TYPES,
   MAX_UPLOAD_BYTES,
   UploadsService,
   type UploadedImageResult,
+  type UploadSignatureResult,
 } from './uploads.service';
 
 @ApiTags('uploads')
@@ -71,5 +79,28 @@ export class UploadsController {
     @UploadedFile() file: Express.Multer.File,
   ): Promise<UploadedImageResult> {
     return this.uploads.uploadImage(file);
+  }
+
+  @Post('signature')
+  @ApiOperation({
+    summary:
+      'Sign upload params (admin only) so the client can POST an image straight to Cloudinary, bypassing this server.',
+  })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        folder: { type: 'string' },
+      },
+    },
+  })
+  @ApiZodResponse(uploadSignatureSchema, {
+    description: 'Signed Cloudinary upload params',
+    name: 'UploadSignature',
+  })
+  createSignature(
+    @Body(zodPipe(uploadSignatureRequestSchema)) body: UploadSignatureRequest,
+  ): UploadSignatureResult {
+    return this.uploads.createSignature(body.folder);
   }
 }

@@ -25,8 +25,8 @@ import { CustomDropdown } from "@/components/custom-dropdown";
 import {
   createExerciseAction,
   deleteExerciseAction,
+  getUploadSignatureAction,
   updateExerciseAction,
-  uploadImageAction,
 } from "@/lib/exercise-actions";
 
 const MAX_GALLERY_IMAGES = 10;
@@ -79,6 +79,11 @@ function buildQuery(page: number, search?: string): string {
   return params.toString();
 }
 
+/**
+ * Uploads straight from the browser to Cloudinary using a short-lived
+ * signature from the API (admin-only) — the file bytes never pass through
+ * our Next.js or API servers.
+ */
 async function uploadFile(file: File): Promise<string> {
   if (file.size > MAX_UPLOAD_BYTES) {
     throw new Error(`"${file.name}" is larger than 5MB`);
@@ -88,10 +93,26 @@ async function uploadFile(file: File): Promise<string> {
     throw new Error(`"${file.name}" must be JPEG, PNG, WebP, or GIF`);
   }
 
+  const { cloudName, apiKey, timestamp, signature, folder } = await getUploadSignatureAction();
+
   const formData = new FormData();
   formData.append("file", file);
-  const result = await uploadImageAction(formData);
-  return result.url;
+  formData.append("api_key", apiKey);
+  formData.append("timestamp", String(timestamp));
+  formData.append("signature", signature);
+  formData.append("folder", folder);
+
+  const response = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
+    method: "POST",
+    body: formData,
+  });
+
+  const body = await response.json().catch(() => null);
+  if (!response.ok) {
+    throw new Error(body?.error?.message ?? `Upload failed with ${response.status}`);
+  }
+
+  return body.secure_url as string;
 }
 
 export function ExerciseManagementClient({
