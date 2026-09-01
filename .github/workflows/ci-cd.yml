@@ -80,8 +80,10 @@ jobs:
           FACEBOOK_APP_SECRET: ${{ secrets.FACEBOOK_APP_SECRET }}
           X_CLIENT_ID: ${{ secrets.X_CLIENT_ID }}
           X_CLIENT_SECRET: ${{ secrets.X_CLIENT_SECRET }}
+          LLM_PROVIDER: ${{ secrets.LLM_PROVIDER }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           GOOGLE_GENERATIVE_AI_API_KEY: ${{ secrets.GOOGLE_GENERATIVE_AI_API_KEY }}
-          GEMINI_MODEL: ${{ secrets.GEMINI_MODEL }}
+          LLM_MODEL: ${{ secrets.GEMINI_MODEL }}
           CLOUDINARY_CLOUD_NAME: ${{ secrets.CLOUDINARY_CLOUD_NAME }}
           CLOUDINARY_API_KEY: ${{ secrets.CLOUDINARY_API_KEY }}
           CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET }}
@@ -122,8 +124,13 @@ jobs:
           append FACEBOOK_APP_SECRET "${FACEBOOK_APP_SECRET:-}"
           append X_CLIENT_ID "${X_CLIENT_ID:-}"
           append X_CLIENT_SECRET "${X_CLIENT_SECRET:-}"
+          # Defaults to gemini since that's the provider these secrets configure;
+          # override the LLM_PROVIDER secret to "openai" (and set OPENAI_API_KEY)
+          # to switch.
+          append LLM_PROVIDER "${LLM_PROVIDER:-gemini}"
+          append OPENAI_API_KEY "${OPENAI_API_KEY:-}"
           append GOOGLE_GENERATIVE_AI_API_KEY "${GOOGLE_GENERATIVE_AI_API_KEY:-}"
-          append GEMINI_MODEL "${GEMINI_MODEL:-gemini-2.5-flash}"
+          append LLM_MODEL "${LLM_MODEL:-gemini-2.5-flash}"
           append CLOUDINARY_CLOUD_NAME "${CLOUDINARY_CLOUD_NAME:-}"
           append CLOUDINARY_API_KEY "${CLOUDINARY_API_KEY:-}"
           append CLOUDINARY_API_SECRET "${CLOUDINARY_API_SECRET:-}"
