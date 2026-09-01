@@ -18,7 +18,7 @@ import {
   userRoleSchema,
   workoutStatusSchema,
 } from './enums';
-import { exerciseInstructionStepSchema } from './exercise';
+import { exerciseInstructionStepSchema, exerciseLogFieldsSchema } from './exercise';
 import { isoDateSchema, isoDateTimeSchema, objectIdSchema } from './primitives';
 
 const entityFields = {
@@ -112,6 +112,7 @@ export const exerciseSchema = z.object({
   createdBy: objectIdSchema.nullable(),
   isCustom: z.boolean(),
   isFavorite: z.boolean(),
+  logFields: exerciseLogFieldsSchema,
 });
 
 export const exerciseMuscleGroupSchema = z.object({

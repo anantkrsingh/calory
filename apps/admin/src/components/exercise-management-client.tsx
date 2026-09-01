@@ -1,9 +1,10 @@
 "use client";
 
-import type { Exercise } from "@fitness/types";
+import type { Exercise, ExerciseLogFields } from "@fitness/types";
 import {
   Equipment,
   ExerciseCategory,
+  ExerciseLogFieldRequirement,
   MuscleGroup,
 } from "@fitness/types";
 import type { ExerciseInstructionStepInput, UploadSignature } from "@fitness/validation";
@@ -58,6 +59,25 @@ const MUSCLE_OPTIONS = Object.values(MuscleGroup).map((value) => ({
   value,
   label: labelize(value),
 }));
+
+/** Which `ExerciseLogFields` key each row edits, and what to call it. */
+const LOG_FIELD_ROWS: Array<{ key: keyof ExerciseLogFields; label: string }> = [
+  { key: "reps", label: "Reps" },
+  { key: "weightKg", label: "Weight" },
+  { key: "sets", label: "Sets" },
+  { key: "durationSec", label: "Duration" },
+  { key: "distanceM", label: "Distance" },
+];
+
+const REQUIREMENT_OPTIONS = Object.values(ExerciseLogFieldRequirement);
+
+const HIDDEN_LOG_FIELDS: ExerciseLogFields = {
+  reps: ExerciseLogFieldRequirement.Hidden,
+  weightKg: ExerciseLogFieldRequirement.Hidden,
+  sets: ExerciseLogFieldRequirement.Hidden,
+  durationSec: ExerciseLogFieldRequirement.Hidden,
+  distanceM: ExerciseLogFieldRequirement.Hidden,
+};
 
 interface ExerciseManagementClientProps {
   exercises: Exercise[];
@@ -149,6 +169,7 @@ export function ExerciseManagementClient({
   const [thumbnail, setThumbnail] = useState<string | undefined>(undefined);
   const [images, setImages] = useState<string[]>([]);
   const [steps, setSteps] = useState<StepDraft[]>([]);
+  const [logFields, setLogFields] = useState<ExerciseLogFields>(HIDDEN_LOG_FIELDS);
   const [uploadingThumbnail, setUploadingThumbnail] = useState(false);
   const [uploadingGallery, setUploadingGallery] = useState(false);
   const [uploadingStepId, setUploadingStepId] = useState<string | null>(null);
@@ -170,6 +191,7 @@ export function ExerciseManagementClient({
     setThumbnail(undefined);
     setImages([]);
     setSteps([]);
+    setLogFields(HIDDEN_LOG_FIELDS);
     setError(null);
     setIsModalOpen(true);
   };
@@ -189,8 +211,16 @@ export function ExerciseManagementClient({
         .sort((a, b) => a.order - b.order)
         .map((step) => ({ ...step })),
     );
+    setLogFields({ ...HIDDEN_LOG_FIELDS, ...exercise.logFields });
     setError(null);
     setIsModalOpen(true);
+  };
+
+  const setLogFieldRequirement = (
+    key: keyof ExerciseLogFields,
+    value: ExerciseLogFieldRequirement,
+  ) => {
+    setLogFields((prev) => ({ ...prev, [key]: value }));
   };
 
   const toggleMuscle = (
@@ -340,6 +370,7 @@ export function ExerciseManagementClient({
       })),
       thumbnail: thumbnail ?? null,
       images,
+      logFields,
     };
 
     saveMutation.mutate(
@@ -636,6 +667,50 @@ export function ExerciseManagementClient({
                   placeholder="Optional coaching cues or form notes"
                   className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm text-neutral-900 outline-none focus:border-neutral-900"
                 />
+              </div>
+
+              <div>
+                <label className="mb-1 block text-xs font-medium text-neutral-700">
+                  Logging fields
+                </label>
+                <p className="mb-2 text-[11px] text-neutral-400">
+                  Which fields the app asks for when someone logs a set of this
+                  exercise, and whether each is mandatory. Varies per exercise —
+                  e.g. a run needs time but distance can stay optional.
+                </p>
+                <div className="overflow-hidden rounded-lg border border-neutral-200">
+                  {LOG_FIELD_ROWS.map((row, index) => (
+                    <div
+                      key={row.key}
+                      className={`flex items-center justify-between gap-3 px-3 py-2 ${
+                        index > 0 ? "border-t border-neutral-100" : ""
+                      }`}
+                    >
+                      <span className="text-xs font-medium text-neutral-700">
+                        {row.label}
+                      </span>
+                      <div className="flex gap-1">
+                        {REQUIREMENT_OPTIONS.map((option) => {
+                          const selected = logFields[row.key] === option;
+                          return (
+                            <button
+                              key={option}
+                              type="button"
+                              onClick={() => setLogFieldRequirement(row.key, option)}
+                              className={`cursor-pointer rounded-md border px-2 py-1 text-[11px] font-medium capitalize transition ${
+                                selected
+                                  ? "border-neutral-900 bg-neutral-900 text-white"
+                                  : "border-neutral-200 bg-white text-neutral-600 hover:border-neutral-400"
+                              }`}
+                            >
+                              {option}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
 
               <div>

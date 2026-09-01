@@ -94,6 +94,14 @@ enum ExerciseCategory {
   reps
 }
 
+/// Whether one logged-set field applies to an exercise and, if so, whether
+/// it's mandatory — admin-set per exercise in the admin panel.
+enum ExerciseLogFieldRequirement {
+  required
+  optional
+  hidden
+}
+
 enum SetType {
   working
   warmup
@@ -376,6 +384,18 @@ type ExerciseInstructionStep {
   image String?
 }
 
+/// Which WorkoutSet fields apply when logging this exercise, and whether
+/// each is mandatory. Admin-set per exercise (not derived from `category`)
+/// since it varies within a category too — running needs time but distance
+/// is optional, bench press needs weight, reps, and sets.
+type ExerciseLogFields {
+  reps        ExerciseLogFieldRequirement @default(hidden)
+  weightKg    ExerciseLogFieldRequirement @default(hidden)
+  sets        ExerciseLogFieldRequirement @default(hidden)
+  durationSec ExerciseLogFieldRequirement @default(hidden)
+  distanceM   ExerciseLogFieldRequirement @default(hidden)
+}
+
 model Exercise {
   id               String           @id @default(auto()) @map("_id") @db.ObjectId
   name             String
@@ -391,6 +411,10 @@ model Exercise {
   thumbnail        String?
   /// Additional gallery images (Cloudinary URLs).
   images           String[] @default([])
+  /// Which fields to ask for (and require) when logging a set — admin-set.
+  /// Optional so exercises that predate this field read back fine; treat a
+  /// missing value as "everything hidden" (see `toExercise`).
+  logFields        ExerciseLogFields?
 
   /// Null for the shared catalogue, set for user-authored exercises.
   createdById String? @db.ObjectId

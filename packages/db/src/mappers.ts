@@ -6,6 +6,7 @@ import type {
   DailyQuote,
   DailySteps,
   Exercise,
+  ExerciseLogFields,
   Goal,
   Plan,
   Routine,
@@ -107,6 +108,17 @@ export function toPlan(row: PlanRow): Plan {
   };
 }
 
+/** Exercises created before `logFields` existed have none stored — read back
+ * as "nothing applies" rather than erroring. Also the merge base when
+ * patching `logFields` on a row that predates it (see `ExercisesService.update`). */
+export const DEFAULT_LOG_FIELDS: ExerciseLogFields = {
+  reps: 'hidden',
+  weightKg: 'hidden',
+  sets: 'hidden',
+  durationSec: 'hidden',
+  distanceM: 'hidden',
+};
+
 /** `isFavorite` is contextual to the requesting user, so it's never on the
  * row itself — pass whether the caller has this exercise in their favorites. */
 export function toExercise(row: ExerciseRow, isFavorite = false): Exercise {
@@ -131,6 +143,7 @@ export function toExercise(row: ExerciseRow, isFavorite = false): Exercise {
     createdBy: row.createdById,
     isCustom: row.isCustom,
     isFavorite,
+    logFields: row.logFields ?? DEFAULT_LOG_FIELDS,
     createdAt: iso(row.createdAt),
     updatedAt: iso(row.updatedAt),
   };

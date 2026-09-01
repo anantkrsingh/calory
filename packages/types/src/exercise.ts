@@ -1,5 +1,10 @@
 import type { Entity, Id } from './common';
-import type { Equipment, ExerciseCategory, MuscleGroup } from './enums';
+import type {
+  Equipment,
+  ExerciseCategory,
+  ExerciseLogFieldRequirement,
+  MuscleGroup,
+} from './enums';
 
 /** One step of an exercise's illustrated how-to — distinct from `Exercise.instructions`
  * (a single free-text description). `image` is a Cloudinary URL, either a fresh
@@ -10,6 +15,20 @@ export interface ExerciseInstructionStep {
   order: number;
   text: string;
   image?: string;
+}
+
+/**
+ * Which fields matter when logging a set of this exercise, and whether each
+ * is required — admin-configurable per exercise (not just per category) so
+ * running can require time but leave distance optional, while bench press
+ * requires weight, reps, and sets.
+ */
+export interface ExerciseLogFields {
+  reps: ExerciseLogFieldRequirement;
+  weightKg: ExerciseLogFieldRequirement;
+  sets: ExerciseLogFieldRequirement;
+  durationSec: ExerciseLogFieldRequirement;
+  distanceM: ExerciseLogFieldRequirement;
 }
 
 export interface Exercise extends Entity {
@@ -31,6 +50,7 @@ export interface Exercise extends Entity {
   isCustom: boolean;
   /** Whether the requesting user has favorited this exercise. */
   isFavorite: boolean;
+  logFields: ExerciseLogFields;
 }
 
 /** Exercises grouped by one primary muscle. An exercise with several primary

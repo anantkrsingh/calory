@@ -3,6 +3,7 @@ import {
   DayOfWeek,
   Equipment,
   ExerciseCategory,
+  ExerciseLogFieldRequirement,
   FitnessGoal,
   GoalStatus,
   GoalType,
@@ -31,6 +32,9 @@ export const userRoleSchema = z.enum(UserRole);
 export const muscleGroupSchema = z.enum(MuscleGroup);
 export const equipmentSchema = z.enum(Equipment);
 export const exerciseCategorySchema = z.enum(ExerciseCategory);
+export const exerciseLogFieldRequirementSchema = z.enum(
+  ExerciseLogFieldRequirement,
+);
 export const setTypeSchema = z.enum(SetType);
 export const workoutStatusSchema = z.enum(WorkoutStatus);
 export const goalTypeSchema = z.enum(GoalType);

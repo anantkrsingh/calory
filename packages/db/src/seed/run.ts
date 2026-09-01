@@ -2,6 +2,7 @@ import 'dotenv/config';
 
 import { createPrismaClient } from '../client';
 import {
+  defaultLogFieldsForCategory,
   EXERCISE_CATALOGUE,
   PLACEHOLDER_GALLERY,
   PLACEHOLDER_THUMBNAIL,
@@ -41,7 +42,14 @@ async function main(): Promise<void> {
         updated += 1;
       } else {
         await prisma.exercise.create({
-          data: { ...data, createdById: null, isCustom: false },
+          data: {
+            ...data,
+            createdById: null,
+            isCustom: false,
+            // Only on first insert — an admin may have already tuned this
+            // exercise's `logFields`, and a reseed must not clobber it.
+            logFields: defaultLogFieldsForCategory(exercise.category),
+          },
         });
         created += 1;
       }

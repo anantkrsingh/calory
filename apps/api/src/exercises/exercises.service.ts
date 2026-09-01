@@ -3,7 +3,13 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Prisma, paginate, toExercise, toSkipTake } from '@fitness/db';
+import {
+  DEFAULT_LOG_FIELDS,
+  Prisma,
+  paginate,
+  toExercise,
+  toSkipTake,
+} from '@fitness/db';
 import { MuscleGroup } from '@fitness/types';
 import type {
   AuthenticatedUser,
@@ -160,9 +166,28 @@ export class ExercisesService {
     id: Id,
     input: UpdateExerciseInput,
   ): Promise<Exercise> {
-    await this.assertCanModify(user, id);
+    const current = await this.assertCanModify(user, id);
+
     const [exercise, favoriteIds] = await Promise.all([
-      this.prisma.exercise.update({ where: { id }, data: input }),
+      this.prisma.exercise.update({
+        where: { id },
+        data: {
+          ...input,
+          // `logFields` in the input is a genuine partial patch (unlike the
+          // rest of `input`, which is whole-value) — merge it onto what's
+          // stored rather than replacing the embedded document, or omitted
+          // fields would silently reset to "hidden". Same convention as
+          // `UsersService.update`'s `profile`/`preferences` merge.
+          ...(input.logFields
+            ? {
+                logFields: {
+                  ...(current.logFields ?? DEFAULT_LOG_FIELDS),
+                  ...input.logFields,
+                },
+              }
+            : {}),
+        },
+      }),
       this.getFavoriteIds(user.id),
     ]);
     return toExercise(exercise, favoriteIds.has(exercise.id));
@@ -315,21 +340,24 @@ export class ExercisesService {
   /**
    * Catalogue exercises are editable by admins.
    * Custom exercises are editable by their owner.
+   * Returns the current row so `update` can merge onto it (e.g. `logFields`)
+   * without a second round trip.
    */
   private async assertCanModify(
     user: AuthenticatedUser,
     id: Id,
-  ): Promise<void> {
-    const exercise = await this.prisma.exercise.findUnique({
-      where: { id },
-      select: { createdById: true },
-    });
+  ): Promise<Prisma.ExerciseGetPayload<Record<string, never>>> {
+    const exercise = await this.prisma.exercise.findUnique({ where: { id } });
 
     if (!exercise) throw new NotFoundException('Exercise not found');
 
     const isCatalogue = exercise.createdById === null;
-    if (isCatalogue && user.role === 'admin') return;
-    if (exercise.createdById === user.id) return;
+    if (
+      (isCatalogue && user.role === 'admin') ||
+      exercise.createdById === user.id
+    ) {
+      return exercise;
+    }
 
     throw new ForbiddenException(
       isCatalogue

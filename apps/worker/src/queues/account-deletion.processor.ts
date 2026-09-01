@@ -25,9 +25,7 @@ const ACCOUNT_DELETION_GRACE_DAYS = 30;
 const SWEEP_BATCH_SIZE = 200;
 
 @Injectable()
-export class AccountDeletionProcessor
-  implements OnModuleInit, OnModuleDestroy
-{
+export class AccountDeletionProcessor implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(AccountDeletionProcessor.name);
   private queue?: Queue<Record<string, never>, AccountDeletionSweepResult>;
   private worker?: Worker<Record<string, never>, AccountDeletionSweepResult>;
@@ -54,13 +52,14 @@ export class AccountDeletionProcessor
       },
     );
 
-    this.worker = new Worker<
-      Record<string, never>,
-      AccountDeletionSweepResult
-    >(ACCOUNT_DELETION_QUEUE_NAME, () => this.sweepExpiredAccounts(), {
-      connection,
-      prefix: 'fitness',
-    });
+    this.worker = new Worker<Record<string, never>, AccountDeletionSweepResult>(
+      ACCOUNT_DELETION_QUEUE_NAME,
+      () => this.sweepExpiredAccounts(),
+      {
+        connection,
+        prefix: 'fitness',
+      },
+    );
 
     this.worker.on('failed', (job, error) => {
       this.logger.error(

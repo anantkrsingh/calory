@@ -92,6 +92,19 @@ export const ExerciseCategory = {
 export type ExerciseCategory =
   (typeof ExerciseCategory)[keyof typeof ExerciseCategory];
 
+/** Whether one logged-set field applies to a given exercise, and if so
+ * whether it must be filled in — set per exercise in the admin panel, since
+ * this varies within a category too (running needs time but distance is
+ * optional; bench press needs weight, reps, and sets). */
+export const ExerciseLogFieldRequirement = {
+  Required: 'required',
+  Optional: 'optional',
+  /** Not applicable to this exercise — not shown when logging it. */
+  Hidden: 'hidden',
+} as const;
+export type ExerciseLogFieldRequirement =
+  (typeof ExerciseLogFieldRequirement)[keyof typeof ExerciseLogFieldRequirement];
+
 export const SetType = {
   Working: 'working',
   Warmup: 'warmup',

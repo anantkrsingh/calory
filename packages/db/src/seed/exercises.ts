@@ -1,6 +1,7 @@
 import type {
   Equipment,
   ExerciseCategory,
+  ExerciseLogFields,
   MuscleGroup,
 } from '@fitness/types';
 
@@ -15,6 +16,52 @@ export interface CatalogueExercise {
   thumbnail?: string;
   /** Falls back to `PLACEHOLDER_GALLERY` in run.ts when omitted. */
   images?: string[];
+}
+
+/**
+ * Starting point for a freshly-seeded exercise's `logFields` — a sensible
+ * guess from its `category`, since that's all the seed data has to go on.
+ * Purely a default: admins can (and for exceptions like running, should)
+ * refine it per exercise afterwards, and reseeding never overwrites an
+ * exercise that already exists (see `run.ts`).
+ */
+export function defaultLogFieldsForCategory(
+  category: ExerciseCategory,
+): ExerciseLogFields {
+  switch (category) {
+    case 'strength':
+      return {
+        reps: 'required',
+        weightKg: 'required',
+        sets: 'required',
+        durationSec: 'hidden',
+        distanceM: 'hidden',
+      };
+    case 'cardio':
+      return {
+        reps: 'hidden',
+        weightKg: 'hidden',
+        sets: 'hidden',
+        durationSec: 'required',
+        distanceM: 'optional',
+      };
+    case 'duration':
+      return {
+        reps: 'hidden',
+        weightKg: 'hidden',
+        sets: 'optional',
+        durationSec: 'required',
+        distanceM: 'hidden',
+      };
+    case 'reps':
+      return {
+        reps: 'required',
+        weightKg: 'hidden',
+        sets: 'required',
+        durationSec: 'hidden',
+        distanceM: 'hidden',
+      };
+  }
 }
 
 /** Stand-in art until every catalogue exercise has real photography. */
