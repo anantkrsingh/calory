@@ -1,6 +1,11 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { paginate, toSkipTake, toUser, type Prisma } from '@fitness/db';
-import type { Id, Paginated, User } from '@fitness/types';
+import type {
+  AccountDeletionSchedule,
+  Id,
+  Paginated,
+  User,
+} from '@fitness/types';
 import type {
   AdminUpdateUserInput,
   ListUsersQueryInput,
@@ -11,6 +16,11 @@ import { PrismaService } from '../prisma/prisma.service';
 import { UploadsService } from '../uploads/uploads.service';
 
 const AVATAR_FOLDER = 'fitness-tracker/avatars';
+
+// Mirrored in `apps/worker/src/queues/account-deletion.processor.ts`, which
+// hard-deletes accounts once this many days have passed — kept in sync by hand,
+// same convention as the duplicated env schemas between the two processes.
+export const ACCOUNT_DELETION_GRACE_DAYS = 30;
 
 @Injectable()
 export class UsersService {
@@ -172,15 +182,31 @@ export class UsersService {
     return toUser(updatedUser);
   }
 
-  /** Removes the account and everything hanging off it. */
-  async remove(id: Id): Promise<void> {
-    await this.prisma.$transaction([
-      this.prisma.workout.deleteMany({ where: { userId: id } }),
-      this.prisma.routine.deleteMany({ where: { userId: id } }),
-      this.prisma.bodyMeasurement.deleteMany({ where: { userId: id } }),
-      this.prisma.goal.deleteMany({ where: { userId: id } }),
-      this.prisma.exercise.deleteMany({ where: { createdById: id } }),
-      this.prisma.user.delete({ where: { id } }),
-    ]);
+  /**
+   * Marks the account for deletion `ACCOUNT_DELETION_GRACE_DAYS` from now and
+   * revokes the refresh token, ending every session immediately. The account
+   * and its data are untouched until the worker's cron sweeps it up — logging
+   * back in before then (see `AuthService.login`/`loginSocial`) clears
+   * `deletionRequestedAt` and the account stays active.
+   */
+  async requestDeletion(id: Id): Promise<AccountDeletionSchedule> {
+    const current = await this.prisma.user.findUnique({ where: { id } });
+    if (!current) throw new NotFoundException('User not found');
+
+    const deletionRequestedAt = new Date();
+    await this.prisma.user.update({
+      where: { id },
+      data: { deletionRequestedAt, refreshTokenHash: null },
+    });
+
+    const scheduledDeletionAt = new Date(deletionRequestedAt);
+    scheduledDeletionAt.setDate(
+      scheduledDeletionAt.getDate() + ACCOUNT_DELETION_GRACE_DAYS,
+    );
+
+    return {
+      scheduledDeletionAt: scheduledDeletionAt.toISOString(),
+      gracePeriodDays: ACCOUNT_DELETION_GRACE_DAYS,
+    };
   }
 }

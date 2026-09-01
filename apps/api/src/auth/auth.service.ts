@@ -167,9 +167,11 @@ export class AuthService {
       throw new UnauthorizedException('Incorrect email or password');
     }
 
+    // Logging back in cancels a pending self-delete, however far into the
+    // grace period — `deletionRequestedAt: null` is a no-op when unset.
     await this.prisma.user.update({
       where: { id: user.id },
-      data: { lastLoginAt: new Date() },
+      data: { lastLoginAt: new Date(), deletionRequestedAt: null },
     });
 
     return this.startSession(user.id, toUser(user));
@@ -204,6 +206,8 @@ export class AuthService {
         where: { id: existing.id },
         data: {
           lastLoginAt: new Date(),
+          // Same cancel-on-login policy as the password flow.
+          deletionRequestedAt: null,
           ...(alreadyLinked
             ? {}
             : {

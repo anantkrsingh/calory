@@ -22,8 +22,14 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
-import type { AuthenticatedUser, Paginated, User } from '@fitness/types';
+import type {
+  AccountDeletionSchedule,
+  AuthenticatedUser,
+  Paginated,
+  User,
+} from '@fitness/types';
 import {
+  accountDeletionScheduleSchema,
   adminUpdateUserSchema,
   listUsersQuerySchema,
   objectIdSchema,
@@ -44,7 +50,7 @@ import {
   ALLOWED_MIME_TYPES,
   MAX_UPLOAD_BYTES,
 } from '../uploads/uploads.service';
-import { UsersService } from './users.service';
+import { ACCOUNT_DELETION_GRACE_DAYS, UsersService } from './users.service';
 
 @ApiTags('users')
 @ApiBearerAuth('access-token')
@@ -156,10 +162,21 @@ export class UsersController {
   }
 
   @Delete('me')
-  @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ summary: 'Delete your account and all of its data' })
-  remove(@CurrentUser() user: AuthenticatedUser): Promise<void> {
-    return this.users.remove(user.id);
+  @ApiOperation({
+    summary: 'Schedule your account for deletion',
+    description:
+      `Ends every session now. The account and its data are kept for ` +
+      `${ACCOUNT_DELETION_GRACE_DAYS} days — logging back in within that ` +
+      `window cancels the deletion and restores the account as-is.`,
+  })
+  @ApiZodResponse(accountDeletionScheduleSchema, {
+    description: 'When the account will actually be deleted',
+    name: 'AccountDeletionSchedule',
+  })
+  remove(
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<AccountDeletionSchedule> {
+    return this.users.requestDeletion(user.id);
   }
 
   // Kept last: `:id` is a wildcard that would otherwise shadow the literal

@@ -61,6 +61,10 @@ export const envSchema = z.object({
   // registrations, or a routine stuck in `failed`).
   ROUTINE_RECONCILE_CRON: z.string().default('*/30 * * * *'),
 
+  // Hard-deletes accounts whose grace period (ACCOUNT_DELETION_GRACE_DAYS in
+  // users.service.ts) has elapsed since they requested deletion.
+  ACCOUNT_DELETION_CRON: z.string().default('0 4 * * *'),
+
   // Mirrors `PAGINATION.defaultLimit`/`PAGINATION.maxLimit` in
   // `packages/validation/src/constants.ts`.
   DEFAULT_PAGE_SIZE: z.coerce.number().int().positive().max(100).default(20),

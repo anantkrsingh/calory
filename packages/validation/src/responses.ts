@@ -75,6 +75,11 @@ export const userSchema = z.object({
   lifetimeTotalTokens: z.number().int().min(0).optional(),
 });
 
+export const accountDeletionScheduleSchema = z.object({
+  scheduledDeletionAt: isoDateTimeSchema,
+  gracePeriodDays: z.number().int().positive(),
+});
+
 export const authTokensSchema = z.object({
   accessToken: z.string(),
   refreshToken: z.string(),

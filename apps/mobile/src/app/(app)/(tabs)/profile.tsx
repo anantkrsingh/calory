@@ -12,8 +12,8 @@ import {
   Target,
   User,
 } from "lucide-react-native";
+import { useRef } from "react";
 import {
-  Alert,
   Linking,
   Platform,
   Pressable,
@@ -26,6 +26,10 @@ import {
 import { TabScreen } from "@/components/tab-screen";
 import { ScreenAppBar } from "@/components/screen-app-bar";
 import { ThemedText } from "@/components/themed-text";
+import {
+  DeleteAccountSheet,
+  type DeleteAccountSheetRef,
+} from "@/components/profile/DeleteAccountSheet";
 import PrimaryButton from "@/components/ui/PrimaryButton";
 import { BottomTabInset, Brand, Pressed, Spacing } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
@@ -36,9 +40,8 @@ import {
   useThemeStore,
 } from "@/stores/theme.store";
 
-// TODO: point these at the real legal pages once they exist.
-const PRIVACY_POLICY_URL = "https://example.com/privacy-policy";
-const TERMS_OF_SERVICE_URL = "https://example.com/terms";
+const PRIVACY_POLICY_URL = "https://caloryfitness.netlify.app/privacy";
+const TERMS_OF_SERVICE_URL = "https://caloryfitness.netlify.app/terms";
 
 const AVATAR_SIZE = 64;
 const HAIRLINE = StyleSheet.hairlineWidth || 1;
@@ -56,23 +59,7 @@ export default function ProfileScreen() {
   const clearAuth = useAuthStore((state) => state.clear);
   const isDarkMode = useThemeStore(selectIsDarkMode);
   const setThemePreference = useThemeStore((s) => s.setPreference);
-
-  const handleDeleteAccount = () => {
-    Alert.alert(
-      "Delete Account",
-      "This will permanently delete your account and all your data. This action cannot be undone.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: () => {
-            // TODO: call the real delete-account endpoint once it exists.
-          },
-        },
-      ],
-    );
-  };
+  const deleteAccountSheetRef = useRef<DeleteAccountSheetRef>(null);
 
   const accountOptions: MenuOption[] = [
     {
@@ -219,7 +206,7 @@ export default function ProfileScreen() {
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Delete Account"
-              onPress={handleDeleteAccount}
+              onPress={() => deleteAccountSheetRef.current?.present()}
               hitSlop={8}
               style={({ pressed }) => [
                 styles.deleteAccountButton,
@@ -237,6 +224,8 @@ export default function ProfileScreen() {
           </View>
         ) : null}
       </ScrollView>
+
+      <DeleteAccountSheet ref={deleteAccountSheetRef} onDeleted={clearAuth} />
     </TabScreen>
   );
 }

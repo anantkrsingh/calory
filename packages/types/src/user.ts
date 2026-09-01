@@ -1,4 +1,4 @@
-import type { Entity, Id, IsoDate } from './common';
+import type { Entity, Id, IsoDate, IsoDateTime } from './common';
 import type { ActivityLevel, FitnessGoal, Sex, UnitSystem, UserRole } from './enums';
 
 export interface UserProfile {
@@ -38,4 +38,11 @@ export interface UserSummary {
   id: Id;
   displayName: string;
   avatarUrl?: string;
+}
+
+/** Returned when an account is scheduled for deletion — the grace period
+ * during which logging back in cancels it. */
+export interface AccountDeletionSchedule {
+  scheduledDeletionAt: IsoDateTime;
+  gracePeriodDays: number;
 }

@@ -306,6 +306,11 @@ model User {
   refreshTokenHash String?
   lastLoginAt      DateTime?
 
+  /// Set when the user requests account deletion; cleared (cancelling the
+  /// deletion) if they log back in before the grace period elapses. A worker
+  /// cron hard-deletes accounts once this is far enough in the past.
+  deletionRequestedAt DateTime?
+
   totalCredits     Int       @default(5)
   remainingCredits Int       @default(5)
   planId           String?   @db.ObjectId

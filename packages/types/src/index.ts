@@ -10,6 +10,7 @@ export * from './steps';
 export * from './goal';
 export * from './stats';
 export * from './otp';
+export * from './account-deletion';
 export * from './ai';
 export * from './chat';
 export * from './settings';

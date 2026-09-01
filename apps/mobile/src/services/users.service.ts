@@ -1,4 +1,4 @@
-import type { User } from '@fitness/types';
+import type { AccountDeletionSchedule, User } from '@fitness/types';
 import type { RegisterPushTokenInput, UpdateUserInput } from '@fitness/validation';
 
 import type { AxiosInstance } from 'axios';
@@ -37,6 +37,18 @@ export class UsersService extends BaseService {
     await this.client.delete<void>(this.url('me', 'push-token'), {
       data: { token },
     });
+  }
+
+  /**
+   * Schedules the account for deletion and ends every session server-side.
+   * The account is only actually removed after the returned grace period —
+   * logging back in before then cancels it.
+   */
+  async requestDeletion(): Promise<AccountDeletionSchedule> {
+    const { data } = await this.client.delete<AccountDeletionSchedule>(
+      this.url('me'),
+    );
+    return data;
   }
 
   async uploadAvatar(file: LocalImageFile): Promise<User> {
