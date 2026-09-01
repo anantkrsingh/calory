@@ -6,7 +6,8 @@ import {
   ExerciseCategory,
   MuscleGroup,
 } from "@fitness/types";
-import type { ExerciseInstructionStepInput } from "@fitness/validation";
+import type { ExerciseInstructionStepInput, UploadSignature } from "@fitness/validation";
+import { useMutation } from "@tanstack/react-query";
 import {
   ChevronDown,
   ChevronUp,
@@ -19,15 +20,10 @@ import {
   X,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useRef, useState, useTransition } from "react";
+import { useRef, useState } from "react";
 
 import { CustomDropdown } from "@/components/custom-dropdown";
-import {
-  createExerciseAction,
-  deleteExerciseAction,
-  getUploadSignatureAction,
-  updateExerciseAction,
-} from "@/lib/exercise-actions";
+import { apiRequest } from "@/lib/api-client";
 
 const MAX_GALLERY_IMAGES = 10;
 const MAX_STEPS = 20;
@@ -93,7 +89,10 @@ async function uploadFile(file: File): Promise<string> {
     throw new Error(`"${file.name}" must be JPEG, PNG, WebP, or GIF`);
   }
 
-  const { cloudName, apiKey, timestamp, signature, folder } = await getUploadSignatureAction();
+  const { cloudName, apiKey, timestamp, signature, folder } = await apiRequest<UploadSignature>(
+    "/api/uploads/signature",
+    { method: "POST", body: JSON.stringify({}) },
+  );
 
   const formData = new FormData();
   formData.append("file", file);
@@ -125,7 +124,17 @@ export function ExerciseManagementClient({
   search,
 }: ExerciseManagementClientProps) {
   const router = useRouter();
-  const [isPending, startTransition] = useTransition();
+
+  const saveMutation = useMutation({
+    mutationFn: ({ id, data }: { id?: string; data: Record<string, unknown> }) =>
+      id
+        ? apiRequest(`/api/exercises/${id}`, { method: "PATCH", body: JSON.stringify(data) })
+        : apiRequest("/api/exercises", { method: "POST", body: JSON.stringify(data) }),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => apiRequest(`/api/exercises/${id}`, { method: "DELETE" }),
+  });
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingExercise, setEditingExercise] = useState<Exercise | null>(null);
@@ -315,51 +324,47 @@ export function ExerciseManagementClient({
       return;
     }
 
-    startTransition(async () => {
-      try {
-        const payload = {
-          name: name.trim(),
-          category: category as (typeof ExerciseCategory)[keyof typeof ExerciseCategory],
-          equipment: equipment as (typeof Equipment)[keyof typeof Equipment],
-          primaryMuscles: primaryMuscles as Array<
-            (typeof MuscleGroup)[keyof typeof MuscleGroup]
-          >,
-          secondaryMuscles: secondaryMuscles as Array<
-            (typeof MuscleGroup)[keyof typeof MuscleGroup]
-          >,
-          instructions: instructions.trim() || undefined,
-          instructionSteps: steps.map((step, index) => ({
-            ...step,
-            order: index,
-            text: step.text.trim(),
-          })),
-          thumbnail: thumbnail ?? null,
-          images,
-        };
+    const payload = {
+      name: name.trim(),
+      category: category as (typeof ExerciseCategory)[keyof typeof ExerciseCategory],
+      equipment: equipment as (typeof Equipment)[keyof typeof Equipment],
+      primaryMuscles: primaryMuscles as Array<(typeof MuscleGroup)[keyof typeof MuscleGroup]>,
+      secondaryMuscles: secondaryMuscles as Array<
+        (typeof MuscleGroup)[keyof typeof MuscleGroup]
+      >,
+      instructions: instructions.trim() || undefined,
+      instructionSteps: steps.map((step, index) => ({
+        ...step,
+        order: index,
+        text: step.text.trim(),
+      })),
+      thumbnail: thumbnail ?? null,
+      images,
+    };
 
-        if (editingExercise) {
-          await updateExerciseAction(editingExercise.id, payload);
-        } else {
-          await createExerciseAction(payload);
-        }
-
-        setIsModalOpen(false);
-        router.refresh();
-      } catch (err: unknown) {
-        setError(err instanceof Error ? err.message : "Failed to save exercise");
-      }
-    });
+    saveMutation.mutate(
+      { id: editingExercise?.id, data: payload },
+      {
+        onSuccess: () => {
+          setIsModalOpen(false);
+          router.refresh();
+        },
+        onError: (err) => {
+          setError(err instanceof Error ? err.message : "Failed to save exercise");
+        },
+      },
+    );
   };
 
   const handleDelete = (exerciseId: string) => {
-    startTransition(async () => {
-      try {
-        await deleteExerciseAction(exerciseId);
+    deleteMutation.mutate(exerciseId, {
+      onSuccess: () => {
         setDeletingExercise(null);
         router.refresh();
-      } catch (err: unknown) {
+      },
+      onError: (err) => {
         alert(err instanceof Error ? err.message : "Failed to delete exercise");
-      }
+      },
     });
   };
 
@@ -912,10 +917,10 @@ export function ExerciseManagementClient({
                 </button>
                 <button
                   type="submit"
-                  disabled={isPending || isUploading}
+                  disabled={saveMutation.isPending || isUploading}
                   className="cursor-pointer rounded-lg bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-800 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  {isPending
+                  {saveMutation.isPending
                     ? "Saving..."
                     : editingExercise
                       ? "Save Changes"
@@ -947,10 +952,10 @@ export function ExerciseManagementClient({
               <button
                 type="button"
                 onClick={() => handleDelete(deletingExercise.id)}
-                disabled={isPending}
+                disabled={deleteMutation.isPending}
                 className="cursor-pointer rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {isPending ? "Deleting..." : "Delete Exercise"}
+                {deleteMutation.isPending ? "Deleting..." : "Delete Exercise"}
               </button>
             </div>
           </div>
