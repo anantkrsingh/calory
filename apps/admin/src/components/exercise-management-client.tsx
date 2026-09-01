@@ -567,6 +567,50 @@ export function ExerciseManagementClient({
 
               <div>
                 <label className="mb-1 block text-xs font-medium text-neutral-700">
+                  Logging fields
+                </label>
+                <p className="mb-2 text-[11px] text-neutral-400">
+                  Which fields the app asks for when someone logs a set of this
+                  exercise, and whether each is mandatory. Varies per exercise —
+                  e.g. a run needs time but distance can stay optional.
+                </p>
+                <div className="overflow-hidden rounded-lg border border-neutral-200">
+                  {LOG_FIELD_ROWS.map((row, index) => (
+                    <div
+                      key={row.key}
+                      className={`flex items-center justify-between gap-3 px-3 py-2 ${
+                        index > 0 ? "border-t border-neutral-100" : ""
+                      }`}
+                    >
+                      <span className="text-xs font-medium text-neutral-700">
+                        {row.label}
+                      </span>
+                      <div className="flex gap-1">
+                        {REQUIREMENT_OPTIONS.map((option) => {
+                          const selected = logFields[row.key] === option;
+                          return (
+                            <button
+                              key={option}
+                              type="button"
+                              onClick={() => setLogFieldRequirement(row.key, option)}
+                              className={`cursor-pointer rounded-md border px-2 py-1 text-[11px] font-medium capitalize transition ${
+                                selected
+                                  ? "border-neutral-900 bg-neutral-900 text-white"
+                                  : "border-neutral-200 bg-white text-neutral-600 hover:border-neutral-400"
+                              }`}
+                            >
+                              {option}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="mb-1 block text-xs font-medium text-neutral-700">
                   Name *
                 </label>
                 <input
@@ -667,50 +711,6 @@ export function ExerciseManagementClient({
                   placeholder="Optional coaching cues or form notes"
                   className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm text-neutral-900 outline-none focus:border-neutral-900"
                 />
-              </div>
-
-              <div>
-                <label className="mb-1 block text-xs font-medium text-neutral-700">
-                  Logging fields
-                </label>
-                <p className="mb-2 text-[11px] text-neutral-400">
-                  Which fields the app asks for when someone logs a set of this
-                  exercise, and whether each is mandatory. Varies per exercise —
-                  e.g. a run needs time but distance can stay optional.
-                </p>
-                <div className="overflow-hidden rounded-lg border border-neutral-200">
-                  {LOG_FIELD_ROWS.map((row, index) => (
-                    <div
-                      key={row.key}
-                      className={`flex items-center justify-between gap-3 px-3 py-2 ${
-                        index > 0 ? "border-t border-neutral-100" : ""
-                      }`}
-                    >
-                      <span className="text-xs font-medium text-neutral-700">
-                        {row.label}
-                      </span>
-                      <div className="flex gap-1">
-                        {REQUIREMENT_OPTIONS.map((option) => {
-                          const selected = logFields[row.key] === option;
-                          return (
-                            <button
-                              key={option}
-                              type="button"
-                              onClick={() => setLogFieldRequirement(row.key, option)}
-                              className={`cursor-pointer rounded-md border px-2 py-1 text-[11px] font-medium capitalize transition ${
-                                selected
-                                  ? "border-neutral-900 bg-neutral-900 text-white"
-                                  : "border-neutral-200 bg-white text-neutral-600 hover:border-neutral-400"
-                              }`}
-                            >
-                              {option}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  ))}
-                </div>
               </div>
 
               <div>
