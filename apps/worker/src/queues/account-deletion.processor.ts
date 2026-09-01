@@ -96,9 +96,9 @@ export class AccountDeletionProcessor implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
-   * Hard-deletes every account whose grace period has elapsed. Mirrors
-   * `UsersService.remove`'s deletion transaction — the two run in separate
-   * processes and can't share code, so keep them in sync by hand.
+   * Hard-deletes every account whose grace period has elapsed — the only
+   * place a user's data is actually removed; `UsersService.requestDeletion`
+   * only schedules it.
    */
   private async sweepExpiredAccounts(): Promise<AccountDeletionSweepResult> {
     const cutoff = new Date();
@@ -113,7 +113,33 @@ export class AccountDeletionProcessor implements OnModuleInit, OnModuleDestroy {
     let deleted = 0;
     for (const { id } of expired) {
       try {
+        // RoutineDay/RoutineDayExercise are normalized out of WorkoutRoutine
+        // (own collections, no cascade relied on — see routine.processor.ts)
+        // so they need their own deletes, scoped via a pre-fetch since
+        // `$transaction`'s array form can't chain one op's result into
+        // another.
+        const routineIds = (
+          await this.prisma.workoutRoutine.findMany({
+            where: { userId: id },
+            select: { id: true },
+          })
+        ).map((routine) => routine.id);
+        const dayIds = routineIds.length
+          ? (
+              await this.prisma.routineDay.findMany({
+                where: { routineId: { in: routineIds } },
+                select: { id: true },
+              })
+            ).map((day) => day.id)
+          : [];
+
         await this.prisma.$transaction([
+          this.prisma.routineDayExercise.deleteMany({
+            where: { dayId: { in: dayIds } },
+          }),
+          this.prisma.routineDay.deleteMany({
+            where: { routineId: { in: routineIds } },
+          }),
           this.prisma.workout.deleteMany({ where: { userId: id } }),
           this.prisma.routine.deleteMany({ where: { userId: id } }),
           this.prisma.bodyMeasurement.deleteMany({ where: { userId: id } }),

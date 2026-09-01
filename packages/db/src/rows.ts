@@ -7,11 +7,13 @@ import type {
   Exercise,
   Goal,
   Plan,
+  Prisma,
   Routine,
+  RoutineDay,
+  RoutineDayExercise,
   User,
   Workout,
   DailyQuote,
-  WorkoutRoutine,
 } from '@prisma/client';
 
 /**
@@ -30,9 +32,27 @@ export type DailyStepsRow = DailySteps;
 export type GoalRow = Goal;
 export type AppSettingsRow = AppSettings;
 export type DailyQuoteRow = DailyQuote;
-export type WorkoutRoutineRow = WorkoutRoutine;
+export type RoutineDayRow = RoutineDay;
+export type RoutineDayExerciseRow = RoutineDayExercise;
 export type ChatConversationRow = ChatConversation;
 export type ChatMessageRow = ChatMessage;
+
+/**
+ * `days`/`exercises` are normalized into their own collections now (see the
+ * schema comment on `WorkoutRoutine.days`), so assembling one full routine
+ * needs this include everywhere it's read — single-sourced here rather than
+ * repeated (and risking drifting order) at each call site.
+ */
+export const WORKOUT_ROUTINE_INCLUDE = {
+  days: {
+    orderBy: { order: 'asc' },
+    include: { exercises: { orderBy: { order: 'asc' } } },
+  },
+} satisfies Prisma.WorkoutRoutineInclude;
+
+export type WorkoutRoutineRow = Prisma.WorkoutRoutineGetPayload<{
+  include: typeof WORKOUT_ROUTINE_INCLUDE;
+}>;
 
 export type {
   AiPromptConfig as AiPromptConfigComposite,

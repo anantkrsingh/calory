@@ -4,7 +4,7 @@ import {
   NotFoundException,
   ServiceUnavailableException,
 } from '@nestjs/common';
-import { toWorkoutRoutine } from '@fitness/db';
+import { toWorkoutRoutine, WORKOUT_ROUTINE_INCLUDE } from '@fitness/db';
 import { DayOfWeek } from '@fitness/types';
 import type {
   DailyCaloriesBurned,
@@ -60,7 +60,8 @@ export class WorkoutRoutineService {
   async requestGeneration(userId: Id): Promise<WorkoutRoutine | null> {
     try {
       const routine = await this.prisma.workoutRoutine.create({
-        data: { userId, status: 'generating', days: [] },
+        data: { userId, status: 'generating' },
+        include: WORKOUT_ROUTINE_INCLUDE,
       });
 
       const job = await this.queue.generate({ userId, routineId: routine.id });
@@ -101,6 +102,7 @@ export class WorkoutRoutineService {
     const routine = await this.prisma.workoutRoutine.findFirst({
       where: { userId, status: { in: ['generating', 'active', 'failed'] } },
       orderBy: { createdAt: 'desc' },
+      include: WORKOUT_ROUTINE_INCLUDE,
     });
 
     if (!routine) throw new NotFoundException('No workout routine yet');
@@ -125,6 +127,7 @@ export class WorkoutRoutineService {
       this.prisma.workoutRoutine.findFirst({
         where: { userId, status: { in: ['generating', 'active', 'failed'] } },
         orderBy: { createdAt: 'desc' },
+        include: WORKOUT_ROUTINE_INCLUDE,
       }),
       this.prisma.dailySteps.findUnique({
         where: { userId_date: { userId, date } },
@@ -226,6 +229,7 @@ export class WorkoutRoutineService {
     const routineRow = await this.prisma.workoutRoutine.findFirst({
       where: { userId, status: 'active' },
       orderBy: { createdAt: 'desc' },
+      include: WORKOUT_ROUTINE_INCLUDE,
     });
 
     if (!routineRow) {

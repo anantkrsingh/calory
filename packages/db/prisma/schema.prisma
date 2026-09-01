@@ -259,32 +259,6 @@ type AiPromptConfig {
   prompt         String
 }
 
-/// One planned exercise inside an AI-generated routine day.
-type RoutinePlanExercise {
-  exerciseId   String @db.ObjectId
-  exerciseName String
-  sets         Int
-  reps         Int?
-  durationSec  Int?
-  restSeconds  Int?
-  /// Optional: absent on routines generated before this field existed.
-  estimatedCalories Int?
-}
-
-type RoutinePlanDay {
-  dayOfWeek            DayOfWeek
-  status               RoutineDayStatus @default(active)
-  targetCaloriesBurned Int
-  /// Optional: absent on routines generated before these fields existed.
-  caloriesFromRunning  Int?
-  caloriesFromExercises Int?
-  stepsTarget          Int?
-  runningDistanceKm    Float?
-  runningDurationMin   Int?
-  focus                String
-  exercises            RoutinePlanExercise[]
-}
-
 type BodyMeasurements {
   neck       Float?
   chest      Float?
@@ -570,7 +544,10 @@ model WorkoutRoutine {
   /// Daily calorie intake target.
   dailyCalorieTarget  Int?
   summary             String?
-  days                RoutinePlanDay[]
+  /// Normalized out to its own collection — a week is 7 documents, each with
+  /// a handful of exercise rows, not one ever-growing embedded blob; see
+  /// `RoutineDay`/`RoutineDayExercise`.
+  days                RoutineDay[]
   /// Set when status is `failed`, for admin debugging.
   error               String?
   generatedAt         DateTime?
@@ -580,6 +557,66 @@ model WorkoutRoutine {
 
   @@index([userId, status])
   @@map("workout_routines")
+}
+
+/// One weekday of an AI-generated routine — its own collection (not embedded
+/// in `WorkoutRoutine`) so a regenerate only rewrites the days that changed
+/// rather than the whole document, and each day's exercises can be their own
+/// collection in turn.
+model RoutineDay {
+  id        String         @id @default(auto()) @map("_id") @db.ObjectId
+  routineId String         @db.ObjectId
+  routine   WorkoutRoutine @relation(fields: [routineId], references: [id], onDelete: Cascade)
+
+  /// Position within the generated week (0-6). `dayOfWeek` identifies the
+  /// weekday; this preserves the order the plan was generated/displayed in.
+  order                 Int
+  dayOfWeek             DayOfWeek
+  status                RoutineDayStatus @default(active)
+  targetCaloriesBurned  Int
+  /// Optional: absent on routines generated before these fields existed.
+  caloriesFromRunning   Int?
+  caloriesFromExercises Int?
+  stepsTarget           Int?
+  runningDistanceKm     Float?
+  runningDurationMin    Int?
+  focus                 String
+
+  exercises RoutineDayExercise[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([routineId, order])
+  @@map("routine_days")
+}
+
+/// One planned exercise inside a `RoutineDay` — its own collection, same
+/// normalization reasoning as `RoutineDay` itself.
+model RoutineDayExercise {
+  id    String     @id @default(auto()) @map("_id") @db.ObjectId
+  dayId String     @db.ObjectId
+  day   RoutineDay @relation(fields: [dayId], references: [id], onDelete: Cascade)
+
+  /// Display order within the day.
+  order Int
+  /// Not a formal relation to `Exercise` — same denormalized-id convention as
+  /// `WorkoutExercise`/`RoutineExercise`, so a plan still renders if the
+  /// catalogue entry is later edited or removed.
+  exerciseId   String @db.ObjectId
+  exerciseName String
+  sets         Int
+  reps         Int?
+  durationSec  Int?
+  restSeconds  Int?
+  /// Optional: absent on routines generated before this field existed.
+  estimatedCalories Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([dayId, order])
+  @@map("routine_day_exercises")
 }
 
 /// App-wide configuration edited from the admin panel. Always exactly one row.

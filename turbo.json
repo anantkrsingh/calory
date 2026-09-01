@@ -38,6 +38,10 @@
       "dependsOn": ["build"],
       "cache": false
     },
+    "db:migrate:routine-days": {
+      "dependsOn": ["build"],
+      "cache": false
+    },
     "db:studio": {
       "cache": false,
       "persistent": true
