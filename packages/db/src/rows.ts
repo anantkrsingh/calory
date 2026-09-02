@@ -3,6 +3,7 @@ import type {
   BodyMeasurement,
   ChatConversation,
   ChatMessage,
+  DailyMealLog,
   DailySteps,
   Exercise,
   Goal,
@@ -36,6 +37,7 @@ export type RoutineDayRow = RoutineDay;
 export type RoutineDayExerciseRow = RoutineDayExercise;
 export type ChatConversationRow = ChatConversation;
 export type ChatMessageRow = ChatMessage;
+export type DailyMealLogRow = DailyMealLog;
 
 /**
  * `days`/`exercises` are normalized into their own collections now (see the
@@ -52,6 +54,24 @@ export const WORKOUT_ROUTINE_INCLUDE = {
 
 export type WorkoutRoutineRow = Prisma.WorkoutRoutineGetPayload<{
   include: typeof WORKOUT_ROUTINE_INCLUDE;
+}>;
+
+/** Same reasoning as `WORKOUT_ROUTINE_INCLUDE`, one level deeper (days →
+ * meals → items). */
+export const DIET_PLAN_INCLUDE = {
+  days: {
+    orderBy: { order: 'asc' },
+    include: {
+      meals: {
+        orderBy: { order: 'asc' },
+        include: { items: { orderBy: { order: 'asc' } } },
+      },
+    },
+  },
+} satisfies Prisma.DietPlanInclude;
+
+export type DietPlanRow = Prisma.DietPlanGetPayload<{
+  include: typeof DIET_PLAN_INCLUDE;
 }>;
 
 export type {

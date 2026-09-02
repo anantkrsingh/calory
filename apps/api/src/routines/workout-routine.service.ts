@@ -10,6 +10,7 @@ import type {
   DailyCaloriesBurned,
   Id,
   IsoDate,
+  RoutineDayStatus,
   RoutinePlanDay,
   TodayRoutine,
   TodayRoutineExercise,
@@ -118,6 +119,124 @@ export class WorkoutRoutineService {
       );
     }
     return routine;
+  }
+
+  /**
+   * Edits one weekday of the user's active routine in place — the chat
+   * coach's write path (swap an exercise, add/remove a set, turn a day into
+   * rest), as opposed to `regenerate`'s full AI rewrite of the whole week.
+   * `exercises`, when given, fully replaces that day's exercise list (same
+   * delete-then-recreate convention as `RoutineProcessor.replaceDays`, just
+   * scoped to one day); omitted fields are left as they are.
+   */
+  async updateDay(
+    userId: Id,
+    dayOfWeek: DayOfWeek,
+    patch: {
+      status?: RoutineDayStatus;
+      focus?: string;
+      stepsTarget?: number;
+      exercises?: {
+        exerciseId: Id;
+        sets: number;
+        reps?: number;
+        durationSec?: number;
+        restSeconds?: number;
+        estimatedCalories?: number;
+      }[];
+    },
+  ): Promise<WorkoutRoutine> {
+    const routineRow = await this.prisma.workoutRoutine.findFirst({
+      where: { userId, status: 'active' },
+      orderBy: { createdAt: 'desc' },
+    });
+    if (!routineRow) {
+      throw new NotFoundException('No active workout routine to edit');
+    }
+
+    const day = await this.prisma.routineDay.findFirst({
+      where: { routineId: routineRow.id, dayOfWeek },
+    });
+    if (!day) {
+      throw new NotFoundException(
+        `${dayOfWeek} isn't part of the current routine`,
+      );
+    }
+
+    // Denormalized id convention (see RoutineDayExercise's schema comment) —
+    // still validate against the catalogue here so a bad id fails loudly
+    // instead of saving a day that can never render a name.
+    const namesById = new Map<string, string>();
+    if (patch.exercises) {
+      const ids = [...new Set(patch.exercises.map((e) => e.exerciseId))];
+      const catalogue = await this.prisma.exercise.findMany({
+        where: {
+          id: { in: ids },
+          OR: [{ createdById: null }, { createdById: userId }],
+        },
+        select: { id: true, name: true },
+      });
+      for (const row of catalogue) namesById.set(row.id, row.name);
+
+      const unknown = ids.filter((id) => !namesById.has(id));
+      if (unknown.length > 0) {
+        throw new Error(
+          `Unknown exerciseId(s): ${unknown.join(', ')}. Call listExercises first to find valid ids.`,
+        );
+      }
+    }
+
+    const caloriesFromExercises = patch.exercises
+      ? patch.exercises.reduce(
+          (sum, exercise) => sum + (exercise.estimatedCalories ?? 0),
+          0,
+        )
+      : undefined;
+    const targetCaloriesBurned =
+      caloriesFromExercises !== undefined
+        ? (day.caloriesFromRunning ?? 0) + caloriesFromExercises
+        : undefined;
+
+    await this.prisma.$transaction(async (tx) => {
+      if (patch.exercises) {
+        await tx.routineDayExercise.deleteMany({ where: { dayId: day.id } });
+      }
+
+      await tx.routineDay.update({
+        where: { id: day.id },
+        data: {
+          ...(patch.status ? { status: patch.status } : {}),
+          ...(patch.focus ? { focus: patch.focus } : {}),
+          ...(patch.stepsTarget != null
+            ? { stepsTarget: patch.stepsTarget }
+            : {}),
+          ...(caloriesFromExercises !== undefined
+            ? { caloriesFromExercises }
+            : {}),
+          ...(targetCaloriesBurned !== undefined
+            ? { targetCaloriesBurned }
+            : {}),
+          ...(patch.exercises
+            ? {
+                exercises: {
+                  create: patch.exercises.map((exercise, index) => ({
+                    order: index,
+                    exerciseId: exercise.exerciseId,
+                    exerciseName: namesById.get(exercise.exerciseId)!,
+                    sets: exercise.sets,
+                    reps: exercise.reps ?? null,
+                    durationSec: exercise.durationSec ?? null,
+                    restSeconds: exercise.restSeconds ?? null,
+                    estimatedCalories: exercise.estimatedCalories ?? null,
+                  })),
+                },
+              }
+            : {}),
+        },
+      });
+    });
+
+    return this.findCurrent(userId);
   }
 
   /** Home-screen summary for one calendar day: today's slice of the active

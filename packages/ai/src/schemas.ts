@@ -62,3 +62,41 @@ export const weeklyRoutineSchema = z.object({
 export type WeeklyRoutine = z.infer<typeof weeklyRoutineSchema>;
 export type RoutineDay = z.infer<typeof routineDaySchema>;
 export type RoutineExercise = z.infer<typeof routineExerciseSchema>;
+
+export const dietMealItemSchema = z.object({
+  name: z.string().min(1).max(120),
+  /** Portion note where the name alone is ambiguous, e.g. "2 Roti", "1 cup". */
+  description: z.string().max(120).nullable().optional(),
+  calories: z.number().int().min(0).max(3000),
+  proteinG: z.number().int().min(0).max(300),
+  fatG: z.number().int().min(0).max(300),
+  carbsG: z.number().int().min(0).max(600),
+});
+
+export const dietMealSchema = z.object({
+  /** e.g. "Morning Breakfast", "Post-workout Snack". */
+  name: z.string().min(1).max(80),
+  items: z.array(dietMealItemSchema).min(1).max(10),
+});
+
+export const dietDaySchema = z.object({
+  dayOfWeek: z.enum(DayOfWeek),
+  /** Should equal the sum of every meal's item calories that day. */
+  targetCalories: z.number().int().min(0).max(6000),
+  targetProteinG: z.number().int().min(0).max(400).nullable().optional(),
+  targetFatG: z.number().int().min(0).max(400).nullable().optional(),
+  targetCarbsG: z.number().int().min(0).max(800).nullable().optional(),
+  meals: z.array(dietMealSchema).min(1).max(8),
+});
+
+export const weeklyDietSchema = z.object({
+  // A little headroom over the ~400-char instruction in the prompt — models
+  // routinely overshoot a hard cap, especially when explaining fallback data.
+  summary: z.string().max(600),
+  days: z.array(dietDaySchema).length(7),
+});
+
+export type WeeklyDiet = z.infer<typeof weeklyDietSchema>;
+export type AiDietDay = z.infer<typeof dietDaySchema>;
+export type AiDietMeal = z.infer<typeof dietMealSchema>;
+export type AiDietMealItem = z.infer<typeof dietMealItemSchema>;

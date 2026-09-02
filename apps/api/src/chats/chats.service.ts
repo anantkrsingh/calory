@@ -27,24 +27,32 @@ import {
   ChatMessageRole,
   PromptCategory,
 } from '@fitness/types';
-import type {
-  ChatMessageQueryInput,
-  ChatQueryInput,
-  CreateChatInput,
-  SendChatMessageInput,
-  UpdateChatInput,
+import {
+  dayOfWeekSchema,
+  equipmentSchema,
+  exerciseQuerySchema,
+  muscleGroupSchema,
+  routineDayStatusSchema,
+  type ChatMessageQueryInput,
+  type ChatQueryInput,
+  type CreateChatInput,
+  type SendChatMessageInput,
+  type UpdateChatInput,
 } from '@fitness/validation';
 import { stepCountIs, streamText, tool, type LanguageModel } from 'ai';
 import { z } from 'zod';
 
 import { AI_MODEL, requireModel } from '../ai/ai.module';
 import { LIMITS } from '../config/constants';
+import { ExercisesService } from '../exercises/exercises.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { WorkoutRoutineService } from '../routines/workout-routine.service';
 
 const TITLE_MAX = LIMITS.chatTitle.max;
 const ASK_QUESTION_TOOL = 'askQuestion';
-// getUserDetails, then (optionally) askQuestion or a final answer.
-const MAX_AGENT_STEPS = 4;
+// getUserDetails/getCurrentRoutine/listExercises, an edit, then (optionally)
+// askQuestion or a final answer.
+const MAX_AGENT_STEPS = 6;
 
 function titleFromContent(content: string): string {
   const trimmed = content.trim().replace(/\s+/g, ' ');
@@ -72,11 +80,7 @@ const bmiCategory = (bmi: number): string => {
   return 'obese';
 };
 
-/**
- * Fold the last step's text and, if the turn ended in an `askQuestion` call,
- * the question/options into the single string persisted as
- * `ChatMessage.content` (see `ASK_QUESTION_MARKER` for the wire format).
- */
+
 function buildAssistantContent(event: {
   text: string;
   content: readonly unknown[];
@@ -105,6 +109,8 @@ export class ChatsService {
 
   constructor(
     private readonly prisma: PrismaService,
+    private readonly workoutRoutines: WorkoutRoutineService,
+    private readonly exercises: ExercisesService,
     @Inject(AI_MODEL) private readonly model: LanguageModel | null,
   ) {}
 
@@ -201,10 +207,8 @@ export class ChatsService {
   private userDetailsTool(userId: Id) {
     return tool({
       description:
-        'Get this user’s profile: age, sex, height, weight, BMI, activity ' +
-        'level and the fitness goals they chose. Call this before asking the ' +
-        'user for facts you can look up, or before giving advice that ' +
-        'depends on their body stats or goals.',
+        'This user’s profile: age, sex, height, weight, BMI, activity level, ' +
+        'fitness goals. Call before guessing any of these.',
       inputSchema: z.object({}),
       execute: async () => {
         const user = await this.prisma.user.findUnique({
@@ -243,20 +247,100 @@ export class ChatsService {
   private askQuestionTool() {
     return tool({
       description:
-        'Ask the user a short multiple-choice question when you need them ' +
-        'to decide something rather than guessing (their goal for today, ' +
-        'which day, how experienced they are, etc). Give 2-5 short options. ' +
-        'This ends your turn — write no other text alongside it, the ' +
-        'question and options are shown to the user directly and their tap ' +
-        'arrives as their next message.',
+        'Ask a short multiple-choice question (2-5 options) when you need ' +
+        'the user to decide something instead of guessing. Ends your turn ' +
+        '— no other text alongside it; their tap is their next message.',
       inputSchema: z.object({
         question: z.string().trim().min(1).max(200),
         options: z.array(z.string().trim().min(1).max(60)).min(2).max(5),
         allowMultiple: z.boolean().optional(),
       }),
-      // No `execute`: this is a client-side/human-in-the-loop tool. A tool
-      // call with no result ends the agent loop right away so the stream
-      // closes and waits for the user's tap instead of the model rambling on.
+  
+    });
+  }
+
+  private getCurrentRoutineTool(userId: Id) {
+    return tool({
+      description:
+        'This user’s current AI-generated weekly workout routine (status, ' +
+        'days, exercises). Call before discussing or editing it.',
+      inputSchema: z.object({}),
+      execute: async () => {
+        try {
+          return await this.workoutRoutines.findCurrent(userId);
+        } catch {
+          return {
+            status: 'none',
+            message:
+              'This user has no workout routine yet — one is generated ' +
+              'automatically after signup, or they can trigger it from the ' +
+              'app’s home screen.',
+          };
+        }
+      },
+    });
+  }
+
+  private listExercisesTool(userId: Id) {
+    return tool({
+      description:
+        'Search the exercise catalogue for valid exerciseId values. Call ' +
+        'before updateRoutineDay — never invent an id.',
+      inputSchema: z.object({
+        search: z.string().trim().min(1).max(120).optional(),
+        muscleGroup: muscleGroupSchema.optional(),
+        equipment: equipmentSchema.optional(),
+      }),
+      execute: async ({ search, muscleGroup, equipment }) => {
+        const page = await this.exercises.list(
+          userId,
+          exerciseQuerySchema.parse({
+            search,
+            muscleGroup,
+            equipment,
+            limit: 40,
+          }),
+        );
+        return page.items.map((exercise) => ({
+          exerciseId: exercise.id,
+          name: exercise.name,
+          category: exercise.category,
+          primaryMuscles: exercise.primaryMuscles,
+          equipment: exercise.equipment,
+        }));
+      },
+    });
+  }
+
+  private updateRoutineDayTool(userId: Id) {
+    return tool({
+      description:
+        'Edit one weekday of the user’s active routine (exercises, focus, ' +
+        'step target, or make it rest). `exercises`, if given, fully ' +
+        'replaces that day’s list — include every exercise it should end ' +
+        'up with, not just the changed one. Ids from listExercises. Ask ' +
+        'via askQuestion first if it’s ambiguous which day/exercise is meant.',
+      inputSchema: z.object({
+        dayOfWeek: dayOfWeekSchema,
+        status: routineDayStatusSchema.optional(),
+        focus: z.string().trim().min(1).max(120).optional(),
+        stepsTarget: z.number().int().nonnegative().optional(),
+        exercises: z
+          .array(
+            z.object({
+              exerciseId: z.string(),
+              sets: z.number().int().positive(),
+              reps: z.number().int().positive().optional(),
+              durationSec: z.number().int().positive().optional(),
+              restSeconds: z.number().int().positive().optional(),
+              estimatedCalories: z.number().int().positive().optional(),
+            }),
+          )
+          .max(30)
+          .optional(),
+      }),
+      execute: async ({ dayOfWeek, ...patch }) =>
+        this.workoutRoutines.updateDay(userId, dayOfWeek, patch),
     });
   }
 
@@ -326,6 +410,9 @@ export class ChatsService {
       messages,
       tools: {
         getUserDetails: this.userDetailsTool(userId),
+        getCurrentRoutine: this.getCurrentRoutineTool(userId),
+        listExercises: this.listExercisesTool(userId),
+        updateRoutineDay: this.updateRoutineDayTool(userId),
         [ASK_QUESTION_TOOL]: this.askQuestionTool(),
       },
       stopWhen: stepCountIs(MAX_AGENT_STEPS),

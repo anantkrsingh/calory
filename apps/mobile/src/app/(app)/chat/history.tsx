@@ -11,7 +11,7 @@ import {
   View,
 } from 'react-native';
 
-import { getErrorMessage, isApiError } from '@/api/errors';
+import { getErrorMessage } from '@/api/errors';
 import { ConversationRow } from '@/components/chat/ConversationRow';
 import { ScreenAppBar } from '@/components/screen-app-bar';
 import { TabScreen } from '@/components/tab-screen';
@@ -151,9 +151,7 @@ export default function ChatHistoryScreen() {
             Couldn’t load history
           </ThemedText>
           <ThemedText themeColor="textSecondary" style={styles.stateBody}>
-            {isApiError(error)
-              ? error.message
-              : getErrorMessage(error, 'Check your connection and try again.')}
+            {getErrorMessage(error, 'Check your connection and try again.')}
           </ThemedText>
           <PrimaryButton
             label="Retry"

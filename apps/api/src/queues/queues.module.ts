@@ -2,6 +2,7 @@ import { Global, Module } from '@nestjs/common';
 import { Queue } from 'bullmq';
 
 import { BULL_QUEUE_PROVIDER, QueueProvider } from './queues.constants';
+import { DietPlanQueue } from './diet-plan.queue';
 import { OtpController } from './otp.controller';
 import { OtpQueue } from './otp.queue';
 import { OtpService } from './otp.service';
@@ -43,8 +44,15 @@ const queueProvider: QueueProvider = (name: string) => {
     OtpQueue,
     OtpService,
     RoutineQueue,
+    DietPlanQueue,
   ],
   controllers: [OtpController],
-  exports: [BULL_QUEUE_PROVIDER, OtpQueue, OtpService, RoutineQueue],
+  exports: [
+    BULL_QUEUE_PROVIDER,
+    OtpQueue,
+    OtpService,
+    RoutineQueue,
+    DietPlanQueue,
+  ],
 })
 export class QueuesModule {}
