@@ -76,7 +76,11 @@ export const dietMealItemSchema = z.object({
 export const dietMealSchema = z.object({
   /** e.g. "Morning Breakfast", "Post-workout Snack". */
   name: z.string().min(1).max(80),
-  items: z.array(dietMealItemSchema).min(1).max(10),
+  // A little headroom over the prompt's stated "2 to 5 items" — days x meals
+  // x items x fields nests four deep, so keeping the ceiling close to what's
+  // actually asked for bounds how large (and how truncation/parse-failure
+  // prone) one generation can get.
+  items: z.array(dietMealItemSchema).min(1).max(6),
 });
 
 export const dietDaySchema = z.object({
@@ -86,7 +90,8 @@ export const dietDaySchema = z.object({
   targetProteinG: z.number().int().min(0).max(400).nullable().optional(),
   targetFatG: z.number().int().min(0).max(400).nullable().optional(),
   targetCarbsG: z.number().int().min(0).max(800).nullable().optional(),
-  meals: z.array(dietMealSchema).min(1).max(8),
+  // Headroom over the prompt's stated "3 to 6 meals" — see `items` above.
+  meals: z.array(dietMealSchema).min(1).max(6),
 });
 
 export const weeklyDietSchema = z.object({

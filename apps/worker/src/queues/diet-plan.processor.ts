@@ -29,13 +29,14 @@ import { AI_MODEL } from '../ai/ai.module';
 import { ENV, type Env } from '../config/env.module';
 import { PrismaService } from '../prisma/prisma.service';
 
-// A full 7-day meal plan is a large structured object; too low a cap here
-// reads as a schema-validation failure (truncated JSON), not a token-limit
-// one — same reasoning as the routine generator's budget.
-const DIET_OBJECT_MAX_OUTPUT_TOKENS = 16000;
+// A full 7-day meal plan is a large structured object — one level deeper
+// than the routine generator's (days -> meals -> items, vs. days ->
+// exercises), so it gets a bigger budget. Too low a cap here reads as a
+// schema-validation failure (truncated JSON), not a token-limit one.
+const DIET_OBJECT_MAX_OUTPUT_TOKENS = 20000;
 // Give the repair attempt even more headroom — a truncated first attempt
 // means the budget above wasn't enough.
-const DIET_OBJECT_REPAIR_MAX_OUTPUT_TOKENS = 24000;
+const DIET_OBJECT_REPAIR_MAX_OUTPUT_TOKENS = 28000;
 
 const yearsSince = (isoDate: string): number | null => {
   const born = new Date(isoDate);
