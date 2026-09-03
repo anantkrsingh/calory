@@ -80,7 +80,6 @@ const bmiCategory = (bmi: number): string => {
   return 'obese';
 };
 
-
 function buildAssistantContent(event: {
   text: string;
   content: readonly unknown[];
@@ -255,7 +254,6 @@ export class ChatsService {
         options: z.array(z.string().trim().min(1).max(60)).min(2).max(5),
         allowMultiple: z.boolean().optional(),
       }),
-  
     });
   }
 

@@ -10,7 +10,10 @@
     "ios": {
       "icon": "./assets/images/ios-icon-default.png",
       "bundleIdentifier": "com.fitness.calory.ai",
-      "googleServicesFile": "./GoogleService-Info.plist"
+      "googleServicesFile": "./GoogleService-Info.plist",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
