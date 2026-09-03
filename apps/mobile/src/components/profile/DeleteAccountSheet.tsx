@@ -2,7 +2,7 @@ import { TrueSheet } from '@lodev09/react-native-true-sheet';
 import { forwardRef, useImperativeHandle, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
-import { getErrorMessage, isApiError } from '@/api/errors';
+import { getErrorMessage } from '@/api/errors';
 import { ThemedText } from '@/components/themed-text';
 import PrimaryButton from '@/components/ui/PrimaryButton';
 import { Pressed, Spacing } from '@/constants/theme';
@@ -63,9 +63,7 @@ export const DeleteAccountSheet = forwardRef<
       onDeleted();
     } catch (err) {
       setError(
-        isApiError(err)
-          ? err.message
-          : getErrorMessage(err, 'Could not delete your account. Please try again.'),
+        getErrorMessage(err, 'Could not delete your account. Please try again.'),
       );
       setIsDeleting(false);
     }

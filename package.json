@@ -30,6 +30,7 @@
     "db:generate": "turbo run db:generate --filter=@fitness/db",
     "db:push": "turbo run db:push --filter=@fitness/db",
     "db:seed": "turbo run db:seed --filter=@fitness/db",
+    "db:migrate:routine-days": "turbo run db:migrate:routine-days --filter=@fitness/db",
     "db:studio": "turbo run db:studio --filter=@fitness/db",
     "clean": "turbo run clean && rm -rf node_modules",
     "prepare": "husky"

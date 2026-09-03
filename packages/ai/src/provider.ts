@@ -20,8 +20,13 @@ export function createModel(config: LlmConfig): LanguageModel {
   const model = config.model ?? DEFAULT_MODELS[config.provider];
 
   if (config.provider === 'gemini') {
-    return createGoogleGenerativeAI({ apiKey: config.apiKey })(model);
+    const google = createGoogleGenerativeAI({
+      apiKey: config.apiKey,
+    });
+
+    return google(model);
   }
+
 
   return createOpenAI({ apiKey: config.apiKey })(model);
 }

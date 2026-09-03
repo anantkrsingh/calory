@@ -15,3 +15,4 @@ export * from './responses';
 export * from './plan';
 export * from './upload';
 export * from './workout-routine';
+export * from './diet-plan';

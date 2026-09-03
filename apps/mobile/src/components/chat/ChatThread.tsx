@@ -1,10 +1,9 @@
 import { useChat } from "@ai-sdk/react";
 import type { UIMessage } from "ai";
-import { ChevronDown } from "lucide-react-native";
+import { ChevronDown, RotateCw } from "lucide-react-native";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
   Platform,
   Pressable,
@@ -17,7 +16,7 @@ import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQueryClient } from "@tanstack/react-query";
 
-import { getErrorMessage, isApiError } from "@/api/errors";
+import { getChatErrorMessage, getErrorMessage } from "@/api/errors";
 import {
   ANDROID_TAB_BAR_HEIGHT,
   ANDROID_TAB_BAR_MARGIN_BOTTOM,
@@ -26,6 +25,7 @@ import { BotAvatar } from "@/components/chat/BotAvatar";
 import { ChatComposer } from "@/components/chat/ChatComposer";
 import { MessageBubble } from "@/components/chat/MessageBubble";
 import { QuestionCard } from "@/components/chat/QuestionCard";
+import { SuggestedPrompts } from "@/components/chat/SuggestedPrompts";
 import { ThinkingIndicator } from "@/components/chat/ThinkingIndicator";
 import { ThemedText } from "@/components/themed-text";
 import { Brand, MaxContentWidth, Spacing } from "@/constants/theme";
@@ -46,6 +46,16 @@ type ChatThreadProps = {
 
 const SCROLL_BOTTOM_THRESHOLD = 120;
 
+// Module scope, not inline in the component — `Date.now()` is an impure
+// call the React Compiler lint rule rejects directly inside a component/hook
+// body (see react-hooks/purity), even though this only ever runs from the
+// `onError` event callback, never during render.
+let errorMessageSeq = 0;
+function nextErrorMessageId(): string {
+  errorMessageSeq += 1;
+  return `error-${Date.now()}-${errorMessageSeq}`;
+}
+
 export function ChatThread({ conversationId }: ChatThreadProps) {
   const insets = useSafeAreaInsets();
   const theme = useTheme();
@@ -55,6 +65,10 @@ export function ChatThread({ conversationId }: ChatThreadProps) {
   const [isAtBottom, setIsAtBottom] = useState(true);
   const listRef = useRef<FlatList<UIMessage>>(null);
   const seededRef = useRef<string | null>(null);
+  // The text behind each synthetic error bubble (keyed by its message id),
+  // so the Retry button can resend exactly what failed.
+  const lastSentTextRef = useRef("");
+  const [failedSends, setFailedSends] = useState<Record<string, string>>({});
 
   const transport = useMemo(
     () => createCoachChatTransport(conversationId),
@@ -70,11 +84,20 @@ export function ChatThread({ conversationId }: ChatThreadProps) {
         queryKey: ChatsQueries.keys.detail(conversationId),
       });
     },
+    // Surface a send failure as the coach's own reply instead of a dialog —
+    // `getChatErrorMessage` unwraps the raw ApiErrorBody JSON the transport
+    // throws (see its doc comment) down to just the message sentence.
     onError: (err) => {
-      const message = getErrorMessage(err, "Couldn’t send that message.");
-      const isCredits =
-        /credit/i.test(message) || (isApiError(err) && err.isPaymentRequired);
-      Alert.alert(isCredits ? "Out of credits" : "Send failed", message);
+      const message = getChatErrorMessage(
+        err,
+        "Couldn’t send that message. Try again in a moment.",
+      );
+      const id = nextErrorMessageId();
+      const parts: UIMessage["parts"] = [{ type: "text", text: message }];
+      setMessages((prev) => [...prev, { id, role: "assistant", parts }]);
+      if (lastSentTextRef.current) {
+        setFailedSends((prev) => ({ ...prev, [id]: lastSentTextRef.current }));
+      }
     },
   });
 
@@ -132,6 +155,7 @@ export function ChatThread({ conversationId }: ChatThreadProps) {
     setDraft("");
     setIsAtBottom(true);
     scrollToEnd(true);
+    lastSentTextRef.current = content;
     await sendMessage({ text: content });
   }, [draft, scrollToEnd, sendMessage, sending]);
 
@@ -140,9 +164,42 @@ export function ChatThread({ conversationId }: ChatThreadProps) {
       if (sending || selected.length === 0) return;
       setIsAtBottom(true);
       scrollToEnd(true);
-      void sendMessage({ text: selected.join(", ") });
+      lastSentTextRef.current = selected.join(", ");
+      void sendMessage({ text: lastSentTextRef.current });
     },
     [scrollToEnd, sendMessage, sending],
+  );
+
+  const sendSuggestion = useCallback(
+    (prompt: string) => {
+      if (sending) return;
+      setDraft("");
+      setIsAtBottom(true);
+      scrollToEnd(true);
+      lastSentTextRef.current = prompt;
+      void sendMessage({ text: prompt });
+    },
+    [scrollToEnd, sendMessage, sending],
+  );
+
+  /** Resends the exact text behind a failed send, and clears its error bubble. */
+  const retry = useCallback(
+    (errorMessageId: string) => {
+      const text = failedSends[errorMessageId];
+      if (!text || sending) return;
+
+      setFailedSends((prev) => {
+        const next = { ...prev };
+        delete next[errorMessageId];
+        return next;
+      });
+      setMessages((prev) => prev.filter((m) => m.id !== errorMessageId));
+      setIsAtBottom(true);
+      scrollToEnd(true);
+      lastSentTextRef.current = text;
+      void sendMessage({ text });
+    },
+    [failedSends, scrollToEnd, sendMessage, sending, setMessages],
   );
 
   const lastMessageId = messages.length
@@ -196,6 +253,32 @@ export function ChatThread({ conversationId }: ChatThreadProps) {
 
       if (!text) return null;
 
+      const retryText = failedSends[item.id];
+      if (retryText) {
+        return (
+          <View style={styles.row}>
+            <View style={styles.assistantRow}>
+              <BotAvatar size={22} />
+              <View style={styles.assistantBody}>
+                <ThemedText style={styles.leadText}>{text}</ThemedText>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Retry sending"
+                  disabled={sending}
+                  onPress={() => retry(item.id)}
+                  style={({ pressed }) => [
+                    styles.retryButton,
+                    { opacity: sending ? 0.5 : pressed ? 0.85 : 1 },
+                  ]}>
+                  <RotateCw color={Brand.accent} size={14} strokeWidth={2.4} />
+                  <ThemedText style={styles.retryText}>Retry</ThemedText>
+                </Pressable>
+              </View>
+            </View>
+          </View>
+        );
+      }
+
       return (
         <MessageBubble
           role="assistant"
@@ -204,7 +287,7 @@ export function ChatThread({ conversationId }: ChatThreadProps) {
         />
       );
     },
-    [answerQuestion, lastMessageId, messages, status],
+    [answerQuestion, failedSends, lastMessageId, messages, retry, sending, status],
   );
 
   const listEmpty = useMemo(() => {
@@ -217,9 +300,10 @@ export function ChatThread({ conversationId }: ChatThreadProps) {
         <ThemedText themeColor="textSecondary" style={styles.emptyBody}>
           Ask about workouts, recovery, or form — your coach is here.
         </ThemedText>
+        <SuggestedPrompts onSelect={sendSuggestion} disabled={sending} />
       </View>
     );
-  }, [isLoading]);
+  }, [isLoading, sendSuggestion, sending]);
 
   const bottomClearance =
     Platform.OS === "android"
@@ -259,9 +343,7 @@ export function ChatThread({ conversationId }: ChatThreadProps) {
         <View style={styles.centered}>
           <ThemedText style={styles.errorTitle}>Couldn’t open chat</ThemedText>
           <ThemedText themeColor="textSecondary" style={styles.errorBody}>
-            {isApiError(error)
-              ? error.message
-              : getErrorMessage(error, "Try again in a moment.")}
+            {getErrorMessage(error, "Try again in a moment.")}
           </ThemedText>
         </View>
       ) : (
@@ -368,14 +450,34 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: 22,
   },
+  retryButton: {
+    alignItems: "center",
+    alignSelf: "flex-start",
+    borderColor: Brand.accent,
+    borderCurve: "continuous",
+    borderRadius: 999,
+    borderWidth: StyleSheet.hairlineWidth || 1,
+    flexDirection: "row",
+    gap: 6,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.two - 2,
+  },
+  retryText: {
+    color: Brand.accent,
+    fontSize: 14,
+    fontWeight: "700",
+  },
   listEmpty: {
     flexGrow: 1,
     justifyContent: "center",
   },
   empty: {
     alignItems: "center",
-    gap: Spacing.two,
+    alignSelf: "center",
+    gap: Spacing.three,
+    maxWidth: MaxContentWidth,
     paddingHorizontal: Spacing.five,
+    width: "100%",
   },
   emptyTitle: {
     fontSize: 20,

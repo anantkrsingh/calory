@@ -24,6 +24,13 @@ export {
   useExercisesByMuscle,
   useToggleExerciseFavorite,
 } from './exercises.queries';
+export {
+  DietPlansQueries,
+  useDietPlan,
+  useMarkDietItemsTaken,
+  useRegenerateDietPlan,
+  useTodayDiet,
+} from './diet-plans.queries';
 export { useCreateMeasurement } from './measurements.queries';
 export { useSendOtp, useResendOtp, useVerifyOtp } from './otp.queries';
 export { QuotesQueries, useTodayQuote } from './quotes.queries';
@@ -45,3 +52,7 @@ export {
   useWeekCalories,
   useWorkoutRoutine,
 } from './workout-routines.queries';
+export {
+  useLogExerciseSet,
+  type LogExerciseSetInput,
+} from './workouts.queries';

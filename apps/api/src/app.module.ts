@@ -8,6 +8,7 @@ import { RolesGuard } from './auth/roles.guard';
 import { ChatsModule } from './chats/chats.module';
 import { AllExceptionsFilter } from './common/all-exceptions.filter';
 import { EnvModule } from './config/env.module';
+import { DietPlansModule } from './diets/diet-plans.module';
 import { ExercisesModule } from './exercises/exercises.module';
 import { GoalsModule } from './goals/goals.module';
 import { HealthModule } from './health/health.module';
@@ -36,6 +37,7 @@ import { WorkoutsModule } from './workouts/workouts.module';
     ExercisesModule,
     WorkoutsModule,
     RoutinesModule,
+    DietPlansModule,
     MeasurementsModule,
     GoalsModule,
     QuotesModule,

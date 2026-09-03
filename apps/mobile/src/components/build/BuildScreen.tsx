@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { getErrorMessage, isApiError } from '@/api/errors';
+import { getErrorMessage } from '@/api/errors';
 import { ExerciseRow } from '@/components/exercise/ExerciseRow';
 import { TabScreen } from '@/components/tab-screen';
 import { ThemedText } from '@/components/themed-text';
@@ -118,9 +118,7 @@ export function BuildScreen() {
             Couldn’t load exercises
           </ThemedText>
           <ThemedText themeColor="textSecondary" style={styles.stateBody}>
-            {isApiError(error)
-              ? error.message
-              : getErrorMessage(error, 'Check your connection and try again.')}
+            {getErrorMessage(error, 'Check your connection and try again.')}
           </ThemedText>
           <RetryButton onPress={() => void refetch()} style={styles.stateButton} />
         </View>

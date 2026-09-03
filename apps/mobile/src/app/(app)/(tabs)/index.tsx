@@ -3,7 +3,7 @@ import type { TodayRoutineExercise } from "@fitness/types";
 import { useRouter } from "expo-router";
 import { Flame, Footprints } from "lucide-react-native";
 import { useCallback, useMemo, useRef, useState } from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
+import { RefreshControl, ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { TabScreen } from "@/components/tab-screen";
@@ -35,12 +35,29 @@ export default function HomeScreen() {
   const weekProgressSheetRef = useRef<WeekProgressSheetRef>(null);
   const today = useState(todayIsoDate)[0];
   const weekDates = useState(currentWeekDates)[0];
-  const { data: quote } = useTodayQuote();
-  const { data: routine } = useTodayRoutine(today);
-  const { data: weekCalories } = useWeekCalories(weekDates[0], weekDates[6]);
+  const { data: quote, refetch: refetchQuote } = useTodayQuote();
+  const { data: routine, refetch: refetchRoutine } = useTodayRoutine(today);
+  const { data: weekCalories, refetch: refetchWeekCalories } = useWeekCalories(
+    weekDates[0],
+    weekDates[6],
+  );
   const { steps } = useStepsTracker();
 
   useRegisterPushNotifications();
+
+  const [refreshing, setRefreshing] = useState(false);
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await Promise.all([
+        refetchQuote(),
+        refetchRoutine(),
+        refetchWeekCalories(),
+      ]);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [refetchQuote, refetchRoutine, refetchWeekCalories]);
 
   const stepsGoal = routine?.day?.stepsTarget ?? DEFAULT_DAILY_STEPS_GOAL;
   const burned = routine?.caloriesBurned ?? 0;
@@ -73,7 +90,17 @@ export default function HomeScreen() {
           styles.scrollContent,
           { paddingBottom: BottomTabInset + insets.bottom },
         ]}
-        showsVerticalScrollIndicator={false}>
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => {
+              void onRefresh();
+            }}
+            tintColor={Brand.accent}
+            colors={[Brand.accent]}
+          />
+        }>
         {quote ? (
           <View style={styles.quote}>
             <ThemedText type="default" fontWeight="500" style={styles.text}>

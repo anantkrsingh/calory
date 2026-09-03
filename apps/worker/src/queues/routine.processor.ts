@@ -10,6 +10,8 @@ import type { WeeklyRoutine } from '@fitness/ai';
 import {
   ROUTINE_QUEUE_NAME,
   ROUTINE_RECONCILE_QUEUE_NAME,
+  type DayOfWeek,
+  type RoutineDayStatus,
   type RoutineJobData,
   type RoutineJobResult,
   type RoutineReconcileJobResult,
@@ -214,7 +216,7 @@ export class RoutineProcessor implements OnModuleInit, OnModuleDestroy {
 
       try {
         const routine = await this.prisma.workoutRoutine.create({
-          data: { userId: user.id, status: 'generating', days: [] },
+          data: { userId: user.id, status: 'generating' },
         });
 
         const job = await this.generateQueue?.add(
@@ -450,7 +452,7 @@ export class RoutineProcessor implements OnModuleInit, OnModuleDestroy {
 
     const exerciseNames = await this.validExerciseNames(userId, object);
 
-    const days = object.days.map((day) => {
+    const days = object.days.map((day, dayIndex) => {
       // Drop rest-day placeholders and hallucinated ids alike — anything
       // without a real, visible exerciseId can't be persisted.
       const exercises = day.exercises
@@ -470,6 +472,7 @@ export class RoutineProcessor implements OnModuleInit, OnModuleDestroy {
       }
 
       return {
+        order: dayIndex,
         dayOfWeek: day.dayOfWeek,
         status: day.status,
         targetCaloriesBurned: day.targetCaloriesBurned,
@@ -479,7 +482,8 @@ export class RoutineProcessor implements OnModuleInit, OnModuleDestroy {
         runningDistanceKm: day.runningDistanceKm ?? null,
         runningDurationMin: day.runningDurationMin ?? null,
         focus: day.focus,
-        exercises: exercises.map(({ exercise, name }) => ({
+        exercises: exercises.map(({ exercise, name }, exerciseIndex) => ({
+          order: exerciseIndex,
           exerciseId: exercise.exerciseId,
           // The catalog's name, never the model's — see validExerciseNames.
           exerciseName: name,
@@ -493,30 +497,90 @@ export class RoutineProcessor implements OnModuleInit, OnModuleDestroy {
       };
     });
 
+    // Claim the routine first — guards against a concurrent supersede, same
+    // as before normalization. Only once that succeeds do we touch
+    // RoutineDay/RoutineDayExercise, so a lost race never leaves half-written
+    // days behind.
     const { count } = await this.prisma.workoutRoutine.updateMany({
       where: { id: routineId, status: 'generating' },
       data: {
         status: 'active',
         dailyCalorieTarget: object.dailyCalorieTarget,
         summary: object.summary,
-        days,
         error: null,
         generatedAt: new Date(),
       },
     });
 
-    const elapsedSec = ((Date.now() - startedAt) / 1000).toFixed(1);
-
     if (count === 0) {
+      const elapsedSec = ((Date.now() - startedAt) / 1000).toFixed(1);
       this.logger.log(
         `${tag}: superseded mid-generation after ${elapsedSec}s, discarding result`,
       );
       return { routineId, status: 'superseded' };
     }
 
+    await this.replaceDays(routineId, days);
+
+    const elapsedSec = ((Date.now() - startedAt) / 1000).toFixed(1);
     this.logger.log(`${tag}: generated and saved in ${elapsedSec}s`);
 
     return { routineId, status: 'active' };
+  }
+
+  /**
+   * Replaces every RoutineDay (and RoutineDayExercise) for a routine with a
+   * freshly generated week — a regenerate is a full rewrite conceptually, so
+   * delete-then-recreate is simpler and safer than diffing the old plan.
+   * Deletes explicitly rather than relying on `onDelete: Cascade` alone —
+   * same explicit-over-emulated convention as the account-deletion sweep.
+   */
+  private async replaceDays(
+    routineId: string,
+    days: {
+      order: number;
+      dayOfWeek: DayOfWeek;
+      status: RoutineDayStatus;
+      targetCaloriesBurned: number;
+      caloriesFromRunning?: number | null;
+      caloriesFromExercises?: number | null;
+      stepsTarget?: number | null;
+      runningDistanceKm: number | null;
+      runningDurationMin: number | null;
+      focus: string;
+      exercises: {
+        order: number;
+        exerciseId: string;
+        exerciseName: string;
+        sets: number;
+        reps: number | null;
+        durationSec: number | null;
+        restSeconds: number | null;
+        estimatedCalories: number | null;
+      }[];
+    }[],
+  ): Promise<void> {
+    await this.prisma.$transaction(async (tx) => {
+      const existingDayIds = (
+        await tx.routineDay.findMany({
+          where: { routineId },
+          select: { id: true },
+        })
+      ).map((d) => d.id);
+
+      if (existingDayIds.length > 0) {
+        await tx.routineDayExercise.deleteMany({
+          where: { dayId: { in: existingDayIds } },
+        });
+        await tx.routineDay.deleteMany({ where: { routineId } });
+      }
+
+      for (const { exercises, ...day } of days) {
+        await tx.routineDay.create({
+          data: { ...day, routineId, exercises: { create: exercises } },
+        });
+      }
+    });
   }
 
   private async generateWeeklyRoutine(

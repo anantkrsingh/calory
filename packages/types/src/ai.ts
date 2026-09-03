@@ -4,6 +4,7 @@ import type { Entity, Id, IsoDate, IsoDateTime } from './common';
 export const QUOTE_QUEUE_NAME = 'quote';
 export const ROUTINE_QUEUE_NAME = 'routine';
 export const ROUTINE_RECONCILE_QUEUE_NAME = 'routine-reconcile';
+export const DIET_PLAN_QUEUE_NAME = 'diet-plan';
 
 export const WorkoutRoutineStatus = {
   Generating: 'generating',
@@ -111,4 +112,84 @@ export interface TodayRoutine {
   stepsToday: number;
 
   caloriesBurned: number;
+}
+
+/**
+ * A diet plan is AI-generated only — there's no manual create/edit UI for it
+ * the way `Routine` templates have one, so unlike `WorkoutRoutine` it's never
+ * requested automatically at registration either: the user asks for one
+ * (`Create my diet plan`) whenever they want it.
+ */
+export const DietPlanStatus = {
+  Generating: 'generating',
+  Active: 'active',
+  Failed: 'failed',
+  Superseded: 'superseded',
+} as const;
+export type DietPlanStatus =
+  (typeof DietPlanStatus)[keyof typeof DietPlanStatus];
+
+export interface DietPlanJobData {
+  userId: Id;
+  dietPlanId: Id;
+}
+
+export interface DietPlanJobResult {
+  dietPlanId: Id;
+  status: DietPlanStatus;
+}
+
+export interface DietMealItem {
+  id: Id;
+  /** e.g. "Bread Toast", "Yogurt". */
+  name: string;
+  /** Portion note where a plain name is ambiguous, e.g. "2 Roti", "1 cup". */
+  description?: string;
+  calories: number;
+  proteinG: number;
+  fatG: number;
+  carbsG: number;
+}
+
+export interface DietMeal {
+  id: Id;
+  /** e.g. "Morning Breakfast". */
+  name: string;
+  items: DietMealItem[];
+  /** Sum of the item macros — stored alongside the items so the UI never has
+   * to re-total them, same convention as `RoutineDay.caloriesFromExercises`. */
+  totalCalories: number;
+  totalProteinG: number;
+  totalFatG: number;
+  totalCarbsG: number;
+}
+
+export interface DietPlanDay {
+  dayOfWeek: DayOfWeek;
+  meals: DietMeal[];
+  targetCalories: number;
+  targetProteinG?: number;
+  targetFatG?: number;
+  targetCarbsG?: number;
+}
+
+export interface DietPlan extends Entity {
+  userId: Id;
+  status: DietPlanStatus;
+  summary?: string;
+  days: DietPlanDay[];
+  error?: string;
+  generatedAt?: IsoDateTime;
+}
+
+/** Which of today's meal items the user has actually marked eaten — kept
+ * separate from the `DietPlan` template (the same weekday recurs every week)
+ * so "taken" resets on its own each calendar day, the same way completed
+ * workout sets are tracked apart from `WorkoutRoutine`. */
+export interface TodayDiet {
+  planStatus: DietPlanStatus | null;
+  date: IsoDate;
+  day?: DietPlanDay;
+  /** `DietMealItem.id`s marked taken on this calendar date. */
+  takenItemIds: Id[];
 }

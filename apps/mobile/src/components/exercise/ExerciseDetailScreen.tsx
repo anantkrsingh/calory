@@ -1,6 +1,6 @@
 import { Image } from "expo-image";
 import { useLocalSearchParams } from "expo-router";
-import { Dumbbell, Heart, Play } from "lucide-react-native";
+import { Dumbbell, Heart } from "lucide-react-native";
 import type { ReactNode } from "react";
 import {
   ActivityIndicator,
@@ -11,15 +11,17 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { getErrorMessage, isApiError } from "@/api/errors";
+import { getErrorMessage } from "@/api/errors";
 import { ScreenAppBar } from "@/components/screen-app-bar";
 import { TabScreen } from "@/components/tab-screen";
 import { ThemedText } from "@/components/themed-text";
 import RetryButton from "@/components/ui/RetryButton";
-import { Brand, Pressed, Spacing } from "@/constants/theme";
+import { BottomTabInset, Brand, Pressed, Spacing } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
 import { muscleGroupLabel } from "@/lib/muscle-groups";
 import { useExercise, useToggleExerciseFavorite } from "@/queries/exercises.queries";
+
+import { StartStopButton } from "./StartStopButton";
 
 const HAIRLINE = StyleSheet.hairlineWidth || 1;
 // Keeps the last bit of scroll content clear of the floating Start button.
@@ -62,9 +64,7 @@ export function ExerciseDetailScreen() {
             Couldn’t load exercise
           </ThemedText>
           <ThemedText themeColor="textSecondary" style={styles.stateBody}>
-            {isApiError(error)
-              ? error.message
-              : getErrorMessage(error, "Check your connection and try again.")}
+            {getErrorMessage(error, "Check your connection and try again.")}
           </ThemedText>
           <RetryButton
             onPress={() => void refetch()}
@@ -245,26 +245,21 @@ export function ExerciseDetailScreen() {
         </ScrollView>
       ) : null}
 
-      {/* {!isLoading && !isError && exercise ? (
+      {!isLoading && !isError && exercise ? (
         <View
           pointerEvents="box-none"
-          style={[styles.startButtonWrap, { bottom: insets.bottom + Spacing.three }]}
+          style={[
+            styles.startButtonWrap,
+            // Matches GlobalTimerBar's own offset exactly — this screen has
+            // no tab bar to clear, but pressing Start hands off to that
+            // globally-mounted bar, and if the two sat at different heights
+            // the button would visibly jump the moment it does.
+            { bottom: insets.bottom + BottomTabInset + Spacing.three },
+          ]}
         >
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={`Start ${exercise.name}`}
-            hitSlop={8}
-            onPress={() => {
-            }}
-            style={({ pressed }) => [styles.startButton, pressed && Pressed]}
-          >
-            <Play color="#FFFFFF" size={18} fill="#FFFFFF" strokeWidth={2} />
-            <ThemedText fontWeight="700" style={styles.startButtonLabel}>
-              Start
-            </ThemedText>
-          </Pressable>
+          <StartStopButton exercise={exercise} />
         </View>
-      ) : null} */}
+      ) : null}
     </TabScreen>
   );
 }
@@ -454,31 +449,12 @@ const styles = StyleSheet.create({
   stateButton: {
     marginTop: Spacing.two,
   },
+  // Not centered — StartStopButton right-aligns itself and grows leftward,
+  // so this just needs to give it full width and an edge to hug.
   startButtonWrap: {
-    alignItems: "center",
     left: 0,
+    paddingHorizontal: Spacing.four,
     position: "absolute",
     right: 0,
-  },
-  startButton: {
-    alignItems: "center",
-    backgroundColor: Brand.accent,
-    borderCurve: "continuous",
-    borderRadius: 999,
-    elevation: 4,
-    flexDirection: "row",
-    gap: Spacing.two,
-    justifyContent: "center",
-    paddingHorizontal: Spacing.five,
-    paddingVertical: 14,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 10,
-  },
-  startButtonLabel: {
-    color: "#FFFFFF",
-    fontSize: 16,
-    lineHeight: 20,
   },
 });

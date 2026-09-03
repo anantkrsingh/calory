@@ -135,6 +135,7 @@ enum PromptCategory {
   quote_of_the_day
   workout_routine
   user_chat
+  diet_plan
 }
 
 enum ChatMessageRole {
@@ -165,6 +166,13 @@ enum DayOfWeek {
 enum RoutineDayStatus {
   active
   rest
+}
+
+enum DietPlanStatus {
+  generating
+  active
+  failed
+  superseded
 }
 
 // ---------------------------------------------------------------------------
@@ -259,32 +267,6 @@ type AiPromptConfig {
   prompt         String
 }
 
-/// One planned exercise inside an AI-generated routine day.
-type RoutinePlanExercise {
-  exerciseId   String @db.ObjectId
-  exerciseName String
-  sets         Int
-  reps         Int?
-  durationSec  Int?
-  restSeconds  Int?
-  /// Optional: absent on routines generated before this field existed.
-  estimatedCalories Int?
-}
-
-type RoutinePlanDay {
-  dayOfWeek            DayOfWeek
-  status               RoutineDayStatus @default(active)
-  targetCaloriesBurned Int
-  /// Optional: absent on routines generated before these fields existed.
-  caloriesFromRunning  Int?
-  caloriesFromExercises Int?
-  stepsTarget          Int?
-  runningDistanceKm    Float?
-  runningDurationMin   Int?
-  focus                String
-  exercises            RoutinePlanExercise[]
-}
-
 type BodyMeasurements {
   neck       Float?
   chest      Float?
@@ -350,6 +332,8 @@ model User {
   workoutRoutines WorkoutRoutine[]
   chatConversations ChatConversation[]
   dailySteps      DailySteps[]
+  dietPlans       DietPlan[]
+  dailyMealLogs   DailyMealLog[]
 
   @@map("users")
 }
@@ -570,7 +554,10 @@ model WorkoutRoutine {
   /// Daily calorie intake target.
   dailyCalorieTarget  Int?
   summary             String?
-  days                RoutinePlanDay[]
+  /// Normalized out to its own collection — a week is 7 documents, each with
+  /// a handful of exercise rows, not one ever-growing embedded blob; see
+  /// `RoutineDay`/`RoutineDayExercise`.
+  days                RoutineDay[]
   /// Set when status is `failed`, for admin debugging.
   error               String?
   generatedAt         DateTime?
@@ -580,6 +567,188 @@ model WorkoutRoutine {
 
   @@index([userId, status])
   @@map("workout_routines")
+}
+
+/// One weekday of an AI-generated routine — its own collection (not embedded
+/// in `WorkoutRoutine`) so a regenerate only rewrites the days that changed
+/// rather than the whole document, and each day's exercises can be their own
+/// collection in turn.
+model RoutineDay {
+  id        String         @id @default(auto()) @map("_id") @db.ObjectId
+  routineId String         @db.ObjectId
+  routine   WorkoutRoutine @relation(fields: [routineId], references: [id], onDelete: Cascade)
+
+  /// Position within the generated week (0-6). `dayOfWeek` identifies the
+  /// weekday; this preserves the order the plan was generated/displayed in.
+  order                 Int
+  dayOfWeek             DayOfWeek
+  status                RoutineDayStatus @default(active)
+  targetCaloriesBurned  Int
+  /// Optional: absent on routines generated before these fields existed.
+  caloriesFromRunning   Int?
+  caloriesFromExercises Int?
+  stepsTarget           Int?
+  runningDistanceKm     Float?
+  runningDurationMin    Int?
+  focus                 String
+
+  exercises RoutineDayExercise[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([routineId, order])
+  @@map("routine_days")
+}
+
+/// One planned exercise inside a `RoutineDay` — its own collection, same
+/// normalization reasoning as `RoutineDay` itself.
+model RoutineDayExercise {
+  id    String     @id @default(auto()) @map("_id") @db.ObjectId
+  dayId String     @db.ObjectId
+  day   RoutineDay @relation(fields: [dayId], references: [id], onDelete: Cascade)
+
+  /// Display order within the day.
+  order Int
+  /// Not a formal relation to `Exercise` — same denormalized-id convention as
+  /// `WorkoutExercise`/`RoutineExercise`, so a plan still renders if the
+  /// catalogue entry is later edited or removed.
+  exerciseId   String @db.ObjectId
+  exerciseName String
+  sets         Int
+  reps         Int?
+  durationSec  Int?
+  restSeconds  Int?
+  /// Optional: absent on routines generated before this field existed.
+  estimatedCalories Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([dayId, order])
+  @@map("routine_day_exercises")
+}
+
+/// AI-generated weekly meal plan. Unlike `WorkoutRoutine`, never created
+/// automatically — the user asks for one, so there's no `generating` row
+/// until they do.
+model DietPlan {
+  id     String @id @default(auto()) @map("_id") @db.ObjectId
+  userId String @db.ObjectId
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  status  DietPlanStatus @default(generating)
+  summary String?
+  /// Normalized out to its own collection — same reasoning as
+  /// `WorkoutRoutine.days`.
+  days    DietDay[]
+  /// Set when status is `failed`, for admin debugging.
+  error       String?
+  generatedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, status])
+  @@map("diet_plans")
+}
+
+/// One weekday of an AI-generated diet plan — its own collection, same
+/// normalization reasoning as `RoutineDay`.
+model DietDay {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  dietPlanId String   @db.ObjectId
+  dietPlan   DietPlan @relation(fields: [dietPlanId], references: [id], onDelete: Cascade)
+
+  /// Position within the generated week (0-6). `dayOfWeek` identifies the
+  /// weekday; this preserves the order the plan was generated/displayed in.
+  order          Int
+  dayOfWeek      DayOfWeek
+  targetCalories Int
+  targetProteinG Int?
+  targetFatG     Int?
+  targetCarbsG   Int?
+
+  meals DietMeal[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([dietPlanId, order])
+  @@map("diet_days")
+}
+
+/// One named meal inside a `DietDay` (e.g. "Morning Breakfast") — its own
+/// collection so its items can be their own collection in turn.
+model DietMeal {
+  id    String  @id @default(auto()) @map("_id") @db.ObjectId
+  dayId String  @db.ObjectId
+  day   DietDay @relation(fields: [dayId], references: [id], onDelete: Cascade)
+
+  /// Display order within the day.
+  order Int
+  name  String
+  /// Sum of the item macros below — stored alongside them so the app never
+  /// has to re-total, same convention as `RoutineDay.caloriesFromExercises`.
+  totalCalories Int
+  totalProteinG Int
+  totalFatG     Int
+  totalCarbsG   Int
+
+  items DietMealItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([dayId, order])
+  @@map("diet_meals")
+}
+
+/// One food item inside a `DietMeal`.
+model DietMealItem {
+  id     String   @id @default(auto()) @map("_id") @db.ObjectId
+  mealId String   @db.ObjectId
+  meal   DietMeal @relation(fields: [mealId], references: [id], onDelete: Cascade)
+
+  /// Display order within the meal.
+  order Int
+  /// The food as eaten, e.g. "Bread Toast" — not a recipe.
+  name String
+  /// Portion note where `name` alone is ambiguous, e.g. "2 Roti", "1 cup".
+  description String?
+  calories    Int
+  proteinG    Int
+  fatG        Int
+  carbsG      Int
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([mealId, order])
+  @@map("diet_meal_items")
+}
+
+/// Which of a calendar day's meal items the user marked eaten — kept apart
+/// from `DietPlan` (the same weekday's template recurs every week) so "taken"
+/// resets on its own each date, the same way completed workout sets live on
+/// `Workout` rather than on `WorkoutRoutine`. Mongo scalar arrays only
+/// support a full replace via Prisma, so this is read-modify-write, same
+/// convention as `User.favoriteExerciseIds`.
+model DailyMealLog {
+  id     String @id @default(auto()) @map("_id") @db.ObjectId
+  userId String @db.ObjectId
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// ISO calendar date, YYYY-MM-DD, in the device's local timezone.
+  date         String
+  /// `DietMealItem.id`s marked taken on this date.
+  takenItemIds String[] @db.ObjectId @default([])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, date])
+  @@map("daily_meal_logs")
 }
 
 /// App-wide configuration edited from the admin panel. Always exactly one row.

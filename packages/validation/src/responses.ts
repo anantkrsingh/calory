@@ -391,6 +391,59 @@ export const dailyCaloriesBurnedSchema = z.object({
   targetCaloriesBurned: z.number(),
 });
 
+const dietPlanStatusSchema = z.enum([
+  'generating',
+  'active',
+  'failed',
+  'superseded',
+]);
+
+export const dietPlanMealItemSchema = z.object({
+  id: objectIdSchema,
+  name: z.string(),
+  description: z.string().optional(),
+  calories: z.number().int(),
+  proteinG: z.number().int(),
+  fatG: z.number().int(),
+  carbsG: z.number().int(),
+});
+
+export const dietPlanMealSchema = z.object({
+  id: objectIdSchema,
+  name: z.string(),
+  items: z.array(dietPlanMealItemSchema),
+  totalCalories: z.number().int(),
+  totalProteinG: z.number().int(),
+  totalFatG: z.number().int(),
+  totalCarbsG: z.number().int(),
+});
+
+export const dietPlanDaySchema = z.object({
+  dayOfWeek: dayOfWeekSchema,
+  meals: z.array(dietPlanMealSchema),
+  targetCalories: z.number().int(),
+  targetProteinG: z.number().int().optional(),
+  targetFatG: z.number().int().optional(),
+  targetCarbsG: z.number().int().optional(),
+});
+
+export const dietPlanSchema = z.object({
+  ...entityFields,
+  userId: objectIdSchema,
+  status: dietPlanStatusSchema,
+  summary: z.string().optional(),
+  days: z.array(dietPlanDaySchema),
+  error: z.string().optional(),
+  generatedAt: isoDateTimeSchema.optional(),
+});
+
+export const todayDietSchema = z.object({
+  planStatus: dietPlanStatusSchema.nullable(),
+  date: isoDateSchema,
+  day: dietPlanDaySchema.optional(),
+  takenItemIds: z.array(objectIdSchema),
+});
+
 export const healthResponseSchema = z.object({
   status: z.enum(['ok', 'degraded']),
   uptimeSec: z.number().int(),

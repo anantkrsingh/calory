@@ -6,13 +6,29 @@ export class ApiError extends Error {
   readonly status: number;
   readonly body: ApiErrorBody | null;
   readonly details: Record<string, string[]>;
+  /**
+   * Whether `message` actually came from the API's own JSON error body, as
+   * opposed to a synthesized "request failed with <status>" fallback. A
+   * gateway/proxy failure (502, 504, an HTML maintenance page) never reaches
+   * our exception filter, so there's no real message to show — just a
+   * status code, which reads as an internal detail, not something a user
+   * should see. `getErrorMessage` uses this to fall back to the caller's
+   * own copy instead.
+   */
+  readonly hasServerMessage: boolean;
 
-  constructor(status: number, message: string, body: ApiErrorBody | null) {
+  constructor(
+    status: number,
+    message: string,
+    body: ApiErrorBody | null,
+    hasServerMessage: boolean,
+  ) {
     super(message);
     this.name = 'ApiError';
     this.status = status;
     this.body = body;
     this.details = body?.details ?? {};
+    this.hasServerMessage = hasServerMessage;
   }
 
   get isUnauthorized(): boolean {
@@ -74,6 +90,11 @@ export const isTimeoutError = (error: unknown): error is TimeoutError =>
 
 /** Prefer the server/error message; fall back when nothing useful is present. */
 export function getErrorMessage(error: unknown, fallback: string): string {
+  // A synthesized "request failed with <status>" — see `hasServerMessage` —
+  // is an internal detail (a URL path, an HTTP status code), not something
+  // to show a user; the caller's own fallback copy is more honest here.
+  if (isApiError(error) && !error.hasServerMessage) return fallback;
+
   if (error instanceof Error) {
     const message = error.message.trim();
     if (message.length > 0) return message;
@@ -81,12 +102,51 @@ export function getErrorMessage(error: unknown, fallback: string): string {
   return fallback;
 }
 
+/**
+ * The AI SDK chat transport doesn't go through axios/`normaliseError` — a
+ * non-2xx response is thrown as `new Error(await response.text())` (see
+ * `DefaultChatTransport`), so `error.message` is often the raw `ApiErrorBody`
+ * JSON rather than a plain sentence. Unwrap it the same way `messageFromBody`
+ * does for axios failures, so a failed send reads as a message, not
+ * `{"statusCode":402,"message":"..."}`.
+ */
+export function getChatErrorMessage(error: unknown, fallback: string): string {
+  if (!(error instanceof Error)) return fallback;
+  const raw = error.message.trim();
+  if (!raw) return fallback;
+
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (parsed !== null && typeof parsed === 'object' && 'message' in parsed) {
+      const { message } = parsed as ApiErrorBody;
+      const text = Array.isArray(message) ? message.join(', ') : String(message);
+      return text.trim() || fallback;
+    }
+  } catch {
+    // Not JSON — fall through to the markup/length guard below.
+  }
+
+  // A downed server/proxy (a 502/504, a maintenance page) answers with an
+  // HTML error page rather than JSON — that's not a message, it's markup, so
+  // showing it raw would dump the whole page into the chat. Anything that
+  // isn't plainly a short sentence gets the fallback instead.
+  const looksLikeMarkup = /^\s*</.test(raw);
+  if (looksLikeMarkup || raw.length > 300) return fallback;
+
+  return raw;
+}
+
+/** True for our own API's JSON error shape — false for a gateway/proxy
+ * failure (502, 504, an HTML maintenance page), whose body is either not an
+ * object at all or an object with no `message`. */
+function hasMessageField(body: unknown): body is ApiErrorBody {
+  return body !== null && typeof body === 'object' && 'message' in body;
+}
+
 function messageFromBody(body: unknown, status: number, url: string): string {
-  if (body !== null && typeof body === 'object' && 'message' in body) {
-    const { message } = body as ApiErrorBody;
-    return Array.isArray(message)
-      ? (message as string[]).join(', ')
-      : String(message);
+  if (hasMessageField(body)) {
+    const { message } = body;
+    return Array.isArray(message) ? message.join(', ') : String(message);
   }
   return `Request to ${url} failed with ${status}`;
 }
@@ -105,11 +165,12 @@ export function normaliseError(error: unknown): Error {
 
   if (error.response) {
     const body = error.response.data;
-    const isErrorBody = body !== null && typeof body === 'object';
+    const isErrorBody = hasMessageField(body);
     return new ApiError(
       error.response.status,
       messageFromBody(body, error.response.status, url),
-      isErrorBody ? (body as ApiErrorBody) : null,
+      isErrorBody ? body : null,
+      isErrorBody,
     );
   }
 
