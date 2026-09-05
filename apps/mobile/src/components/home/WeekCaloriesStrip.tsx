@@ -23,6 +23,9 @@ const MINI_CARD_HEIGHT = 52;
 const MINI_CARD_RADIUS = 14;
 const MINI_CARD_GAP = Spacing.two;
 const SLIDE_DURATION_MS = 280;
+// Taller than a perfect square, not a full rectangle — a bit more
+// breathing room around the number than a 1:1 card gives.
+const MINI_CARD_ASPECT = 1.15;
 
 // A softened, lower-saturation tint of the "Save changes" button's fill
 // color (`Brand.ctaFill`, #9DC6C5) — same family, deliberately lighter/less
@@ -58,6 +61,7 @@ export function WeekCaloriesStrip({
   );
   const columnWidth =
     rowWidth > 0 ? (rowWidth - MINI_CARD_GAP * (days.length - 1)) / days.length : 0;
+  const miniCardHeight = columnWidth > 0 ? columnWidth * MINI_CARD_ASPECT : MINI_CARD_HEIGHT;
 
   const translateX = useSharedValue(0);
   const isFirstPosition = useRef(true);
@@ -79,6 +83,7 @@ export function WeekCaloriesStrip({
 
   const pillStyle = useAnimatedStyle(() => ({
     width: columnWidth,
+    height: miniCardHeight,
     transform: [{ translateX: translateX.value }],
   }));
 
@@ -102,7 +107,9 @@ export function WeekCaloriesStrip({
                   styles.miniCardBackground,
                   {
                     left: index * (columnWidth + MINI_CARD_GAP),
+                    // Slightly taller than wide — see MINI_CARD_ASPECT.
                     width: columnWidth,
+                    height: miniCardHeight,
                     backgroundColor: theme.surface,
                     borderColor: theme.border,
                   },
@@ -136,7 +143,13 @@ export function WeekCaloriesStrip({
                 accessibilityState={{ selected: isSelected, disabled: !isPastOrToday }}
                 onPress={() => onSelectDate(day.date)}
                 style={styles.column}>
-                <View style={styles.miniCardContent}>
+                <View
+                  style={[
+                    styles.miniCardContent,
+                    // This box is what actually gives the row its height —
+                    // keep it in step with the background/pill above.
+                    { height: miniCardHeight },
+                  ]}>
                   <ThemedText
                     fontWeight="700"
                     numberOfLines={1}
@@ -153,8 +166,9 @@ export function WeekCaloriesStrip({
                 </View>
 
                 <ThemedText
+                type='code'
                   themeColor={isSelected ? 'text' : 'textSecondary'}
-                  fontWeight={isSelected ? '700' : '500'}
+                  fontWeight={isSelected ? '800' : '500'}
                   style={styles.dayLabel}>
                   {WEEKDAY_LABELS[index]}
                 </ThemedText>
@@ -173,13 +187,16 @@ const styles = StyleSheet.create({
     borderCurve: 'continuous',
     borderRadius: 20,
     padding: Spacing.three,
+    // Tailwind's default `shadow` — two stacked layers, both a soft 10%-black.
+    boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1)',
   },
   miniCardsWrapper: {
     // Positioning context for the per-day background rects and the sliding
     // accent pill, both absolutely positioned behind the row of mini cards.
   },
   miniCard: {
-    height: MINI_CARD_HEIGHT,
+    // Height comes from `miniCardHeight` at each call site instead of a
+    // fixed constant, so it always tracks the current column width.
     borderCurve: 'continuous',
     borderRadius: MINI_CARD_RADIUS,
   },
@@ -213,7 +230,6 @@ const styles = StyleSheet.create({
   },
   miniCardContent: {
     alignSelf: 'stretch',
-    height: MINI_CARD_HEIGHT,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: Spacing.half,
