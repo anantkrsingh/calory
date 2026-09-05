@@ -23,6 +23,9 @@ const MINI_CARD_HEIGHT = 52;
 const MINI_CARD_RADIUS = 14;
 const MINI_CARD_GAP = Spacing.two;
 const SLIDE_DURATION_MS = 280;
+// Taller than a perfect square, not a full rectangle — a bit more
+// breathing room around the number than a 1:1 card gives.
+const MINI_CARD_ASPECT = 1.15;
 
 // A softened, lower-saturation tint of the "Save changes" button's fill
 // color (`Brand.ctaFill`, #9DC6C5) — same family, deliberately lighter/less
@@ -58,6 +61,7 @@ export function WeekCaloriesStrip({
   );
   const columnWidth =
     rowWidth > 0 ? (rowWidth - MINI_CARD_GAP * (days.length - 1)) / days.length : 0;
+  const miniCardHeight = columnWidth > 0 ? columnWidth * MINI_CARD_ASPECT : MINI_CARD_HEIGHT;
 
   const translateX = useSharedValue(0);
   const isFirstPosition = useRef(true);
@@ -79,7 +83,7 @@ export function WeekCaloriesStrip({
 
   const pillStyle = useAnimatedStyle(() => ({
     width: columnWidth,
-    height: columnWidth,
+    height: miniCardHeight,
     transform: [{ translateX: translateX.value }],
   }));
 
@@ -103,10 +107,9 @@ export function WeekCaloriesStrip({
                   styles.miniCardBackground,
                   {
                     left: index * (columnWidth + MINI_CARD_GAP),
-                    // Square — width and height both equal the computed
-                    // column width, so it's never a stretched rectangle.
+                    // Slightly taller than wide — see MINI_CARD_ASPECT.
                     width: columnWidth,
-                    height: columnWidth,
+                    height: miniCardHeight,
                     backgroundColor: theme.surface,
                     borderColor: theme.border,
                   },
@@ -143,11 +146,9 @@ export function WeekCaloriesStrip({
                 <View
                   style={[
                     styles.miniCardContent,
-                    // Falls back to MINI_CARD_HEIGHT for the one frame before
-                    // `columnWidth` is known, then matches it exactly so this
-                    // box — which is what actually gives the row its height —
-                    // stays square in step with the background/pill above.
-                    { height: columnWidth > 0 ? columnWidth : MINI_CARD_HEIGHT },
+                    // This box is what actually gives the row its height —
+                    // keep it in step with the background/pill above.
+                    { height: miniCardHeight },
                   ]}>
                   <ThemedText
                     fontWeight="700"
@@ -193,8 +194,8 @@ const styles = StyleSheet.create({
     // accent pill, both absolutely positioned behind the row of mini cards.
   },
   miniCard: {
-    // Height comes from `columnWidth` at each call site instead of a fixed
-    // constant, so the card is always a square rather than a rectangle.
+    // Height comes from `miniCardHeight` at each call site instead of a
+    // fixed constant, so it always tracks the current column width.
     borderCurve: 'continuous',
     borderRadius: MINI_CARD_RADIUS,
   },
