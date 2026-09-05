@@ -166,8 +166,9 @@ export function WeekCaloriesStrip({
                 </View>
 
                 <ThemedText
+                type='code'
                   themeColor={isSelected ? 'text' : 'textSecondary'}
-                  fontWeight={isSelected ? '700' : '500'}
+                  fontWeight={isSelected ? '800' : '500'}
                   style={styles.dayLabel}>
                   {WEEKDAY_LABELS[index]}
                 </ThemedText>
