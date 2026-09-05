@@ -20,7 +20,7 @@ import { Brand, BottomTabInset, Spacing } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
 import { useRegisterPushNotifications } from "@/hooks/use-register-push-notifications";
 import { useStepsTracker } from "@/hooks/use-steps-tracker";
-import { currentWeekDates, todayIsoDate } from "@/lib/date";
+import { currentWeekDates, todayIsoDate, weekdayName } from "@/lib/date";
 import { useTodayQuote } from "@/queries/quotes.queries";
 import { useTodayRoutine, useWeekCalories } from "@/queries/workout-routines.queries";
 
@@ -35,13 +35,15 @@ export default function HomeScreen() {
   const weekProgressSheetRef = useRef<WeekProgressSheetRef>(null);
   const today = useState(todayIsoDate)[0];
   const weekDates = useState(currentWeekDates)[0];
+  const [selectedDate, setSelectedDate] = useState(today);
+  const isSelectedToday = selectedDate === today;
   const { data: quote, refetch: refetchQuote } = useTodayQuote();
-  const { data: routine, refetch: refetchRoutine } = useTodayRoutine(today);
+  const { data: routine, refetch: refetchRoutine } = useTodayRoutine(selectedDate);
   const { data: weekCalories, refetch: refetchWeekCalories } = useWeekCalories(
     weekDates[0],
     weekDates[6],
   );
-  const { steps } = useStepsTracker();
+  const { steps: liveSteps } = useStepsTracker();
 
   useRegisterPushNotifications();
 
@@ -60,8 +62,12 @@ export default function HomeScreen() {
   }, [refetchQuote, refetchRoutine, refetchWeekCalories]);
 
   const stepsGoal = routine?.day?.stepsTarget ?? DEFAULT_DAILY_STEPS_GOAL;
+  const steps = isSelectedToday ? liveSteps : (routine?.stepsToday ?? 0);
   const burned = routine?.caloriesBurned ?? 0;
   const target = routine?.day?.targetCaloriesBurned ?? 0;
+  const exercisesHeading = isSelectedToday
+    ? "Today’s Exercises"
+    : `${weekdayName(selectedDate)}’s Exercises`;
 
   // Finished exercises sink to the bottom, otherwise original order is kept.
   const todaysExercises = useMemo(
@@ -113,6 +119,16 @@ export default function HomeScreen() {
           <RoutineGeneratingCard />
         ) : (
           <>
+            {weekCalories ? (
+              <WeekCaloriesStrip
+                days={weekCalories}
+                today={today}
+                selectedDate={selectedDate}
+                onSelectDate={setSelectedDate}
+                onOpenDetail={() => weekProgressSheetRef.current?.present()}
+              />
+            ) : null}
+
             <View style={styles.ringsRow}>
               <View
                 style={[
@@ -155,18 +171,10 @@ export default function HomeScreen() {
               </View>
             </View>
 
-            {weekCalories ? (
-              <WeekCaloriesStrip
-                days={weekCalories}
-                today={today}
-                onPress={() => weekProgressSheetRef.current?.present()}
-              />
-            ) : null}
-
             {routine?.day?.status === "rest" ? (
               <View style={styles.section}>
                 <ThemedText fontWeight="700" style={styles.sectionTitle}>
-                  Today’s Exercises
+                  {exercisesHeading}
                 </ThemedText>
                 <ThemedText themeColor="textSecondary" style={styles.emptyBody}>
                   Rest day — recover and get ready for tomorrow.
@@ -177,7 +185,7 @@ export default function HomeScreen() {
             {todaysExercises.length > 0 ? (
               <View style={styles.section}>
                 <ThemedText fontWeight="700" style={styles.sectionTitle}>
-                  Today’s Exercises
+                  {exercisesHeading}
                 </ThemedText>
                 <View style={styles.list}>
                   {todaysExercises.map((exercise) => (
