@@ -115,9 +115,10 @@ export function WeekCaloriesStrip({
                 <View
                   style={[
                     styles.miniCard,
-                    // Transparent when selected so the sliding accent pill
-                    // underneath shows through as this card's fill.
-                    { backgroundColor: isSelected ? 'transparent' : theme.surface },
+                    // Always transparent — an opaque fill here would sit on
+                    // top of the sliding accent pill and hide it mid-slide.
+                    // A hairline border keeps the card outline without that.
+                    { borderColor: theme.border },
                   ]}>
                   <ThemedText
                     fontWeight="700"
@@ -184,6 +185,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderCurve: 'continuous',
     borderRadius: MINI_CARD_RADIUS,
+    borderWidth: StyleSheet.hairlineWidth || 1,
     paddingHorizontal: Spacing.half,
   },
   value: {
