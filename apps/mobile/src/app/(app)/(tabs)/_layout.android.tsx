@@ -47,6 +47,11 @@ export default function AndroidTabLayout() {
             tabBar={(props) => <TabBarPropsSync {...props} />}
             screenOptions={{
               headerShown: false,
+              animation: 'fade',
+              transitionSpec: {
+                animation: 'timing',
+                config: { duration: 150 },
+              },
             }}>
             <Tabs.Screen
               name="index"

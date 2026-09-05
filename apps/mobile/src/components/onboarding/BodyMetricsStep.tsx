@@ -1,9 +1,10 @@
 import { LIMITS, UNIT_CONVERSION } from '@/constants/app';
 import type { UnitSystem } from '@fitness/types';
 import { SegmentedControl } from '@expo/ui/community/segmented-control';
-import { useState } from 'react';
-import { StyleSheet, TextInput, View } from 'react-native';
+import { useEffect } from 'react';
+import { StyleSheet, View } from 'react-native';
 
+import RulerSlider from '@/components/ui/RulerSlider';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Brand, Spacing } from '@/constants/theme';
@@ -17,6 +18,11 @@ interface BodyMetricsStepProps {
 }
 
 type Metric = 'height' | 'weight';
+
+// Sensible starting points so the ruler always shows a valid, in-range value —
+// the user can scroll from here instead of having to type something first.
+const DEFAULT_HEIGHT_CM = 170;
+const DEFAULT_WEIGHT_KG = 65;
 
 const round = (value: number): number => Math.round(value * 10) / 10;
 
@@ -39,12 +45,16 @@ function unitLabel(metric: Metric, system: UnitSystem): string {
   return system === 'imperial' ? 'lbs' : 'kg';
 }
 
-function rangeMessage(metric: Metric, system: UnitSystem): string {
+/** Ruler bounds/step, derived from the metric LIMITS so nothing reachable in kg/cm becomes unreachable after a unit toggle. */
+function rulerRange(metric: Metric, system: UnitSystem) {
   const limits = metric === 'height' ? LIMITS.heightCm : LIMITS.bodyWeightKg;
-  const min = toDisplay(limits.min, metric, system);
-  const max = toDisplay(limits.max, metric, system);
-  const noun = metric === 'height' ? 'Height' : 'Weight';
-  return `${noun} must be between ${min} and ${max} ${unitLabel(metric, system)}`;
+  const min = Math.round(toDisplay(limits.min, metric, system));
+  const max = Math.round(toDisplay(limits.max, metric, system));
+
+  if (metric === 'height') return { min, max, step: 1, majorStep: 10 };
+  return system === 'metric'
+    ? { min, max, step: 0.5, majorStep: 10 }
+    : { min, max, step: 1, majorStep: 10 };
 }
 
 export default function BodyMetricsStep({
@@ -54,56 +64,27 @@ export default function BodyMetricsStep({
   onChange,
 }: BodyMetricsStepProps) {
   const theme = useTheme();
-  const [height, setHeight] = useState(
-    heightCm === undefined ? '' : String(toDisplay(heightCm, 'height', unitSystem)),
-  );
-  const [weight, setWeight] = useState(
-    weightKg === undefined ? '' : String(toDisplay(weightKg, 'weight', unitSystem)),
-  );
-  const [heightError, setHeightError] = useState<string | null>(null);
-  const [weightError, setWeightError] = useState<string | null>(null);
 
-  const handleValueChange = (metric: Metric, text: string) => {
-    const setText = metric === 'height' ? setHeight : setWeight;
-    const setError = metric === 'height' ? setHeightError : setWeightError;
-    const limits = metric === 'height' ? LIMITS.heightCm : LIMITS.bodyWeightKg;
-    const emit = (value: number | undefined) =>
-      onChange(metric === 'height' ? { heightCm: value } : { weightKg: value });
-
-    setText(text);
-    setError(null);
-
-    if (text.trim() === '') {
-      emit(undefined);
-      return;
+  // Seed defaults once so the ruler starts on a real value and "Continue"
+  // doesn't require an interaction before it becomes reachable.
+  useEffect(() => {
+    if (heightCm === undefined || weightKg === undefined) {
+      onChange({
+        heightCm: heightCm ?? DEFAULT_HEIGHT_CM,
+        weightKg: weightKg ?? DEFAULT_WEIGHT_KG,
+      });
     }
-
-    const parsed = Number.parseFloat(text);
-    if (Number.isNaN(parsed)) {
-      setError(rangeMessage(metric, unitSystem));
-      emit(undefined);
-      return;
-    }
-
-    const metricValue = round(toMetric(parsed, metric, unitSystem));
-    if (metricValue < limits.min || metricValue > limits.max) {
-      setError(rangeMessage(metric, unitSystem));
-      emit(undefined);
-      return;
-    }
-
-    emit(metricValue);
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- run once on mount only
+  }, []);
 
   const handleUnitChange = (system: UnitSystem) => {
-    if (system === unitSystem) return;
-
-    setHeight(heightCm === undefined ? '' : String(toDisplay(heightCm, 'height', system)));
-    setWeight(weightKg === undefined ? '' : String(toDisplay(weightKg, 'weight', system)));
-    setHeightError(null);
-    setWeightError(null);
-    onChange({ unitSystem: system });
+    if (system !== unitSystem) onChange({ unitSystem: system });
   };
+
+  const heightRange = rulerRange('height', unitSystem);
+  const weightRange = rulerRange('weight', unitSystem);
+  const displayHeight = toDisplay(heightCm ?? DEFAULT_HEIGHT_CM, 'height', unitSystem);
+  const displayWeight = toDisplay(weightKg ?? DEFAULT_WEIGHT_KG, 'weight', unitSystem);
 
   return (
     <ThemedView style={styles.container}>
@@ -124,60 +105,30 @@ export default function BodyMetricsStep({
         />
       </View>
 
-      <View style={styles.inputGroup}>
+      <View style={styles.sliderGroup}>
         <ThemedText type="smallBold" style={styles.label}>
-          Height ({unitLabel('height', unitSystem)})
+          Height
         </ThemedText>
-        <TextInput
-          style={[
-            styles.input,
-            {
-              backgroundColor: theme.backgroundElement,
-              color: theme.text,
-              borderWidth: heightError ? 1.5 : 0,
-              borderColor: '#ff3b30',
-            },
-          ]}
-          placeholder={unitSystem === 'imperial' ? 'e.g., 69' : 'e.g., 175'}
-          placeholderTextColor={theme.textSecondary}
-          value={height}
-          onChangeText={(text) => handleValueChange('height', text)}
-          keyboardType="numeric"
-          returnKeyType="done"
+        <RulerSlider
+          {...heightRange}
+          value={displayHeight}
+          unitLabel={unitLabel('height', unitSystem)}
+          accessibilityLabel="Height"
+          onChange={(value) => onChange({ heightCm: round(toMetric(value, 'height', unitSystem)) })}
         />
-        {heightError ? (
-          <ThemedText type="small" style={styles.errorText}>
-            {heightError}
-          </ThemedText>
-        ) : null}
       </View>
 
-      <View style={styles.inputGroup}>
+      <View style={styles.sliderGroup}>
         <ThemedText type="smallBold" style={styles.label}>
-          Weight ({unitLabel('weight', unitSystem)})
+          Weight
         </ThemedText>
-        <TextInput
-          style={[
-            styles.input,
-            {
-              backgroundColor: theme.backgroundElement,
-              color: theme.text,
-              borderWidth: weightError ? 1.5 : 0,
-              borderColor: '#ff3b30',
-            },
-          ]}
-          placeholder={unitSystem === 'imperial' ? 'e.g., 155' : 'e.g., 70'}
-          placeholderTextColor={theme.textSecondary}
-          value={weight}
-          onChangeText={(text) => handleValueChange('weight', text)}
-          keyboardType="numeric"
-          returnKeyType="done"
+        <RulerSlider
+          {...weightRange}
+          value={displayWeight}
+          unitLabel={unitLabel('weight', unitSystem)}
+          accessibilityLabel="Weight"
+          onChange={(value) => onChange({ weightKg: round(toMetric(value, 'weight', unitSystem)) })}
         />
-        {weightError ? (
-          <ThemedText type="small" style={styles.errorText}>
-            {weightError}
-          </ThemedText>
-        ) : null}
       </View>
 
       <ThemedText type="small" style={[styles.hint, { color: theme.textSecondary }]}>
@@ -209,25 +160,12 @@ const styles = StyleSheet.create({
     width: 180,
     height: 32,
   },
-  inputGroup: {
+  sliderGroup: {
     width: '100%',
-    marginBottom: Spacing.three,
+    marginBottom: Spacing.four,
   },
   label: {
     marginBottom: Spacing.two,
-  },
-  input: {
-    width: '100%',
-    paddingHorizontal: Spacing.four,
-    paddingVertical: Spacing.three,
-    borderRadius: 999,
-    fontSize: 16,
-    fontWeight: '500',
-  },
-  errorText: {
-    color: '#ff3b30',
-    fontSize: 12,
-    marginTop: Spacing.one,
   },
   hint: {
     fontSize: 12,
