@@ -5,7 +5,6 @@ import type {
   WorkoutRoutine,
 } from '@fitness/types';
 import {
-  keepPreviousData,
   queryOptions,
   useMutation,
   useQuery,
@@ -45,11 +44,6 @@ export class WorkoutRoutinesQueries {
       // Short — steps/completed sets change through the day and this drives
       // the home screen's live rings.
       staleTime: 60 * 1000,
-      // Keep showing the previously-selected day's data while a newly
-      // selected day is still loading, instead of `data` going undefined —
-      // the home screen's rings/exercise list would otherwise flash to
-      // zero/empty every time the selected day changes.
-      placeholderData: keepPreviousData,
       // Poll while the plan is still generating, so the loading state clears
       // on its own once it's ready instead of waiting for the next reopen.
       refetchInterval: (query) =>

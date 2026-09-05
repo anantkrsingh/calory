@@ -15,6 +15,7 @@ import Animated, {
 import { TabScreen } from "@/components/tab-screen";
 import { ThemedText } from "@/components/themed-text";
 import { CircularProgressRing } from "@/components/ui/CircularProgressRing";
+import { DaySummarySkeleton } from "@/components/home/DaySummarySkeleton";
 import { RoutineGeneratingCard } from "@/components/home/RoutineGeneratingCard";
 import { TodayExerciseRow } from "@/components/home/TodayExerciseRow";
 import { WeekCaloriesStrip } from "@/components/home/WeekCaloriesStrip";
@@ -44,7 +45,11 @@ export default function HomeScreen() {
   const [selectedDate, setSelectedDate] = useState(today);
   const isSelectedToday = selectedDate === today;
   const { data: quote, refetch: refetchQuote } = useTodayQuote();
-  const { data: routine, refetch: refetchRoutine } = useTodayRoutine(selectedDate);
+  const {
+    data: routine,
+    refetch: refetchRoutine,
+    isLoading: isRoutineLoading,
+  } = useTodayRoutine(selectedDate);
   const { data: weekCalories, refetch: refetchWeekCalories } = useWeekCalories(
     weekDates[0],
     weekDates[6],
@@ -94,16 +99,19 @@ export default function HomeScreen() {
     [router],
   );
 
-  // Crossfades the rings/exercises block when the selected day changes —
-  // a persistent opacity animation rather than unmounting/remounting the
-  // subtree, which inside a ScrollView caused the outgoing content to hold
-  // its last layout position while the incoming content jumped in,
-  // overlapping and glitching instead of a clean fade.
+  // Crossfades the rings/exercises block whenever the selected day changes
+  // OR that day's data finishes loading — a persistent opacity animation
+  // rather than unmounting/remounting the subtree, which inside a
+  // ScrollView caused the outgoing content to hold its last layout position
+  // while the incoming content jumped in, overlapping and glitching instead
+  // of a clean fade. Driven by `isRoutineLoading` (not a fixed timer), so
+  // the fade-in only happens once the real data for that day has actually
+  // arrived — a skeleton fills the gap while it hasn't.
   const dayContentOpacity = useSharedValue(1);
-  const isFirstDayRender = useRef(true);
+  const isFirstDayEffect = useRef(true);
   useEffect(() => {
-    if (isFirstDayRender.current) {
-      isFirstDayRender.current = false;
+    if (isFirstDayEffect.current) {
+      isFirstDayEffect.current = false;
       return;
     }
     dayContentOpacity.value = withTiming(
@@ -112,13 +120,13 @@ export default function HomeScreen() {
       (finished) => {
         if (finished) {
           dayContentOpacity.value = withTiming(1, {
-            duration: 200,
+            duration: 220,
             easing: Easing.out(Easing.cubic),
           });
         }
       },
     );
-  }, [selectedDate, dayContentOpacity]);
+  }, [selectedDate, isRoutineLoading, dayContentOpacity]);
   const dayContentStyle = useAnimatedStyle(() => ({
     opacity: dayContentOpacity.value,
   }));
@@ -164,75 +172,81 @@ export default function HomeScreen() {
             ) : null}
 
             <Animated.View style={[styles.dayContent, dayContentStyle]}>
-              <View style={styles.ringsRow}>
-                <View
-                  style={[
-                    styles.ringCard,
-                    { backgroundColor: theme.surface, borderColor: theme.border },
-                  ]}>
-                  <CircularProgressRing
-                    value={steps}
-                    target={stepsGoal}
-                    unit="steps"
-                    size={RING_SIZE}
-                    strokeWidth={RING_STROKE}
-                    icon={
-                      <Footprints
-                        color={Brand.accent}
-                        size={RING_ICON_SIZE}
-                        strokeWidth={2}
+              {isRoutineLoading ? (
+                <DaySummarySkeleton />
+              ) : (
+                <>
+                  <View style={styles.ringsRow}>
+                    <View
+                      style={[
+                        styles.ringCard,
+                        { backgroundColor: theme.surface, borderColor: theme.border },
+                      ]}>
+                      <CircularProgressRing
+                        value={steps}
+                        target={stepsGoal}
+                        unit="steps"
+                        size={RING_SIZE}
+                        strokeWidth={RING_STROKE}
+                        icon={
+                          <Footprints
+                            color={Brand.accent}
+                            size={RING_ICON_SIZE}
+                            strokeWidth={2}
+                          />
+                        }
                       />
-                    }
-                  />
-                </View>
-                <View
-                  style={[
-                    styles.ringCard,
-                    { backgroundColor: theme.surface, borderColor: theme.border },
-                  ]}>
-                  <CircularProgressRing
-                    value={burned}
-                    target={target}
-                    size={RING_SIZE}
-                    strokeWidth={RING_STROKE}
-                    icon={
-                      <Flame
-                        color={Brand.accent}
-                        size={RING_ICON_SIZE}
-                        strokeWidth={2}
+                    </View>
+                    <View
+                      style={[
+                        styles.ringCard,
+                        { backgroundColor: theme.surface, borderColor: theme.border },
+                      ]}>
+                      <CircularProgressRing
+                        value={burned}
+                        target={target}
+                        size={RING_SIZE}
+                        strokeWidth={RING_STROKE}
+                        icon={
+                          <Flame
+                            color={Brand.accent}
+                            size={RING_ICON_SIZE}
+                            strokeWidth={2}
+                          />
+                        }
                       />
-                    }
-                  />
-                </View>
-              </View>
-
-              {routine?.day?.status === "rest" ? (
-                <View style={styles.section}>
-                  <ThemedText fontWeight="700" style={styles.sectionTitle}>
-                    {exercisesHeading}
-                  </ThemedText>
-                  <ThemedText themeColor="textSecondary" style={styles.emptyBody}>
-                    Rest day — recover and get ready for tomorrow.
-                  </ThemedText>
-                </View>
-              ) : null}
-
-              {todaysExercises.length > 0 ? (
-                <View style={styles.section}>
-                  <ThemedText fontWeight="700" style={styles.sectionTitle}>
-                    {exercisesHeading}
-                  </ThemedText>
-                  <View style={styles.list}>
-                    {todaysExercises.map((exercise) => (
-                      <TodayExerciseRow
-                        key={exercise.exerciseId}
-                        exercise={exercise}
-                        onPress={openExercise}
-                      />
-                    ))}
+                    </View>
                   </View>
-                </View>
-              ) : null}
+
+                  {routine?.day?.status === "rest" ? (
+                    <View style={styles.section}>
+                      <ThemedText fontWeight="700" style={styles.sectionTitle}>
+                        {exercisesHeading}
+                      </ThemedText>
+                      <ThemedText themeColor="textSecondary" style={styles.emptyBody}>
+                        Rest day — recover and get ready for tomorrow.
+                      </ThemedText>
+                    </View>
+                  ) : null}
+
+                  {todaysExercises.length > 0 ? (
+                    <View style={styles.section}>
+                      <ThemedText fontWeight="700" style={styles.sectionTitle}>
+                        {exercisesHeading}
+                      </ThemedText>
+                      <View style={styles.list}>
+                        {todaysExercises.map((exercise) => (
+                          <TodayExerciseRow
+                            key={exercise.exerciseId}
+                            exercise={exercise}
+                            onPress={openExercise}
+                          />
+                        ))}
+                      </View>
+                    </View>
+                  ) : null}
+                </>
+              )}
             </Animated.View>
           </>
         )}
