@@ -5,6 +5,7 @@ import { Flame, Footprints } from "lucide-react-native";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { RefreshControl, ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
 
 import { TabScreen } from "@/components/tab-screen";
 import { ThemedText } from "@/components/themed-text";
@@ -128,75 +129,81 @@ export default function HomeScreen() {
               />
             ) : null}
 
-            <View style={styles.ringsRow}>
-              <View
-                style={[
-                  styles.ringCard,
-                  { backgroundColor: theme.surface, borderColor: theme.border },
-                ]}>
-                <CircularProgressRing
-                  value={steps}
-                  target={stepsGoal}
-                  unit="steps"
-                  size={RING_SIZE}
-                  strokeWidth={RING_STROKE}
-                  icon={
-                    <Footprints
-                      color={Brand.accent}
-                      size={RING_ICON_SIZE}
-                      strokeWidth={2}
-                    />
-                  }
-                />
-              </View>
-              <View
-                style={[
-                  styles.ringCard,
-                  { backgroundColor: theme.surface, borderColor: theme.border },
-                ]}>
-                <CircularProgressRing
-                  value={burned}
-                  target={target}
-                  size={RING_SIZE}
-                  strokeWidth={RING_STROKE}
-                  icon={
-                    <Flame
-                      color={Brand.accent}
-                      size={RING_ICON_SIZE}
-                      strokeWidth={2}
-                    />
-                  }
-                />
-              </View>
-            </View>
-
-            {routine?.day?.status === "rest" ? (
-              <View style={styles.section}>
-                <ThemedText fontWeight="700" style={styles.sectionTitle}>
-                  {exercisesHeading}
-                </ThemedText>
-                <ThemedText themeColor="textSecondary" style={styles.emptyBody}>
-                  Rest day — recover and get ready for tomorrow.
-                </ThemedText>
-              </View>
-            ) : null}
-
-            {todaysExercises.length > 0 ? (
-              <View style={styles.section}>
-                <ThemedText fontWeight="700" style={styles.sectionTitle}>
-                  {exercisesHeading}
-                </ThemedText>
-                <View style={styles.list}>
-                  {todaysExercises.map((exercise) => (
-                    <TodayExerciseRow
-                      key={exercise.exerciseId}
-                      exercise={exercise}
-                      onPress={openExercise}
-                    />
-                  ))}
+            <Animated.View
+              key={selectedDate}
+              entering={FadeIn.duration(220)}
+              exiting={FadeOut.duration(120)}
+              style={styles.dayContent}>
+              <View style={styles.ringsRow}>
+                <View
+                  style={[
+                    styles.ringCard,
+                    { backgroundColor: theme.surface, borderColor: theme.border },
+                  ]}>
+                  <CircularProgressRing
+                    value={steps}
+                    target={stepsGoal}
+                    unit="steps"
+                    size={RING_SIZE}
+                    strokeWidth={RING_STROKE}
+                    icon={
+                      <Footprints
+                        color={Brand.accent}
+                        size={RING_ICON_SIZE}
+                        strokeWidth={2}
+                      />
+                    }
+                  />
+                </View>
+                <View
+                  style={[
+                    styles.ringCard,
+                    { backgroundColor: theme.surface, borderColor: theme.border },
+                  ]}>
+                  <CircularProgressRing
+                    value={burned}
+                    target={target}
+                    size={RING_SIZE}
+                    strokeWidth={RING_STROKE}
+                    icon={
+                      <Flame
+                        color={Brand.accent}
+                        size={RING_ICON_SIZE}
+                        strokeWidth={2}
+                      />
+                    }
+                  />
                 </View>
               </View>
-            ) : null}
+
+              {routine?.day?.status === "rest" ? (
+                <View style={styles.section}>
+                  <ThemedText fontWeight="700" style={styles.sectionTitle}>
+                    {exercisesHeading}
+                  </ThemedText>
+                  <ThemedText themeColor="textSecondary" style={styles.emptyBody}>
+                    Rest day — recover and get ready for tomorrow.
+                  </ThemedText>
+                </View>
+              ) : null}
+
+              {todaysExercises.length > 0 ? (
+                <View style={styles.section}>
+                  <ThemedText fontWeight="700" style={styles.sectionTitle}>
+                    {exercisesHeading}
+                  </ThemedText>
+                  <View style={styles.list}>
+                    {todaysExercises.map((exercise) => (
+                      <TodayExerciseRow
+                        key={exercise.exerciseId}
+                        exercise={exercise}
+                        onPress={openExercise}
+                      />
+                    ))}
+                  </View>
+                </View>
+              ) : null}
+            </Animated.View>
           </>
         )}
       </ScrollView>
@@ -233,6 +240,10 @@ const styles = StyleSheet.create({
     textAlign: "left",
     fontSize: 18,
     lineHeight: 26,
+  },
+  dayContent: {
+    alignSelf: "stretch",
+    gap: Spacing.four,
   },
   ringsRow: {
     alignSelf: "stretch",
