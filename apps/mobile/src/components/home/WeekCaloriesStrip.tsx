@@ -89,10 +89,34 @@ export function WeekCaloriesStrip({
   return (
     <View style={[styles.card, { backgroundColor: cardBackground }]}>
       <View style={styles.miniCardsWrapper} onLayout={handleLayout}>
+        {columnWidth > 0
+          ? // Static per-day backgrounds, one absolutely-positioned rect per
+            // column, painted first (behind everything). Same size as the
+            // mini card content below, so dimensions never change.
+            days.map((day, index) => (
+              <View
+                key={day.date}
+                pointerEvents="none"
+                style={[
+                  styles.miniCard,
+                  styles.miniCardBackground,
+                  {
+                    left: index * (columnWidth + MINI_CARD_GAP),
+                    width: columnWidth,
+                    backgroundColor: theme.surface,
+                    borderColor: theme.border,
+                  },
+                ]}
+              />
+            ))
+          : null}
+
         {columnWidth > 0 ? (
+          // The active day's highlight — painted after (above) every static
+          // background above, so it's never hidden as it slides under them.
           <Animated.View
             pointerEvents="none"
-            style={[styles.pill, { backgroundColor: Brand.accent }, pillStyle]}
+            style={[styles.miniCard, styles.pill, { backgroundColor: Brand.accent }, pillStyle]}
           />
         ) : null}
 
@@ -112,14 +136,7 @@ export function WeekCaloriesStrip({
                 accessibilityState={{ selected: isSelected, disabled: !isPastOrToday }}
                 onPress={() => onSelectDate(day.date)}
                 style={styles.column}>
-                <View
-                  style={[
-                    styles.miniCard,
-                    // Always transparent — an opaque fill here would sit on
-                    // top of the sliding accent pill and hide it mid-slide.
-                    // A hairline border keeps the card outline without that.
-                    { borderColor: theme.border },
-                  ]}>
+                <View style={styles.miniCardContent}>
                   <ThemedText
                     fontWeight="700"
                     numberOfLines={1}
@@ -158,34 +175,47 @@ const styles = StyleSheet.create({
     padding: Spacing.three,
   },
   miniCardsWrapper: {
-    // Positioning context for the sliding accent pill, which sits behind
-    // the row of mini cards and animates between their positions.
+    // Positioning context for the per-day background rects and the sliding
+    // accent pill, both absolutely positioned behind the row of mini cards.
   },
+  miniCard: {
+    height: MINI_CARD_HEIGHT,
+    borderCurve: 'continuous',
+    borderRadius: MINI_CARD_RADIUS,
+  },
+  // Static per-day background — always painted first (z-index 0), so the
+  // sliding pill above it is never hidden as it passes underneath.
+  miniCardBackground: {
+    position: 'absolute',
+    top: 0,
+    borderWidth: StyleSheet.hairlineWidth || 1,
+    zIndex: 0,
+  },
+  // The active day's highlight — painted above every static background
+  // (z-index 1) so it stays visible for the whole slide.
   pill: {
     position: 'absolute',
     top: 0,
     left: 0,
-    height: MINI_CARD_HEIGHT,
-    borderRadius: MINI_CARD_RADIUS,
-    borderCurve: 'continuous',
+    zIndex: 1,
   },
+  // The actual row of touch targets + text, painted last (z-index 2) so
+  // labels/numbers always stay on top of both layers above.
   row: {
     flexDirection: 'row',
     gap: MINI_CARD_GAP,
+    zIndex: 2,
   },
   column: {
     flex: 1,
     alignItems: 'center',
     gap: Spacing.one,
   },
-  miniCard: {
+  miniCardContent: {
     alignSelf: 'stretch',
     height: MINI_CARD_HEIGHT,
     alignItems: 'center',
     justifyContent: 'center',
-    borderCurve: 'continuous',
-    borderRadius: MINI_CARD_RADIUS,
-    borderWidth: StyleSheet.hairlineWidth || 1,
     paddingHorizontal: Spacing.half,
   },
   value: {

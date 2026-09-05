@@ -32,13 +32,11 @@ import {
 } from "@/components/profile/DeleteAccountSheet";
 import PrimaryButton from "@/components/ui/PrimaryButton";
 import { BottomTabInset, Brand, Pressed, Spacing } from "@/constants/theme";
+import { useColorScheme } from "@/hooks/use-color-scheme";
 import { useTheme } from "@/hooks/use-theme";
 import { displayNameOf, initialsOf } from "@/lib/user";
 import { selectUser, useAuthStore } from "@/stores/auth.store";
-import {
-  selectIsDarkMode,
-  useThemeStore,
-} from "@/stores/theme.store";
+import { useThemeStore } from "@/stores/theme.store";
 
 const PRIVACY_POLICY_URL = "https://caloryfitness.netlify.app/privacy";
 const TERMS_OF_SERVICE_URL = "https://caloryfitness.netlify.app/terms";
@@ -57,7 +55,9 @@ export default function ProfileScreen() {
   const theme = useTheme();
   const user = useAuthStore(selectUser);
   const clearAuth = useAuthStore((state) => state.clear);
-  const isDarkMode = useThemeStore(selectIsDarkMode);
+  // Effective scheme — the user's explicit choice if they've made one,
+  // otherwise whatever the device's system Appearance is currently set to.
+  const isDarkMode = useColorScheme() === "dark";
   const setThemePreference = useThemeStore((s) => s.setPreference);
   const deleteAccountSheetRef = useRef<DeleteAccountSheetRef>(null);
 

@@ -33,9 +33,9 @@ export default function PrimaryButton({
   const theme = useTheme();
   const isDark = useColorScheme() === 'dark';
   const colors = TONE_COLORS[tone];
-  // The near-black ink ring reads as invisible on a dark background, so danger
-  // buttons swap it for a light ring there instead.
-  const frameColor = tone === 'danger' && isDark ? theme.backgroundSelected : colors.frame;
+  // Both tones share the same near-black ink ring, which reads as nearly
+  // invisible against a dark background — swap it for a light ring there.
+  const frameColor = isDark ? theme.backgroundSelected : colors.frame;
 
   return (
     <Pressable
