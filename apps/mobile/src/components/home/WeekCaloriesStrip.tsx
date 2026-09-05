@@ -2,6 +2,7 @@ import type { DailyCaloriesBurned } from '@fitness/types';
 import { useEffect, useRef, useState } from 'react';
 import {
   LayoutChangeEvent,
+  Platform,
   Pressable,
   StyleSheet,
   View,
@@ -173,6 +174,18 @@ const styles = StyleSheet.create({
     borderCurve: 'continuous',
     borderRadius: 20,
     padding: Spacing.three,
+    ...Platform.select({
+      android: {
+        elevation: 3,
+      },
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.08,
+        shadowRadius: 10,
+      },
+      default: {},
+    }),
   },
   miniCardsWrapper: {
     // Positioning context for the per-day background rects and the sliding

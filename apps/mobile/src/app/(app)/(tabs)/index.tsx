@@ -241,10 +241,12 @@ const styles = StyleSheet.create({
   },
   ringCard: {
     alignItems: "center",
+    aspectRatio: 1,
     borderCurve: "continuous",
     borderRadius: 20,
     borderWidth: StyleSheet.hairlineWidth || 1,
     flex: 1,
+    justifyContent: "center",
     padding: Spacing.three,
   },
   section: {
