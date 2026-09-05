@@ -2,15 +2,9 @@ import { DEFAULT_DAILY_STEPS_GOAL } from "@/constants/app";
 import type { TodayRoutineExercise } from "@fitness/types";
 import { useRouter } from "expo-router";
 import { Flame, Footprints } from "lucide-react-native";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { RefreshControl, ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import Animated, {
-  Easing,
-  useAnimatedStyle,
-  useSharedValue,
-  withTiming,
-} from "react-native-reanimated";
 
 import { TabScreen } from "@/components/tab-screen";
 import { ThemedText } from "@/components/themed-text";
@@ -99,38 +93,6 @@ export default function HomeScreen() {
     [router],
   );
 
-  // Crossfades the rings/exercises block whenever the selected day changes
-  // OR that day's data finishes loading — a persistent opacity animation
-  // rather than unmounting/remounting the subtree, which inside a
-  // ScrollView caused the outgoing content to hold its last layout position
-  // while the incoming content jumped in, overlapping and glitching instead
-  // of a clean fade. Driven by `isRoutineLoading` (not a fixed timer), so
-  // the fade-in only happens once the real data for that day has actually
-  // arrived — a skeleton fills the gap while it hasn't.
-  const dayContentOpacity = useSharedValue(1);
-  const isFirstDayEffect = useRef(true);
-  useEffect(() => {
-    if (isFirstDayEffect.current) {
-      isFirstDayEffect.current = false;
-      return;
-    }
-    dayContentOpacity.value = withTiming(
-      0,
-      { duration: 100, easing: Easing.out(Easing.cubic) },
-      (finished) => {
-        if (finished) {
-          dayContentOpacity.value = withTiming(1, {
-            duration: 220,
-            easing: Easing.out(Easing.cubic),
-          });
-        }
-      },
-    );
-  }, [selectedDate, isRoutineLoading, dayContentOpacity]);
-  const dayContentStyle = useAnimatedStyle(() => ({
-    opacity: dayContentOpacity.value,
-  }));
-
   return (
     <TabScreen contentStyle={styles.content}>
       <ScrollView
@@ -171,7 +133,7 @@ export default function HomeScreen() {
               />
             ) : null}
 
-            <Animated.View style={[styles.dayContent, dayContentStyle]}>
+            <View style={styles.dayContent}>
               {isRoutineLoading ? (
                 <DaySummarySkeleton />
               ) : (
@@ -247,7 +209,7 @@ export default function HomeScreen() {
                   ) : null}
                 </>
               )}
-            </Animated.View>
+            </View>
           </>
         )}
       </ScrollView>
