@@ -10,6 +10,22 @@ export function todayIsoDate(): string {
   return formatIsoDate(new Date());
 }
 
+const WEEKDAY_NAMES = [
+  'Sunday',
+  'Monday',
+  'Tuesday',
+  'Wednesday',
+  'Thursday',
+  'Friday',
+  'Saturday',
+];
+
+/** Full weekday name (e.g. "Tuesday") for a local `YYYY-MM-DD` date string. */
+export function weekdayName(date: string): string {
+  const [year, month, day] = date.split('-').map(Number);
+  return WEEKDAY_NAMES[new Date(year, month - 1, day).getDay()];
+}
+
 /** The 7 local-calendar dates (Sunday first) of the week containing today. */
 export function currentWeekDates(): string[] {
   const now = new Date();
