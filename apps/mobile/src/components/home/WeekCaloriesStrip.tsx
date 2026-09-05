@@ -2,7 +2,6 @@ import type { DailyCaloriesBurned } from '@fitness/types';
 import { useEffect, useRef, useState } from 'react';
 import {
   LayoutChangeEvent,
-  Platform,
   Pressable,
   StyleSheet,
   View,
@@ -80,6 +79,7 @@ export function WeekCaloriesStrip({
 
   const pillStyle = useAnimatedStyle(() => ({
     width: columnWidth,
+    height: columnWidth,
     transform: [{ translateX: translateX.value }],
   }));
 
@@ -103,7 +103,10 @@ export function WeekCaloriesStrip({
                   styles.miniCardBackground,
                   {
                     left: index * (columnWidth + MINI_CARD_GAP),
+                    // Square — width and height both equal the computed
+                    // column width, so it's never a stretched rectangle.
                     width: columnWidth,
+                    height: columnWidth,
                     backgroundColor: theme.surface,
                     borderColor: theme.border,
                   },
@@ -137,7 +140,15 @@ export function WeekCaloriesStrip({
                 accessibilityState={{ selected: isSelected, disabled: !isPastOrToday }}
                 onPress={() => onSelectDate(day.date)}
                 style={styles.column}>
-                <View style={styles.miniCardContent}>
+                <View
+                  style={[
+                    styles.miniCardContent,
+                    // Falls back to MINI_CARD_HEIGHT for the one frame before
+                    // `columnWidth` is known, then matches it exactly so this
+                    // box — which is what actually gives the row its height —
+                    // stays square in step with the background/pill above.
+                    { height: columnWidth > 0 ? columnWidth : MINI_CARD_HEIGHT },
+                  ]}>
                   <ThemedText
                     fontWeight="700"
                     numberOfLines={1}
@@ -174,25 +185,16 @@ const styles = StyleSheet.create({
     borderCurve: 'continuous',
     borderRadius: 20,
     padding: Spacing.three,
-    ...Platform.select({
-      android: {
-        elevation: 3,
-      },
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.08,
-        shadowRadius: 10,
-      },
-      default: {},
-    }),
+    // Tailwind's default `shadow` — two stacked layers, both a soft 10%-black.
+    boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1)',
   },
   miniCardsWrapper: {
     // Positioning context for the per-day background rects and the sliding
     // accent pill, both absolutely positioned behind the row of mini cards.
   },
   miniCard: {
-    height: MINI_CARD_HEIGHT,
+    // Height comes from `columnWidth` at each call site instead of a fixed
+    // constant, so the card is always a square rather than a rectangle.
     borderCurve: 'continuous',
     borderRadius: MINI_CARD_RADIUS,
   },
@@ -226,7 +228,6 @@ const styles = StyleSheet.create({
   },
   miniCardContent: {
     alignSelf: 'stretch',
-    height: MINI_CARD_HEIGHT,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: Spacing.half,
