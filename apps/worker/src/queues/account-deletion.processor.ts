@@ -24,6 +24,12 @@ const ACCOUNT_DELETION_GRACE_DAYS = 30;
 // left over is picked up by the next scheduled run.
 const SWEEP_BATCH_SIZE = 200;
 
+/** Thrown to abort a single account's delete transaction when a re-check
+ * finds the deletion was cancelled (user logged back in) after the sweep's
+ * initial scan — never a real failure, so it's handled separately from
+ * `catch`'s error-logging branch. */
+class CancelledDeletionError extends Error {}
+
 @Injectable()
 export class AccountDeletionProcessor implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(AccountDeletionProcessor.name);
@@ -111,6 +117,7 @@ export class AccountDeletionProcessor implements OnModuleInit, OnModuleDestroy {
     });
 
     let deleted = 0;
+    let cancelled = 0;
     for (const { id } of expired) {
       try {
         // RoutineDay/RoutineDayExercise are normalized out of WorkoutRoutine
@@ -133,31 +140,59 @@ export class AccountDeletionProcessor implements OnModuleInit, OnModuleDestroy {
             ).map((day) => day.id)
           : [];
 
-        await this.prisma.$transaction([
-          this.prisma.routineDayExercise.deleteMany({
+        // Interactive transaction: the `findMany` above ran once for the whole
+        // batch, and this account may have logged back in (which clears
+        // `deletionRequestedAt` — see `AuthService.login`/`loginSocial`) any
+        // time between that query and this account's turn in the loop, which
+        // for a full batch of `SWEEP_BATCH_SIZE` can be a while. Re-checking
+        // here, inside the same transaction as the deletes, closes that
+        // window instead of blindly deleting whatever the initial scan saw.
+        await this.prisma.$transaction(async (tx) => {
+          const current = await tx.user.findUnique({
+            where: { id },
+            select: { deletionRequestedAt: true },
+          });
+          if (
+            !current?.deletionRequestedAt ||
+            current.deletionRequestedAt > cutoff
+          ) {
+            throw new CancelledDeletionError();
+          }
+
+          await tx.routineDayExercise.deleteMany({
             where: { dayId: { in: dayIds } },
-          }),
-          this.prisma.routineDay.deleteMany({
+          });
+          await tx.routineDay.deleteMany({
             where: { routineId: { in: routineIds } },
-          }),
-          this.prisma.workout.deleteMany({ where: { userId: id } }),
-          this.prisma.routine.deleteMany({ where: { userId: id } }),
-          this.prisma.bodyMeasurement.deleteMany({ where: { userId: id } }),
-          this.prisma.goal.deleteMany({ where: { userId: id } }),
-          this.prisma.exercise.deleteMany({ where: { createdById: id } }),
-          this.prisma.workoutRoutine.deleteMany({ where: { userId: id } }),
-          this.prisma.chatConversation.deleteMany({ where: { userId: id } }),
-          this.prisma.dailySteps.deleteMany({ where: { userId: id } }),
-          this.prisma.user.delete({ where: { id } }),
-        ]);
+          });
+          await tx.workout.deleteMany({ where: { userId: id } });
+          await tx.routine.deleteMany({ where: { userId: id } });
+          await tx.bodyMeasurement.deleteMany({ where: { userId: id } });
+          await tx.goal.deleteMany({ where: { userId: id } });
+          await tx.exercise.deleteMany({ where: { createdById: id } });
+          await tx.workoutRoutine.deleteMany({ where: { userId: id } });
+          await tx.chatConversation.deleteMany({ where: { userId: id } });
+          await tx.dailySteps.deleteMany({ where: { userId: id } });
+          await tx.user.delete({ where: { id } });
+        });
         deleted += 1;
       } catch (error) {
+        if (error instanceof CancelledDeletionError) {
+          cancelled += 1;
+          continue;
+        }
         this.logger.error(
           `Could not delete account ${id}: ${
             error instanceof Error ? error.message : String(error)
           }`,
         );
       }
+    }
+
+    if (cancelled > 0) {
+      this.logger.log(
+        `Account deletion sweep: skipped ${cancelled} account(s) cancelled since the sweep started`,
+      );
     }
 
     if (deleted > 0) {

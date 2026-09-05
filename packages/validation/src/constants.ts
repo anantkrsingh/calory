@@ -39,4 +39,8 @@ export const LIMITS = {
   chatContextMessages: 40,
   /** Generous ceiling — a marathon is ~50-60k steps. */
   steps: { min: 0, max: 200_000 },
+  dietMealsPerDay: { min: 2, max: 6, default: 4 },
+  dietExcludedFood: { min: 1, max: 60 },
+  /** How many foods a user can exclude from one diet plan. */
+  dietExclusions: { max: 30 },
 } as const;

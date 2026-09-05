@@ -10,8 +10,10 @@ import type { WeeklyDiet } from '@fitness/ai';
 import {
   DIET_PLAN_QUEUE_NAME,
   type DayOfWeek,
+  type DietCuisine,
   type DietPlanJobData,
   type DietPlanJobResult,
+  type DietType,
 } from '@fitness/types';
 import {
   generateObject,
@@ -50,6 +52,50 @@ const calculateBmi = (heightCm: number, weightKg: number): number => {
   const heightM = heightCm / 100;
   return Math.round((weightKg / (heightM * heightM)) * 10) / 10;
 };
+
+const DIET_TYPE_LABEL: Record<DietType, string> = {
+  veg: 'Vegetarian (no meat or fish; eggs/dairy are fine)',
+  non_veg: 'Non-vegetarian (meat, fish, eggs and dairy all allowed)',
+  vegan: 'Vegan — strictly plant-based: no meat, fish, eggs, dairy or honey',
+};
+
+const CUISINE_LABEL: Record<DietCuisine, string> = {
+  indian: 'Indian',
+  italian: 'Italian',
+  chinese: 'Chinese',
+  continental: 'Continental (general Western/European)',
+  mexican: 'Mexican',
+  american: 'American',
+};
+
+/**
+ * Renders the user's chosen generation options as directives the model must
+ * follow — these come from `generateDietPlanSchema` (via `DietPlansService`)
+ * and override anything the base prompt says about diet, region or meal
+ * count, since the admin-configured prompt has no way to know them.
+ */
+function formatDietPreferences(plan: {
+  dietTypes: DietType[];
+  cuisine: DietCuisine;
+  exclude: string[];
+  mealsPerDay: number;
+}): string {
+  const dietLine = plan.dietTypes
+    .map((type) => DIET_TYPE_LABEL[type])
+    .join(' and ');
+
+  return [
+    'The user has chosen these options for THIS plan — they override any',
+    'general diet/region/meal-count guidance above:',
+    `- Diet: ${dietLine}`,
+    `- Cuisine: ${CUISINE_LABEL[plan.cuisine]} — every meal should draw on this cuisine's ` +
+      'typical dishes and ingredients.',
+    plan.exclude.length > 0
+      ? `- Never include, in any form: ${plan.exclude.join(', ')}.`
+      : '- No excluded foods.',
+    `- Exactly ${plan.mealsPerDay} meals every day, no more and no fewer.`,
+  ].join('\n');
+}
 
 const bmiCategory = (bmi: number): string => {
   if (bmi < 18.5) return 'underweight';
@@ -224,11 +270,18 @@ export class DietPlanProcessor implements OnModuleInit, OnModuleDestroy {
       `${tag}: resolved ${usesAdminPrompt ? 'admin-configured' : 'default'} prompt (${prompt.length} chars)`,
     );
 
+    // Preferences are frozen on the plan row at request time (see
+    // `DietPlansService.requestGeneration`) — read from there rather than
+    // `job.data.preferences` so a retried job always reflects the latest
+    // saved state, not whatever was queued on the first attempt.
+    const preferencesBlock = formatDietPreferences(plan);
+    const promptWithPreferences = `${prompt}\n\n${preferencesBlock}`;
+
     // generateObject takes no tools, so gather context first, then structure it.
     this.logger.log(`${tag}: gathering context via tools`);
     const research = await generateText({
       model: this.model,
-      prompt: `${prompt}\n\nCall the tools to gather what you need, then outline the week in plain text.`,
+      prompt: `${promptWithPreferences}\n\nCall the tools to gather what you need, then outline the week in plain text.`,
       tools: { getUserDetails: this.userDetailsTool(userId) },
       stopWhen: stepCountIs(3),
       // This is tool-calling + a plain-text summary, not a hard reasoning
@@ -250,7 +303,7 @@ export class DietPlanProcessor implements OnModuleInit, OnModuleDestroy {
       .join('\n');
 
     const objectPrompt = [
-      prompt,
+      promptWithPreferences,
       '',
       'Data retrieved for this user:',
       toolContext || '(no tool data available)',

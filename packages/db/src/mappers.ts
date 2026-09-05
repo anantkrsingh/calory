@@ -348,6 +348,10 @@ export function toDietPlan(row: DietPlanRow): DietPlan {
     userId: row.userId,
     status: row.status,
     summary: orUndefined(row.summary),
+    dietTypes: row.dietTypes,
+    cuisine: row.cuisine,
+    exclude: row.exclude,
+    mealsPerDay: row.mealsPerDay,
     days: row.days.map((day) => ({
       dayOfWeek: day.dayOfWeek,
       targetCalories: day.targetCalories,

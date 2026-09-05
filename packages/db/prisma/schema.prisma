@@ -175,6 +175,26 @@ enum DietPlanStatus {
   superseded
 }
 
+/// `vegan` is exclusive — never combined with `veg`/`non_veg` — enforced in
+/// `generateDietPlanSchema` (packages/validation), not at the schema level.
+enum DietType {
+  veg
+  non_veg
+  vegan
+}
+
+/// Fixed set the AI plan is tailored to. Defaults to whichever of these is
+/// closest to the user's IP-detected country (see `resolveDietCuisine` in
+/// apps/api/src/diets) when the user doesn't pick one explicitly.
+enum DietCuisine {
+  indian
+  italian
+  chinese
+  continental
+  mexican
+  american
+}
+
 // ---------------------------------------------------------------------------
 // Composite types
 // ---------------------------------------------------------------------------
@@ -645,6 +665,15 @@ model DietPlan {
   /// Set when status is `failed`, for admin debugging.
   error       String?
   generatedAt DateTime?
+
+  /// Generation inputs, resolved and frozen at request time (`DietPlansService.requestGeneration`)
+  /// so a later change to the user's IP/location never retroactively changes
+  /// a plan already generated. `vegan` is always alone; see `DietType`.
+  dietTypes   DietType[]  @default([non_veg])
+  cuisine     DietCuisine @default(continental)
+  /// Free-text ingredients/foods to keep out of every meal, e.g. "peanuts".
+  exclude     String[]    @default([])
+  mealsPerDay Int         @default(4)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

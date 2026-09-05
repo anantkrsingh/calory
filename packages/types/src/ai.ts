@@ -129,9 +129,41 @@ export const DietPlanStatus = {
 export type DietPlanStatus =
   (typeof DietPlanStatus)[keyof typeof DietPlanStatus];
 
+/** `vegan` is exclusive of every other value — enforced in
+ * `generateDietPlanSchema` (`@fitness/validation`), not here. */
+export const DietType = {
+  Veg: 'veg',
+  NonVeg: 'non_veg',
+  Vegan: 'vegan',
+} as const;
+export type DietType = (typeof DietType)[keyof typeof DietType];
+
+/** Fixed set the AI plan is tailored to; defaults from the user's
+ * IP-detected country (see `resolveDietCuisine` in `apps/api/src/diets`)
+ * when they don't pick one. */
+export const DietCuisine = {
+  Indian: 'indian',
+  Italian: 'italian',
+  Chinese: 'chinese',
+  Continental: 'continental',
+  Mexican: 'mexican',
+  American: 'american',
+} as const;
+export type DietCuisine = (typeof DietCuisine)[keyof typeof DietCuisine];
+
+/** Generation inputs, resolved to concrete values before a plan is queued —
+ * see `DietPlansService.requestGeneration`. */
+export interface DietPlanPreferences {
+  dietTypes: DietType[];
+  cuisine: DietCuisine;
+  exclude: string[];
+  mealsPerDay: number;
+}
+
 export interface DietPlanJobData {
   userId: Id;
   dietPlanId: Id;
+  preferences: DietPlanPreferences;
 }
 
 export interface DietPlanJobResult {
@@ -173,7 +205,7 @@ export interface DietPlanDay {
   targetCarbsG?: number;
 }
 
-export interface DietPlan extends Entity {
+export interface DietPlan extends Entity, DietPlanPreferences {
   userId: Id;
   status: DietPlanStatus;
   summary?: string;

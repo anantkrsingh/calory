@@ -6,9 +6,19 @@ import {
 } from '@nestjs/common';
 import { DIET_PLAN_INCLUDE, toDietPlan } from '@fitness/db';
 import { DayOfWeek } from '@fitness/types';
-import type { DietPlan, Id, IsoDate, TodayDiet } from '@fitness/types';
-import type { MarkDietItemsTakenInput } from '@fitness/validation';
+import type {
+  DietPlan,
+  DietPlanPreferences,
+  Id,
+  IsoDate,
+  TodayDiet,
+} from '@fitness/types';
+import type {
+  GenerateDietPlanInput,
+  MarkDietItemsTakenInput,
+} from '@fitness/validation';
 
+import { resolveDietCuisine } from './geo-cuisine';
 import { PrismaService } from '../prisma/prisma.service';
 import { DietPlanQueue } from '../queues/diet-plan.queue';
 
@@ -39,18 +49,25 @@ export class DietPlansService {
 
   /**
    * Never auto-triggered (unlike `WorkoutRoutineService.requestGeneration`
-   * at registration) — a diet plan only exists once the user asks for one
-   * via the "Create my diet plan" button, which calls `regenerate` below
-   * whether or not they already have one.
+   * at registration) — a diet plan only exists once the user asks for one,
+   * via the "Create my diet plan" button or the chat agent's tool call, both
+   * of which land on `regenerate` below whether or not they already have one.
    */
-  async requestGeneration(userId: Id): Promise<DietPlan | null> {
+  async requestGeneration(
+    userId: Id,
+    preferences: DietPlanPreferences,
+  ): Promise<DietPlan | null> {
     try {
       const plan = await this.prisma.dietPlan.create({
-        data: { userId, status: 'generating' },
+        data: { userId, status: 'generating', ...preferences },
         include: DIET_PLAN_INCLUDE,
       });
 
-      const job = await this.queue.generate({ userId, dietPlanId: plan.id });
+      const job = await this.queue.generate({
+        userId,
+        dietPlanId: plan.id,
+        preferences,
+      });
 
       if (!job) {
         await this.prisma.dietPlan.update({
@@ -81,8 +98,24 @@ export class DietPlansService {
     }
   }
 
-  async regenerate(userId: Id): Promise<DietPlan> {
-    const plan = await this.requestGeneration(userId);
+  /**
+   * `input.cuisine` is only ever set by an explicit user/chat-agent choice —
+   * when omitted, it's resolved here from `clientIp` (see `resolveDietCuisine`)
+   * so every generated plan has a concrete cuisine, never "unset".
+   */
+  async regenerate(
+    userId: Id,
+    input: GenerateDietPlanInput,
+    clientIp: string | undefined,
+  ): Promise<DietPlan> {
+    const preferences: DietPlanPreferences = {
+      dietTypes: input.dietTypes,
+      cuisine: input.cuisine ?? resolveDietCuisine(clientIp),
+      exclude: input.exclude,
+      mealsPerDay: input.mealsPerDay,
+    };
+
+    const plan = await this.requestGeneration(userId, preferences);
     if (!plan) {
       throw new ServiceUnavailableException(
         'Could not start diet plan generation, please try again',

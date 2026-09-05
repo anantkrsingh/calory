@@ -1,6 +1,8 @@
 import {
   ActivityLevel,
   DayOfWeek,
+  DietCuisine,
+  DietType,
   Equipment,
   ExerciseCategory,
   ExerciseLogFieldRequirement,
@@ -44,3 +46,5 @@ export const chatMessageRoleSchema = z.enum(ChatMessageRole);
 export const measurementSiteSchema = z.enum(MEASUREMENT_SITES);
 export const dayOfWeekSchema = z.enum(DayOfWeek);
 export const routineDayStatusSchema = z.enum(RoutineDayStatus);
+export const dietTypeSchema = z.enum(DietType);
+export const dietCuisineSchema = z.enum(DietCuisine);
