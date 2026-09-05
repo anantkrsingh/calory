@@ -1,5 +1,4 @@
 import type { DailyCaloriesBurned } from '@fitness/types';
-import { ChevronRight } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
 import {
   LayoutChangeEvent,
@@ -15,7 +14,8 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { ThemedText } from '@/components/themed-text';
-import { Brand, Pressed, Spacing } from '@/constants/theme';
+import { Brand, Spacing } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useTheme } from '@/hooks/use-theme';
 
 const WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -24,6 +24,14 @@ const MINI_CARD_RADIUS = 14;
 const MINI_CARD_GAP = Spacing.two;
 const SLIDE_DURATION_MS = 280;
 
+// A softened, lower-saturation tint of the "Save changes" button's fill
+// color (`Brand.ctaFill`, #9DC6C5) — same family, deliberately lighter/less
+// dark than the button itself so the card reads as a background, not a CTA.
+const CARD_BACKGROUND = {
+  light: '#DDEBEB',
+  dark: '#3F4F4F',
+} as const;
+
 type WeekCaloriesStripProps = {
   days: DailyCaloriesBurned[];
   today: string;
@@ -31,8 +39,6 @@ type WeekCaloriesStripProps = {
   selectedDate: string;
   /** Fires when the user taps a past-or-today day to select it. */
   onSelectDate: (date: string) => void;
-  /** Opens the weekly-progress history sheet. */
-  onOpenDetail?: () => void;
 };
 
 export function WeekCaloriesStrip({
@@ -40,9 +46,10 @@ export function WeekCaloriesStrip({
   today,
   selectedDate,
   onSelectDate,
-  onOpenDetail,
 }: WeekCaloriesStripProps) {
   const theme = useTheme();
+  const scheme = useColorScheme();
+  const cardBackground = CARD_BACKGROUND[scheme];
   const [rowWidth, setRowWidth] = useState(0);
 
   const selectedIndex = Math.max(
@@ -80,24 +87,7 @@ export function WeekCaloriesStrip({
   };
 
   return (
-    <View
-      style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-      <View style={styles.header}>
-        <ThemedText themeColor="textSecondary" fontWeight="600" style={styles.title}>
-          This Week
-        </ThemedText>
-        {onOpenDetail ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="View weekly progress"
-            hitSlop={8}
-            onPress={onOpenDetail}
-            style={({ pressed }) => pressed && Pressed}>
-            <ChevronRight size={18} color={theme.textSecondary} />
-          </Pressable>
-        ) : null}
-      </View>
-
+    <View style={[styles.card, { backgroundColor: cardBackground }]}>
       <View style={styles.miniCardsWrapper} onLayout={handleLayout}>
         {columnWidth > 0 ? (
           <Animated.View
@@ -111,6 +101,7 @@ export function WeekCaloriesStrip({
             const isSelected = day.date === selectedDate;
             const isPastOrToday = day.date <= today;
             const isToday = day.date === today;
+            const hasCalories = isPastOrToday && day.caloriesBurned > 0;
 
             return (
               <Pressable
@@ -124,7 +115,9 @@ export function WeekCaloriesStrip({
                 <View
                   style={[
                     styles.miniCard,
-                    { borderColor: theme.border },
+                    // Transparent when selected so the sliding accent pill
+                    // underneath shows through as this card's fill.
+                    { backgroundColor: isSelected ? 'transparent' : theme.surface },
                   ]}>
                   <ThemedText
                     fontWeight="700"
@@ -133,11 +126,11 @@ export function WeekCaloriesStrip({
                     style={[
                       styles.value,
                       {
-                        color: isPastOrToday ? theme.text : theme.textSecondary,
+                        color: hasCalories ? theme.text : theme.textSecondary,
                       },
                       isSelected && styles.valueSelected,
                     ]}>
-                    {isPastOrToday ? Math.round(day.caloriesBurned) : '–'}
+                    {hasCalories ? Math.round(day.caloriesBurned) : '–'}
                   </ThemedText>
                 </View>
 
@@ -161,20 +154,7 @@ const styles = StyleSheet.create({
     alignSelf: 'stretch',
     borderCurve: 'continuous',
     borderRadius: 20,
-    borderWidth: StyleSheet.hairlineWidth || 1,
     padding: Spacing.three,
-    gap: Spacing.three,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  title: {
-    fontSize: 13,
-    lineHeight: 18,
-    textTransform: 'uppercase',
-    letterSpacing: 0.4,
   },
   miniCardsWrapper: {
     // Positioning context for the sliding accent pill, which sits behind
@@ -204,7 +184,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderCurve: 'continuous',
     borderRadius: MINI_CARD_RADIUS,
-    borderWidth: StyleSheet.hairlineWidth || 1,
     paddingHorizontal: Spacing.half,
   },
   value: {

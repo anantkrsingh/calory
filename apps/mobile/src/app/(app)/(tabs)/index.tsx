@@ -125,7 +125,6 @@ export default function HomeScreen() {
                 today={today}
                 selectedDate={selectedDate}
                 onSelectDate={setSelectedDate}
-                onOpenDetail={() => weekProgressSheetRef.current?.present()}
               />
             ) : null}
 
