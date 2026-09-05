@@ -2,10 +2,15 @@ import { DEFAULT_DAILY_STEPS_GOAL } from "@/constants/app";
 import type { TodayRoutineExercise } from "@fitness/types";
 import { useRouter } from "expo-router";
 import { Flame, Footprints } from "lucide-react-native";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { RefreshControl, ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
+import Animated, {
+  Easing,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from "react-native-reanimated";
 
 import { TabScreen } from "@/components/tab-screen";
 import { ThemedText } from "@/components/themed-text";
@@ -89,6 +94,35 @@ export default function HomeScreen() {
     [router],
   );
 
+  // Crossfades the rings/exercises block when the selected day changes —
+  // a persistent opacity animation rather than unmounting/remounting the
+  // subtree, which inside a ScrollView caused the outgoing content to hold
+  // its last layout position while the incoming content jumped in,
+  // overlapping and glitching instead of a clean fade.
+  const dayContentOpacity = useSharedValue(1);
+  const isFirstDayRender = useRef(true);
+  useEffect(() => {
+    if (isFirstDayRender.current) {
+      isFirstDayRender.current = false;
+      return;
+    }
+    dayContentOpacity.value = withTiming(
+      0,
+      { duration: 100, easing: Easing.out(Easing.cubic) },
+      (finished) => {
+        if (finished) {
+          dayContentOpacity.value = withTiming(1, {
+            duration: 200,
+            easing: Easing.out(Easing.cubic),
+          });
+        }
+      },
+    );
+  }, [selectedDate, dayContentOpacity]);
+  const dayContentStyle = useAnimatedStyle(() => ({
+    opacity: dayContentOpacity.value,
+  }));
+
   return (
     <TabScreen contentStyle={styles.content}>
       <ScrollView
@@ -129,11 +163,7 @@ export default function HomeScreen() {
               />
             ) : null}
 
-            <Animated.View
-              key={selectedDate}
-              entering={FadeIn.duration(220)}
-              exiting={FadeOut.duration(120)}
-              style={styles.dayContent}>
+            <Animated.View style={[styles.dayContent, dayContentStyle]}>
               <View style={styles.ringsRow}>
                 <View
                   style={[
