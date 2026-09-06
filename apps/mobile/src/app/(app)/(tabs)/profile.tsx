@@ -30,6 +30,7 @@ import {
   DeleteAccountSheet,
   type DeleteAccountSheetRef,
 } from "@/components/profile/DeleteAccountSheet";
+import { PremiumUpsellCard } from "@/components/profile/PremiumUpsellCard";
 import PrimaryButton from "@/components/ui/PrimaryButton";
 import { BottomTabInset, Brand, Pressed, Spacing } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
@@ -150,6 +151,8 @@ export default function ProfileScreen() {
             </ThemedText>
           </View>
         </View>
+
+        <PremiumUpsellCard />
 
         {user ? (
           <View style={cardStyle}>

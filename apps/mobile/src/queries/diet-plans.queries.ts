@@ -1,5 +1,8 @@
 import type { DietPlan, IsoDate, TodayDiet } from '@fitness/types';
-import type { MarkDietItemsTakenInput } from '@fitness/validation';
+import type {
+  GenerateDietPlanInput,
+  MarkDietItemsTakenInput,
+} from '@fitness/validation';
 import {
   queryOptions,
   useMutation,
@@ -57,12 +60,19 @@ export function useTodayDiet(date: IsoDate): UseQueryResult<TodayDiet> {
 }
 
 /** Also the "Create my diet plan" action — there's no auto-generated plan to
- * start from, so first-time creation and regeneration are the same call. */
-export function useRegenerateDietPlan(): UseMutationResult<DietPlan, Error, void> {
+ * start from, so first-time creation and regeneration are the same call.
+ * `input` carries the preferences collected from the user (diet types,
+ * cuisine, exclusions, meals per day); every field is optional. */
+export function useRegenerateDietPlan(): UseMutationResult<
+  DietPlan,
+  Error,
+  GenerateDietPlanInput | undefined
+> {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: () => dietPlansService.regenerate(),
+    mutationFn: (input?: GenerateDietPlanInput) =>
+      dietPlansService.regenerate(input ?? undefined),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: DietPlansQueries.root });
     },

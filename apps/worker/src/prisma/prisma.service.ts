@@ -20,6 +20,15 @@ export class PrismaService
     super({
       datasources: { db: { url: env.MONGODB_URI } },
       log: env.NODE_ENV === 'development' ? ['warn', 'error'] : ['error'],
+      // Mongo has no multi-document joins, so an interactive `$transaction`
+      // whose nested creates span several collections (see
+      // DietPlanProcessor.replaceDays, RoutineProcessor.replaceDays) turns
+      // into one round trip per document — a full week's worth of days,
+      // meals and items can add up to well over Prisma's 5s default
+      // `timeout`, which surfaces as "Transaction already closed: A query
+      // cannot be executed on an expired transaction." Widened for every
+      // transaction on this client rather than per call site.
+      transactionOptions: { maxWait: 10_000, timeout: 30_000 },
     });
   }
 

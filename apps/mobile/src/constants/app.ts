@@ -23,6 +23,9 @@ export const LIMITS = {
   name: { min: 1, max: 120 },
   heightCm: { min: 50, max: 300 },
   bodyWeightKg: { min: 20, max: 500 },
+  dietMealsPerDay: { min: 2, max: 6, default: 4 },
+  dietExcludedFood: { min: 1, max: 60 },
+  dietExclusions: { max: 30 },
 } as const;
 
 export const UNIT_CONVERSION = {

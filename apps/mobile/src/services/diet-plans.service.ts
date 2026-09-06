@@ -1,5 +1,8 @@
 import type { DietPlan, IsoDate, TodayDiet } from '@fitness/types';
-import type { MarkDietItemsTakenInput } from '@fitness/validation';
+import type {
+  GenerateDietPlanInput,
+  MarkDietItemsTakenInput,
+} from '@fitness/validation';
 import type { AxiosInstance } from 'axios';
 
 import { http } from '@/api/http';
@@ -25,9 +28,13 @@ export class DietPlansService extends BaseService {
     return data;
   }
 
-  /** First-time creation and regeneration both go through this. */
-  async regenerate(): Promise<DietPlan> {
-    const { data } = await this.client.post<DietPlan>(this.url('regenerate'));
+  /** First-time creation and regeneration both go through this. Every field
+   * is optional — the API fills in a default for anything omitted. */
+  async regenerate(input?: GenerateDietPlanInput): Promise<DietPlan> {
+    const { data } = await this.client.post<DietPlan>(
+      this.url('regenerate'),
+      input,
+    );
     return data;
   }
 

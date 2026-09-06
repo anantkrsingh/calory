@@ -1,52 +1,64 @@
+import { useRouter } from 'expo-router';
 import { RotateCw } from 'lucide-react-native';
 import { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { getErrorMessage } from '@/api/errors';
 import { DietMealCard } from '@/components/diet/DietMealCard';
+import { DietMealsSkeleton, DietMetricsSkeleton } from '@/components/diet/DietMealsSkeleton';
+import { DietModeSwitcher, type DietMode } from '@/components/diet/DietModeSwitcher';
+import { DietWeekSelector } from '@/components/diet/DietWeekSelector';
 import { RoutineGeneratingCard } from '@/components/home/RoutineGeneratingCard';
 import { TabScreen } from '@/components/tab-screen';
 import { ThemedText } from '@/components/themed-text';
 import PrimaryButton from '@/components/ui/PrimaryButton';
 import { BottomTabInset, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { todayIsoDate } from '@/lib/date';
-import {
-  useMarkDietItemsTaken,
-  useRegenerateDietPlan,
-  useTodayDiet,
-} from '@/queries/diet-plans.queries';
+import { currentWeekDates, todayIsoDate, weekdayName } from '@/lib/date';
+import { useMarkDietItemsTaken, useTodayDiet } from '@/queries/diet-plans.queries';
 
 export default function DietsScreen() {
   const theme = useTheme();
+  const router = useRouter();
   const insets = useSafeAreaInsets();
   const today = useState(todayIsoDate)[0];
+  const weekDates = useState(currentWeekDates)[0];
 
-  const { data, isLoading, refetch } = useTodayDiet(today);
-  const regenerate = useRegenerateDietPlan();
+  const [activeMode, setActiveMode] = useState<DietMode>('today');
+  // Today always tracks the real today; Metrics and Plan share a day picked
+  // from the week selector so flipping between them stays on the same day.
+  const [selectedDate, setSelectedDate] = useState(today);
+  const displayDate = activeMode === 'today' ? today : selectedDate;
+
+  // Pinned to `today` regardless of tab/day — the plan's status (and so the
+  // mode switcher/empty/generating/failed chrome) reads from this one, so
+  // switching days in the Plan tab never blanks it out. `useTodayDiet` dedupes
+  // by query key, so when `displayDate` is also `today` this is the same
+  // cached request as `dayQuery` below, not a second network call.
+  const statusQuery = useTodayDiet(today);
+  // The day currently on screen — its own loading state is scoped to just
+  // the meals list/metrics content (see `DietMealsSkeleton`/`DietMetricsSkeleton`
+  // below), never the whole screen.
+  const dayQuery = useTodayDiet(displayDate);
+  const { data } = dayQuery;
   const markTaken = useMarkDietItemsTaken();
 
   const [refreshing, setRefreshing] = useState(false);
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
-      await refetch();
+      await Promise.all([statusQuery.refetch(), dayQuery.refetch()]);
     } finally {
       setRefreshing(false);
     }
-  }, [refetch]);
+  }, [statusQuery, dayQuery]);
 
-  const createOrRegenerate = useCallback(async () => {
-    try {
-      await regenerate.mutateAsync();
-    } catch (err) {
-      Alert.alert(
-        'Couldn’t start your plan',
-        getErrorMessage(err, 'Something went wrong. Try again.'),
-      );
-    }
-  }, [regenerate]);
+  // The actual generate call, and the questions behind it, live on their own
+  // modal screen (see `(app)/diet-preferences.tsx`) — this just navigates
+  // there; its own submit invalidates these queries on success.
+  const openPreferences = useCallback(() => {
+    router.push('/diet-preferences');
+  }, [router]);
 
   const takenItemIds = useMemo(
     () => new Set(data?.takenItemIds ?? []),
@@ -55,84 +67,24 @@ export default function DietsScreen() {
 
   const toggleItem = useCallback(
     (mealId: string, itemId: string, taken: boolean) => {
-      void markTaken.mutateAsync({ date: today, input: { mealId, itemId, taken } });
+      void markTaken.mutateAsync({ date: displayDate, input: { mealId, itemId, taken } });
     },
-    [markTaken, today],
+    [markTaken, displayDate],
   );
 
   const toggleMeal = useCallback(
     (mealId: string, taken: boolean) => {
-      void markTaken.mutateAsync({ date: today, input: { mealId, taken } });
+      void markTaken.mutateAsync({ date: displayDate, input: { mealId, taken } });
     },
-    [markTaken, today],
+    [markTaken, displayDate],
   );
 
-  const renderBody = () => {
-    if (isLoading && !data) {
-      return (
-        <View style={styles.centered}>
-          <ActivityIndicator />
-        </View>
-      );
-    }
-
-    if (!data || data.planStatus === null) {
-      return (
-        <View style={styles.centered}>
-          <ThemedText fontWeight="700" style={styles.emptyTitle}>
-            No diet plan yet
-          </ThemedText>
-          <ThemedText themeColor="textSecondary" style={styles.emptyBody}>
-            Your coach can put together a week of meals tailored to your
-            goals and macros.
-          </ThemedText>
-          <PrimaryButton
-            label="Create My Diet Plan"
-            onPress={() => {
-              void createOrRegenerate();
-            }}
-            disabled={regenerate.isPending}
-            style={styles.ctaButton}
-          />
-        </View>
-      );
-    }
-
-    if (data.planStatus === 'generating') {
-      return (
-        <View style={styles.section}>
-          <RoutineGeneratingCard />
-        </View>
-      );
-    }
-
-    if (data.planStatus === 'failed') {
-      return (
-        <View style={styles.centered}>
-          <ThemedText fontWeight="700" style={styles.emptyTitle}>
-            Couldn’t build your plan
-          </ThemedText>
-          <ThemedText themeColor="textSecondary" style={styles.emptyBody}>
-            Something went wrong generating your diet plan. Give it another
-            try.
-          </ThemedText>
-          <PrimaryButton
-            label="Try Again"
-            onPress={() => {
-              void createOrRegenerate();
-            }}
-            disabled={regenerate.isPending}
-            style={styles.ctaButton}
-          />
-        </View>
-      );
-    }
-
-    if (!data.day || data.day.meals.length === 0) {
+  const renderMealsList = (title: string, emptyMessage: string, showRegenerate: boolean) => {
+    if (!data?.day || data.day.meals.length === 0) {
       return (
         <View style={styles.centered}>
           <ThemedText themeColor="textSecondary" style={styles.emptyBody}>
-            No meals planned for today.
+            {emptyMessage}
           </ThemedText>
         </View>
       );
@@ -144,37 +96,25 @@ export default function DietsScreen() {
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
           <ThemedText fontWeight="700" style={styles.sectionTitle}>
-            Today’s Meals
+            {title}
           </ThemedText>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Regenerate diet plan"
-            hitSlop={8}
-            disabled={regenerate.isPending}
-            onPress={() => {
-              void createOrRegenerate();
-            }}
-            style={({ pressed }) => [
-              styles.regenerateButton,
-              {
-                backgroundColor: theme.surface,
-                borderColor: theme.border,
-                opacity: regenerate.isPending ? 0.5 : pressed ? 0.85 : 1,
-              },
-            ]}>
-            {regenerate.isPending ? (
-              <ActivityIndicator size="small" />
-            ) : (
+          {showRegenerate ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Regenerate diet plan"
+              hitSlop={8}
+              onPress={openPreferences}
+              style={({ pressed }) => [
+                styles.regenerateButton,
+                {
+                  backgroundColor: theme.surface,
+                  borderColor: theme.border,
+                  opacity: pressed ? 0.85 : 1,
+                },
+              ]}>
               <RotateCw color={theme.text} size={16} strokeWidth={2.2} />
-            )}
-          </Pressable>
-        </View>
-
-        <View style={[styles.statsRow, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-          <Stat label="Calories" value={`${day.targetCalories}`} />
-          <Stat label="Protein" value={`${day.targetProteinG ?? 0}g`} />
-          <Stat label="Fat" value={`${day.targetFatG ?? 0}g`} />
-          <Stat label="Carbs" value={`${day.targetCarbsG ?? 0}g`} />
+            </Pressable>
+          ) : null}
         </View>
 
         <View style={styles.list}>
@@ -193,13 +133,136 @@ export default function DietsScreen() {
     );
   };
 
+  const renderMetrics = () => {
+    const { day } = data ?? {};
+    if (!day) {
+      return (
+        <View style={styles.centered}>
+          <ThemedText themeColor="textSecondary" style={styles.emptyBody}>
+            No targets set for this day.
+          </ThemedText>
+        </View>
+      );
+    }
+
+    return (
+      <View style={[styles.statsRow, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+        <Stat label="Calories" value={`${day.targetCalories}`} />
+        <Stat label="Protein" value={`${day.targetProteinG ?? 0}g`} />
+        <Stat label="Fat" value={`${day.targetFatG ?? 0}g`} />
+        <Stat label="Carbs" value={`${day.targetCarbsG ?? 0}g`} />
+      </View>
+    );
+  };
+
+  const renderBody = () => {
+    const status = statusQuery.data;
+
+    if (statusQuery.isLoading && !status) {
+      // Cold start — nothing is known yet, not even whether a plan exists,
+      // so there's no chrome to keep on screen around this one.
+      return <DietMealsSkeleton />;
+    }
+
+    if (!status || status.planStatus === null) {
+      return (
+        <View style={styles.centered}>
+          <ThemedText fontWeight="700" style={styles.emptyTitle}>
+            No diet plan yet
+          </ThemedText>
+          <ThemedText themeColor="textSecondary" style={styles.emptyBody}>
+            Your coach can put together a week of meals tailored to your
+            goals and macros.
+          </ThemedText>
+          <PrimaryButton
+            label="Create My Diet Plan"
+            onPress={openPreferences}
+            style={styles.ctaButton}
+          />
+        </View>
+      );
+    }
+
+    if (status.planStatus === 'generating') {
+      return (
+        <View style={styles.section}>
+          <RoutineGeneratingCard />
+        </View>
+      );
+    }
+
+    if (status.planStatus === 'failed') {
+      return (
+        <View style={styles.centered}>
+          <ThemedText fontWeight="700" style={styles.emptyTitle}>
+            Couldn’t build your plan
+          </ThemedText>
+          <ThemedText themeColor="textSecondary" style={styles.emptyBody}>
+            Something went wrong generating your diet plan. Give it another
+            try.
+          </ThemedText>
+          <PrimaryButton
+            label="Try Again"
+            onPress={openPreferences}
+            style={styles.ctaButton}
+          />
+        </View>
+      );
+    }
+
+    // Plan is active — the day currently on screen may still be loading
+    // (e.g. a day not visited yet this session); scope the shimmer to just
+    // that content instead of the chrome above.
+    if (activeMode === 'metrics') {
+      return data ? renderMetrics() : <DietMetricsSkeleton />;
+    }
+
+    if (activeMode === 'plan') {
+      return (
+        <View style={styles.section}>
+          <DietWeekSelector
+            days={weekDates}
+            today={today}
+            selectedDate={selectedDate}
+            onSelectDate={setSelectedDate}
+          />
+          {data
+            ? renderMealsList(
+                `${weekdayName(selectedDate)}’s Meals`,
+                'No meals planned for this day.',
+                false,
+              )
+            : <DietMealsSkeleton />}
+        </View>
+      );
+    }
+
+    return data
+      ? renderMealsList("Today’s Meals", 'No meals planned for today.', true)
+      : <DietMealsSkeleton />;
+  };
+
+  // The mode switcher only makes sense once there's an active plan to
+  // switch views on — loading/empty/generating/failed states replace the
+  // whole screen the same way whichever tab you're on. Reads from the
+  // stable `statusQuery` so it never disappears while a day's data reloads.
+  const showSwitcher = statusQuery.data?.planStatus === 'active';
+
   return (
-    <TabScreen contentStyle={styles.content}>
+    <TabScreen
+      appBar={false}
+      header={showSwitcher ? (
+        <DietModeSwitcher activeMode={activeMode} onChange={setActiveMode} />
+      ) : undefined}
+      contentStyle={styles.content}>
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={[
           styles.scrollContent,
           { paddingBottom: BottomTabInset + insets.bottom },
+          // No header above to take the top inset when the switcher is
+          // hidden — take it here instead so content clears the notch.
+          !showSwitcher && { paddingTop: insets.top + Spacing.three },
         ]}
         showsVerticalScrollIndicator={false}
         refreshControl={

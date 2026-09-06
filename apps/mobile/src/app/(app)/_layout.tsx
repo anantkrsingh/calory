@@ -23,6 +23,14 @@ export default function AppLayout() {
           options={{ animation: 'slide_from_left', presentation: 'card' }}
         />
         <Stack.Screen name="chat/[id]" options={{ animation: 'fade' }} />
+        <Stack.Screen
+          name="diet-preferences"
+          options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
+        />
+        <Stack.Screen
+          name="premium"
+          options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
+        />
       </Stack>
 
       <GlobalTimerBar />
