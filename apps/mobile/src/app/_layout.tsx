@@ -21,10 +21,7 @@ import { setOnUnauthorized } from "@/api/http";
 import { queryClient } from "@/api/query-client";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { hasCompletedOnboarding } from "@/lib/onboarding";
-// RevenueCat is disabled for now — no API keys configured, and initializing
-// it was crashing production. Re-enable once EXPO_PUBLIC_REVENUECAT_*_API_KEY
-// are set. Package stays in package.json; only this wiring is disabled.
-// import { configurePurchases, syncPurchasesUser } from "@/lib/purchases";
+import { configurePurchases, syncPurchasesUser } from "@/lib/purchases";
 import {
   selectHydrated,
   selectIsAuthenticated,
@@ -34,7 +31,7 @@ import {
 import { selectThemeHydrated, useThemeStore } from "@/stores/theme.store";
 
 SplashScreen.preventAutoHideAsync();
-// configurePurchases(); // disabled — see import comment above
+configurePurchases();
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
@@ -61,10 +58,10 @@ export default function RootLayout() {
     return () => setOnUnauthorized(undefined);
   }, []);
 
-  // useEffect(() => {
-  //   if (!isHydrated) return;
-  //   syncPurchasesUser(isAuthenticated ? (user?.id ?? null) : null);
-  // }, [isHydrated, isAuthenticated, user?.id]);
+  useEffect(() => {
+    if (!isHydrated) return;
+    void syncPurchasesUser(isAuthenticated ? (user?.id ?? null) : null);
+  }, [isHydrated, isAuthenticated, user?.id]);
 
   useEffect(() => {
     if (isHydrated && isThemeHydrated && fontsLoaded) {

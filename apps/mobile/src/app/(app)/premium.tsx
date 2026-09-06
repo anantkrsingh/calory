@@ -1,7 +1,23 @@
 import { useRouter } from 'expo-router';
-import { ChefHat, Dumbbell, MessageCircle, TrendingUp, X } from 'lucide-react-native';
+import {
+  BadgeCheck,
+  ChefHat,
+  Dumbbell,
+  MessageCircle,
+  TrendingUp,
+  X,
+} from 'lucide-react-native';
 import { useState, type ReactNode } from 'react';
-import { Linking, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Alert,
+  Linking,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  View,
+} from 'react-native';
+import { PURCHASES_ERROR_CODE, type PurchasesError, type PurchasesPackage } from 'react-native-purchases';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
@@ -9,46 +25,20 @@ import { ThemedView } from '@/components/themed-view';
 import PrimaryButton from '@/components/ui/PrimaryButton';
 import { Brand, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { ENTITLEMENT_ID, hasActiveEntitlement } from '@/lib/purchases';
+import {
+  useCustomerInfo,
+  useOfferings,
+  usePurchasePackage,
+  useRestorePurchases,
+} from '@/queries/purchases.queries';
 
-// TODO: swap for the real RevenueCat offering — `src/lib/purchases.ts` already
-// configures the SDK and syncs identity, but no offering/package ids exist yet.
-// Wire `handleContinue`/`handleRestore` up to `Purchases.getOfferings()` and
-// `Purchases.purchasePackage`/`restorePurchases` once those are set up.
 type PlanId = 'weekly' | 'monthly' | 'yearly';
 
-type Plan = {
-  id: PlanId;
-  label: string;
-  price: string;
-  per: string;
-  badge?: string;
-  detail: string;
-};
-
-const PLANS: Record<PlanId, Plan> = {
-  monthly: {
-    id: 'monthly',
-    label: 'Monthly',
-    price: '₹299',
-    per: '/month',
-    detail: '₹299 billed monthly. Renews automatically until canceled — cancel anytime.',
-  },
-  yearly: {
-    id: 'yearly',
-    label: 'Yearly',
-    price: '₹999',
-    per: '/year',
-    badge: 'BEST VALUE',
-    detail:
-      '₹999 billed annually (≈₹83/month). Renews automatically until canceled — cancel anytime.',
-  },
-  weekly: {
-    id: 'weekly',
-    label: 'Weekly',
-    price: '₹79',
-    per: '/week',
-    detail: '₹79 billed weekly. Renews automatically until canceled — cancel anytime.',
-  },
+const PLAN_META: Record<PlanId, { label: string; per: string; billedAs: string }> = {
+  weekly: { label: 'Weekly', per: '/week', billedAs: 'weekly' },
+  monthly: { label: 'Monthly', per: '/month', billedAs: 'monthly' },
+  yearly: { label: 'Yearly', per: '/year', billedAs: 'annually' },
 };
 
 const BENEFITS: { icon: ReactNode; label: string }[] = [
@@ -65,26 +55,84 @@ const LEGAL_LINKS: { label: string; url: string }[] = [
   { label: 'Refund', url: 'https://example.com/refund' },
 ];
 
+function detailTextFor(id: PlanId, pkg: PurchasesPackage): string {
+  const { billedAs } = PLAN_META[id];
+  const monthlyEquivalent =
+    id === 'yearly' && pkg.product.pricePerMonthString
+      ? ` (≈${pkg.product.pricePerMonthString}/month)`
+      : '';
+  return `${pkg.product.priceString} billed ${billedAs}${monthlyEquivalent}. Renews automatically until canceled — cancel anytime.`;
+}
+
+/** RevenueCat errors carry their own `message`; anything else (a plain JS
+ * error, a rejected promise with no shape) falls back to a generic string. */
+function messageFor(error: unknown, fallback: string): string {
+  const purchasesError = error as Partial<PurchasesError> | undefined;
+  return purchasesError?.message || fallback;
+}
+
 /**
  * "Calory Pro" paywall — the app's subscription upsell, presented as a modal
- * from anywhere (`router.push('/premium')`). Plan/price data is a static
- * placeholder (see the TODO above) until real RevenueCat offerings are wired in.
+ * from anywhere (`router.push('/premium')`). Plans come straight from the
+ * RevenueCat current offering (see `src/lib/purchases.ts`); an already-Pro
+ * user sees their subscription status instead of the purchase flow.
  */
 export default function PremiumScreen() {
   const router = useRouter();
   const theme = useTheme();
   const insets = useSafeAreaInsets();
-  const [selected, setSelected] = useState<PlanId>('yearly');
+  const [selected, setSelected] = useState<PlanId | null>(null);
 
-  const plan = PLANS[selected];
+  const offeringsQuery = useOfferings();
+  const customerInfoQuery = useCustomerInfo();
+  const purchase = usePurchasePackage();
+  const restore = useRestorePurchases();
 
-  const handleContinue = () => {
-    // Placeholder until purchase flow is wired up — see the TODO above.
-    if (__DEV__) console.log('[premium] continue with plan', selected);
+  const isPro = hasActiveEntitlement(customerInfoQuery.data);
+  const isLoading = offeringsQuery.isPending || customerInfoQuery.isPending;
+
+  const offering = offeringsQuery.data?.current ?? null;
+  const packagesByPlan: Partial<Record<PlanId, PurchasesPackage>> = {
+    weekly: offering?.weekly ?? undefined,
+    monthly: offering?.monthly ?? undefined,
+    yearly: offering?.annual ?? undefined,
+  };
+  const availablePlans = (['yearly', 'monthly', 'weekly'] as PlanId[]).filter(
+    (id) => packagesByPlan[id],
+  );
+  const effectiveSelected = selected ?? availablePlans[0] ?? null;
+  const selectedPackage = effectiveSelected ? packagesByPlan[effectiveSelected] : undefined;
+
+  const handleContinue = async () => {
+    if (!selectedPackage || !effectiveSelected) return;
+
+    try {
+      const customerInfo = await purchase.mutateAsync(selectedPackage);
+      if (hasActiveEntitlement(customerInfo)) {
+        Alert.alert('Welcome to Calory Pro 🎉', 'Your subscription is now active.', [
+          { text: 'OK', onPress: () => router.back() },
+        ]);
+      } else {
+        router.back();
+      }
+    } catch (error) {
+      const code = (error as Partial<PurchasesError> | undefined)?.code;
+      if (code === PURCHASES_ERROR_CODE.PURCHASE_CANCELLED_ERROR) return;
+      Alert.alert('Purchase failed', messageFor(error, 'Something went wrong. Try again.'));
+    }
   };
 
-  const handleRestore = () => {
-    if (__DEV__) console.log('[premium] restore purchases');
+  const handleRestore = async () => {
+    try {
+      const customerInfo = await restore.mutateAsync();
+      if (hasActiveEntitlement(customerInfo)) {
+        Alert.alert('Restored', 'Your Calory Pro subscription is active again.');
+      } else {
+        Alert.alert('Nothing to restore', 'We couldn’t find an active purchase for this account.');
+      }
+    } catch (error) {
+      Alert.alert('Restore failed', messageFor(error, 'Something went wrong. Try again.'));
+    }
   };
 
   return (
@@ -113,32 +161,84 @@ export default function PremiumScreen() {
           </ThemedText>
         </View>
 
-        <View style={styles.benefits}>
-          {BENEFITS.map(({ icon, label }) => (
-            <View key={label} style={styles.benefitRow}>
-              {icon}
-              <ThemedText style={styles.benefitLabel}>{label}</ThemedText>
+        {isPro ? (
+          <ProStatus customerInfo={customerInfoQuery.data} />
+        ) : (
+          <>
+            <View style={styles.benefits}>
+              {BENEFITS.map(({ icon, label }) => (
+                <View key={label} style={styles.benefitRow}>
+                  {icon}
+                  <ThemedText style={styles.benefitLabel}>{label}</ThemedText>
+                </View>
+              ))}
             </View>
-          ))}
-        </View>
 
-        <View style={styles.plansRow}>
-          <PlanCard plan={PLANS.monthly} selected={selected === 'monthly'} onPress={() => setSelected('monthly')} />
-          <PlanCard plan={PLANS.yearly} selected={selected === 'yearly'} onPress={() => setSelected('yearly')} />
-        </View>
+            {isLoading ? (
+              <ActivityIndicator
+                color={Brand.accent}
+                style={styles.loading}
+                accessibilityLabel="Loading plans"
+              />
+            ) : availablePlans.length === 0 ? (
+              <ThemedText themeColor="textSecondary" style={styles.unavailableText}>
+                Plans aren’t available right now — check back in a bit.
+              </ThemedText>
+            ) : (
+              <>
+                <View style={styles.plansRow}>
+                  {(['monthly', 'yearly'] as PlanId[])
+                    .filter((id) => packagesByPlan[id])
+                    .map((id) => (
+                      <PlanCard
+                        key={id}
+                        id={id}
+                        pkg={packagesByPlan[id]!}
+                        badge={id === 'yearly' ? 'BEST VALUE' : undefined}
+                        selected={effectiveSelected === id}
+                        onPress={() => setSelected(id)}
+                      />
+                    ))}
+                </View>
 
-        <PlanRow plan={PLANS.weekly} selected={selected === 'weekly'} onPress={() => setSelected('weekly')} />
+                {packagesByPlan.weekly ? (
+                  <PlanRow
+                    id="weekly"
+                    pkg={packagesByPlan.weekly}
+                    selected={effectiveSelected === 'weekly'}
+                    onPress={() => setSelected('weekly')}
+                  />
+                ) : null}
 
-        <PrimaryButton label="Continue" onPress={handleContinue} style={styles.continueButton} />
+                <PrimaryButton
+                  label={purchase.isPending ? 'Processing…' : 'Continue'}
+                  onPress={() => {
+                    void handleContinue();
+                  }}
+                  disabled={purchase.isPending || !selectedPackage}
+                  style={styles.continueButton}
+                />
 
-        <ThemedText themeColor="textSecondary" style={styles.detailText}>
-          {plan.detail}
-        </ThemedText>
+                {effectiveSelected && selectedPackage ? (
+                  <ThemedText themeColor="textSecondary" style={styles.detailText}>
+                    {detailTextFor(effectiveSelected, selectedPackage)}
+                  </ThemedText>
+                ) : null}
+              </>
+            )}
+          </>
+        )}
 
         <View style={styles.footer}>
-          <Pressable accessibilityRole="button" hitSlop={8} onPress={handleRestore}>
+          <Pressable
+            accessibilityRole="button"
+            hitSlop={8}
+            disabled={restore.isPending}
+            onPress={() => {
+              void handleRestore();
+            }}>
             <ThemedText themeColor="textSecondary" style={styles.footerLink}>
-              Restore
+              {restore.isPending ? 'Restoring…' : 'Restore'}
             </ThemedText>
           </Pressable>
           {LEGAL_LINKS.map(({ label, url }) => (
@@ -159,15 +259,56 @@ export default function PremiumScreen() {
   );
 }
 
+/** Shown instead of the plan picker once `ENTITLEMENT_ID` is already active —
+ * renewal/expiry pulled straight from the entitlement RevenueCat returned. */
+function ProStatus({ customerInfo }: { customerInfo: ReturnType<typeof useCustomerInfo>['data'] }) {
+  const entitlement = customerInfo?.entitlements.active[ENTITLEMENT_ID];
+  const expiresLabel = entitlement?.expirationDate
+    ? new Date(entitlement.expirationDate).toLocaleDateString(undefined, {
+        month: 'long',
+        day: 'numeric',
+        year: 'numeric',
+      })
+    : null;
+
+  return (
+    <View style={styles.proStatus}>
+      <View style={[styles.proBadge, { backgroundColor: Brand.teal }]}>
+        <BadgeCheck size={28} color="#FFFFFF" />
+      </View>
+      <ThemedText fontWeight="700" style={styles.proTitle}>
+        You’re on Calory Pro
+      </ThemedText>
+      <ThemedText themeColor="textSecondary" style={styles.proSubtitle}>
+        {expiresLabel
+          ? entitlement?.willRenew
+            ? `Renews on ${expiresLabel}`
+            : `Active until ${expiresLabel}`
+          : 'Your subscription is active.'}
+      </ThemedText>
+      {customerInfo?.managementURL ? (
+        <PrimaryButton
+          label="Manage Subscription"
+          onPress={() => Linking.openURL(customerInfo.managementURL!)}
+          style={styles.continueButton}
+        />
+      ) : null}
+    </View>
+  );
+}
+
 type PlanCardProps = {
-  plan: Plan;
+  id: PlanId;
+  pkg: PurchasesPackage;
+  badge?: string;
   selected: boolean;
   onPress: () => void;
 };
 
-/** One of the two boxed plans (Monthly / Yearly) shown side by side. */
-function PlanCard({ plan, selected, onPress }: PlanCardProps) {
+/** One of the boxed plans (Monthly / Yearly) shown side by side. */
+function PlanCard({ id, pkg, badge, selected, onPress }: PlanCardProps) {
   const theme = useTheme();
+  const { label, per } = PLAN_META[id];
 
   return (
     <Pressable
@@ -181,30 +322,31 @@ function PlanCard({ plan, selected, onPress }: PlanCardProps) {
           borderColor: selected ? Brand.accent : 'transparent',
         },
       ]}>
-      {plan.badge ? (
+      {badge ? (
         <View style={[styles.planBadge, { backgroundColor: Brand.accent }]}>
           <ThemedText fontWeight="700" style={styles.planBadgeText}>
-            {plan.badge}
+            {badge}
           </ThemedText>
         </View>
       ) : null}
 
       <ThemedText fontWeight="700" style={styles.planLabel}>
-        {plan.label}
+        {label}
       </ThemedText>
       <ThemedText fontWeight="700" style={styles.planPrice}>
-        {plan.price}
+        {pkg.product.priceString}
       </ThemedText>
       <ThemedText themeColor="textSecondary" style={styles.planPer}>
-        {plan.per}
+        {per}
       </ThemedText>
     </Pressable>
   );
 }
 
 /** The full-width Weekly option, laid out as a single row below the boxed pair. */
-function PlanRow({ plan, selected, onPress }: PlanCardProps) {
+function PlanRow({ id, pkg, selected, onPress }: PlanCardProps) {
   const theme = useTheme();
+  const { label, per } = PLAN_META[id];
 
   return (
     <Pressable
@@ -219,13 +361,13 @@ function PlanRow({ plan, selected, onPress }: PlanCardProps) {
         },
       ]}>
       <ThemedText fontWeight="700" style={styles.planLabel}>
-        {plan.label}
+        {label}
       </ThemedText>
       <ThemedText fontWeight="700" style={styles.planPrice}>
-        {plan.price}
+        {pkg.product.priceString}
         <ThemedText themeColor="textSecondary" style={styles.planPer}>
           {' '}
-          {plan.per}
+          {per}
         </ThemedText>
       </ThemedText>
     </Pressable>
@@ -276,6 +418,15 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 15,
     lineHeight: 21,
+  },
+  loading: {
+    marginVertical: Spacing.five,
+  },
+  unavailableText: {
+    fontSize: 14,
+    lineHeight: 20,
+    textAlign: 'center',
+    marginVertical: Spacing.five,
   },
   plansRow: {
     flexDirection: 'row',
@@ -335,6 +486,27 @@ const styles = StyleSheet.create({
     lineHeight: 17,
     textAlign: 'center',
     marginBottom: Spacing.four,
+  },
+  proStatus: {
+    alignItems: 'center',
+    marginBottom: Spacing.five,
+  },
+  proBadge: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: Spacing.three,
+  },
+  proTitle: {
+    fontSize: 19,
+    lineHeight: 24,
+  },
+  proSubtitle: {
+    marginTop: Spacing.one,
+    fontSize: 14,
+    lineHeight: 20,
   },
   footer: {
     flexDirection: 'row',
