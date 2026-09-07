@@ -31,6 +31,11 @@ export {
   useRegenerateDietPlan,
   useTodayDiet,
 } from './diet-plans.queries';
+export {
+  CaloriesQueries,
+  useCalorieBalance,
+  useCalorieRange,
+} from './calories.queries';
 export { useCreateMeasurement } from './measurements.queries';
 export { useSendOtp, useResendOtp, useVerifyOtp } from './otp.queries';
 export { QuotesQueries, useTodayQuote } from './quotes.queries';

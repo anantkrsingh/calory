@@ -6,8 +6,8 @@ export const LLM_PROVIDERS = ['openai', 'gemini'] as const;
 export type LlmProvider = (typeof LLM_PROVIDERS)[number];
 
 export const DEFAULT_MODELS: Record<LlmProvider, string> = {
-  openai: 'gpt-4.1-mini',
-  gemini: 'gemini-2.5-flash',
+  openai: 'gpt-4o-mini',
+  gemini: 'gemini-3.6-flash',
 };
 
 export interface LlmConfig {

@@ -1,5 +1,6 @@
 export { BaseService } from './base.service';
 export { AuthService, authService } from './auth.service';
+export { CaloriesService, caloriesService } from './calories.service';
 export { ChatsService, chatsService } from './chats.service';
 export { DietPlansService, dietPlansService } from './diet-plans.service';
 export { ExercisesService, exercisesService } from './exercises.service';

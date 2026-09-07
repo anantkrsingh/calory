@@ -24,10 +24,22 @@ export async function updateSettingsAction(
     return { error: "Invalid prompts payload." };
   }
 
+  // Blank fields are stripped client-side, so an all-defaults config arrives
+  // as an object of undefineds — send it as `undefined` rather than empty keys.
+  let calorieConfig: unknown;
+  const calorieConfigRaw = formData.get("calorieConfig");
+  if (calorieConfigRaw) {
+    try {
+      calorieConfig = JSON.parse(String(calorieConfigRaw));
+    } catch {
+      return { error: "Invalid calorie config payload." };
+    }
+  }
+
   try {
     await apiFetch<AppSettings>("/settings", {
       method: "PATCH",
-      body: JSON.stringify({ freeChatsLimit, aiPrompts }),
+      body: JSON.stringify({ freeChatsLimit, aiPrompts, calorieConfig }),
     });
   } catch (error) {
     return { error: error instanceof ApiError ? error.message : "Could not save settings." };
