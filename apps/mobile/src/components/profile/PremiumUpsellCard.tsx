@@ -4,8 +4,9 @@ import { BadgeCheck, ChevronRight, Crown } from 'lucide-react-native';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { Brand, Pressed, Spacing } from '@/constants/theme';
+import { Pressed, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { IAP_ENABLED } from '@/lib/purchases';
 import { useIsPro } from '@/queries/purchases.queries';
 
 
@@ -13,6 +14,8 @@ export function PremiumUpsellCard() {
   const router = useRouter();
   const theme = useTheme();
   const isPro = useIsPro();
+
+  if (!IAP_ENABLED) return null;
 
   return (
     <Pressable

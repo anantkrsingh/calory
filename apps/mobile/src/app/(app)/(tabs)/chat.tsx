@@ -84,6 +84,11 @@ export default function ChatScreen() {
     }, [router]),
   );
 
+  // A stale id (e.g. left over from a different account on this device, or
+  // a conversation deleted elsewhere) 404s from the API — drop it so the
+  // ensure-effect above picks the latest chat or creates a fresh one.
+  const handleNotFound = useCallback(() => setActiveId(null), [setActiveId]);
+
   const startNewChat = useCallback(async () => {
     try {
       const created = await createChat.mutateAsync({});
@@ -143,7 +148,11 @@ export default function ChatScreen() {
           <ThemedText themeColor="textSecondary">Opening coach…</ThemedText>
         </View>
       ) : (
-        <ChatThread key={activeId} conversationId={activeId} />
+        <ChatThread
+          key={activeId}
+          conversationId={activeId}
+          onNotFound={handleNotFound}
+        />
       )}
     </ThemedView>
   );

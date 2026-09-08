@@ -11,6 +11,16 @@ const API_KEYS: Partial<Record<typeof Platform.OS, string | undefined>> = {
   android: process.env.EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY,
 };
 
+/**
+ * Master switch for the whole in-app-purchases surface — RevenueCat init,
+ * every Pro/paywall screen and upsell. Defaults on; set
+ * `EXPO_PUBLIC_IAP_ENABLED=false` (a build without a store-review-ready
+ * paywall, a flavor with no monetization, etc.) to turn it off everywhere
+ * without touching call sites — they all read this flag or the `configured`
+ * state it gates below.
+ */
+export const IAP_ENABLED = process.env.EXPO_PUBLIC_IAP_ENABLED !== 'false';
+
 /** Entitlement identifier configured in the RevenueCat dashboard — every
  * "is this user Pro?" check in the app goes through this one constant. */
 export const ENTITLEMENT_ID = 'pro';
@@ -19,13 +29,14 @@ let configured = false;
 
 /**
  * Configures the RevenueCat SDK. Safe to call more than once — only the
- * first call takes effect. No-ops on web and on platforms without a key
- * configured for this build. Every native call is wrapped in a try/catch:
- * this used to run unguarded and a bad key / unavailable native module took
- * the whole app down with it, so nothing here may throw synchronously.
+ * first call takes effect. No-ops when `IAP_ENABLED` is false, on web, and
+ * on platforms without a key configured for this build. Every native call
+ * is wrapped in a try/catch: this used to run unguarded and a bad key /
+ * unavailable native module took the whole app down with it, so nothing
+ * here may throw synchronously.
  */
 export function configurePurchases(): void {
-  if (configured) return;
+  if (configured || !IAP_ENABLED) return;
 
   const apiKey = API_KEYS[Platform.OS];
   if (!apiKey) return;

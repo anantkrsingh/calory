@@ -1,4 +1,4 @@
-import { useRouter } from 'expo-router';
+import { Redirect, useRouter, type Href } from 'expo-router';
 import {
   BadgeCheck,
   ChefHat,
@@ -25,7 +25,7 @@ import { ThemedView } from '@/components/themed-view';
 import PrimaryButton from '@/components/ui/PrimaryButton';
 import { Brand, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { ENTITLEMENT_ID, hasActiveEntitlement } from '@/lib/purchases';
+import { ENTITLEMENT_ID, hasActiveEntitlement, IAP_ENABLED } from '@/lib/purchases';
 import {
   useCustomerInfo,
   useOfferings,
@@ -87,6 +87,12 @@ export default function PremiumScreen() {
   const customerInfoQuery = useCustomerInfo();
   const purchase = usePurchasePackage();
   const restore = useRestorePurchases();
+
+  // IAP is off for this build — nothing reachable should ever land here
+  // (the profile upsell is hidden too), but a stale nav state or deep link
+  // could still route here directly, so bail before rendering any paywall.
+  // (After the hooks above, never before — they must run unconditionally.)
+  if (!IAP_ENABLED) return <Redirect href={'/(tabs)/profile' as Href} />;
 
   const isPro = hasActiveEntitlement(customerInfoQuery.data);
   const isLoading = offeringsQuery.isPending || customerInfoQuery.isPending;

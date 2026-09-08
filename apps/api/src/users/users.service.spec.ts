@@ -12,13 +12,23 @@ const baseUser = {
   },
 };
 
+type UpdateData = {
+  pushTokens?: string[];
+  preferences?: typeof baseUser.preferences;
+};
+
 function makeService(user: typeof baseUser | null) {
   const prisma = {
     user: {
-      findUnique: jest.fn().mockResolvedValue(user),
+      findUnique: jest
+        .fn<Promise<typeof baseUser | null>, [unknown?]>()
+        .mockResolvedValue(user),
       update: jest
-        .fn()
-        .mockImplementation(({ data }) => ({ ...user, ...data })),
+        .fn<typeof baseUser, [{ where: { id: string }; data: UpdateData }]>()
+        .mockImplementation(({ data }) => ({
+          ...(user as typeof baseUser),
+          ...data,
+        })),
     },
   };
 
@@ -33,9 +43,9 @@ describe('UsersService.registerPushToken', () => {
 
     await service.registerPushToken('existing-id', 'token-b');
 
-    const [[{ data }]] = prisma.user.update.mock.calls;
+    const { data } = prisma.user.update.mock.calls[0]![0];
     expect(data.pushTokens).toEqual(['token-a', 'token-b']);
-    expect(data.preferences.notificationsEnabled).toBe(true);
+    expect(data.preferences?.notificationsEnabled).toBe(true);
   });
 
   it('is a no-op when the token and the flag are already set', async () => {
@@ -67,7 +77,7 @@ describe('UsersService.unregisterPushToken', () => {
 
     await service.unregisterPushToken('existing-id', 'token-a');
 
-    const [[{ data }]] = prisma.user.update.mock.calls;
+    const { data } = prisma.user.update.mock.calls[0]![0];
     expect(data.pushTokens).toEqual(['token-b']);
     expect(data.preferences).toBeUndefined();
   });

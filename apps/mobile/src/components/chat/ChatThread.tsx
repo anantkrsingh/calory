@@ -16,7 +16,7 @@ import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQueryClient } from "@tanstack/react-query";
 
-import { getChatErrorMessage, getErrorMessage } from "@/api/errors";
+import { getChatErrorMessage, getErrorMessage, isApiError } from "@/api/errors";
 import {
   ANDROID_TAB_BAR_HEIGHT,
   ANDROID_TAB_BAR_MARGIN_BOTTOM,
@@ -42,6 +42,11 @@ import { ChatsQueries, useChatDetail } from "@/queries/chats.queries";
 
 type ChatThreadProps = {
   conversationId: string;
+  /** Fires once when `conversationId` turns out not to be a conversation
+   * this account owns (a stale id from a previous account on this device,
+   * or one deleted elsewhere) — the API 404s the same as "doesn't exist".
+   * The caller should drop it and fall back to the latest/newest chat. */
+  onNotFound?: () => void;
 };
 
 const SCROLL_BOTTOM_THRESHOLD = 120;
@@ -56,11 +61,15 @@ function nextErrorMessageId(): string {
   return `error-${Date.now()}-${errorMessageSeq}`;
 }
 
-export function ChatThread({ conversationId }: ChatThreadProps) {
+export function ChatThread({ conversationId, onNotFound }: ChatThreadProps) {
   const insets = useSafeAreaInsets();
   const theme = useTheme();
   const queryClient = useQueryClient();
   const { data, isLoading, isError, error } = useChatDetail(conversationId);
+
+  useEffect(() => {
+    if (isApiError(error) && error.isNotFound) onNotFound?.();
+  }, [error, onNotFound]);
   const [draft, setDraft] = useState("");
   const [isAtBottom, setIsAtBottom] = useState(true);
   const listRef = useRef<FlatList<UIMessage>>(null);

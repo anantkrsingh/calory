@@ -17,6 +17,8 @@ import {
   WeekProgressSheet,
   type WeekProgressSheetRef,
 } from "@/components/home/WeekProgressSheet";
+import { ErrorState } from "@/components/ui/ErrorState";
+import { Skeleton } from "@/components/ui/Skeleton";
 import { Brand, BottomTabInset, Spacing } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
 import { useRegisterPushNotifications } from "@/hooks/use-register-push-notifications";
@@ -41,13 +43,18 @@ export default function HomeScreen() {
   const { data: quote, refetch: refetchQuote } = useTodayQuote();
   const {
     data: routine,
+    error: routineError,
+    isError: isRoutineError,
     refetch: refetchRoutine,
     isLoading: isRoutineLoading,
   } = useTodayRoutine(selectedDate);
-  const { data: weekCalories, refetch: refetchWeekCalories } = useWeekCalories(
-    weekDates[0],
-    weekDates[6],
-  );
+  const {
+    data: weekCalories,
+    error: weekCaloriesError,
+    isError: isWeekCaloriesError,
+    isLoading: isWeekCaloriesLoading,
+    refetch: refetchWeekCalories,
+  } = useWeekCalories(weekDates[0], weekDates[6]);
   const { steps: liveSteps } = useStepsTracker();
 
   useRegisterPushNotifications();
@@ -82,6 +89,15 @@ export default function HomeScreen() {
       ),
     [routine?.exercises],
   );
+
+  // Treated as one data unit on screen — surface a single error/retry rather
+  // than one per query, even though the two queries are independent.
+  const hasLoadError = isRoutineError || isWeekCaloriesError;
+  const loadError = routineError ?? weekCaloriesError;
+  const retryLoad = useCallback(() => {
+    void refetchRoutine();
+    void refetchWeekCalories();
+  }, [refetchRoutine, refetchWeekCalories]);
 
   const openExercise = useCallback(
     (exercise: TodayRoutineExercise) => {
@@ -122,9 +138,17 @@ export default function HomeScreen() {
 
         {routine?.routineStatus === "generating" ? (
           <RoutineGeneratingCard />
+        ) : hasLoadError ? (
+          <ErrorState
+            title="Couldn’t load today’s data"
+            error={loadError}
+            onRetry={retryLoad}
+          />
         ) : (
           <>
-            {weekCalories ? (
+            {isWeekCaloriesLoading ? (
+              <Skeleton style={styles.weekStripSkeleton} />
+            ) : weekCalories ? (
               <WeekCaloriesStrip
                 days={weekCalories}
                 today={today}
@@ -235,6 +259,12 @@ const styles = StyleSheet.create({
     gap: Spacing.four,
     paddingHorizontal: Spacing.four,
     paddingTop: Spacing.three,
+  },
+  weekStripSkeleton: {
+    alignSelf: "stretch",
+    borderRadius: 20,
+    height: 84,
+    width: "100%",
   },
   quote: {
     alignSelf: "stretch",

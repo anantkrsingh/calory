@@ -51,7 +51,11 @@ function makeService(user: UserRecord | null) {
           createdAt: new Date(),
           updatedAt: new Date(),
           ...data,
-          preferences: { ...baseUser.preferences, ...data.preferences },
+          preferences: {
+            ...baseUser.preferences,
+            ...(data.preferences as
+              Partial<typeof baseUser.preferences> | undefined),
+          },
         })),
     },
     appSettings: {
@@ -121,7 +125,11 @@ describe('AuthService.loginSocial', () => {
 
     const update = prisma.user.update.mock.calls[0]![0];
     expect(update.where).toEqual({ id: 'existing-id' });
-    expect(update.data.linkedAccounts.push).toMatchObject({
+    // Prisma's array-append operator, not the mutating Array method — the
+    // service pushes the new linked account via `{ linkedAccounts: { push } }`.
+    expect(
+      (update.data.linkedAccounts as { push: unknown }).push,
+    ).toMatchObject({
       provider: 'google',
       subject: 'google-123',
     });
