@@ -1,5 +1,6 @@
 import type {
   AppSettings,
+  CalorieConfig,
   BodyMeasurement,
   ChatConversation,
   ChatMessage,
@@ -279,10 +280,70 @@ export function toDailySteps(row: DailyStepsRow): DailySteps {
   };
 }
 
+/** Prisma stores the per-key overrides as lists (composite types have fixed
+ * fields); the engine wants them keyed. Entries with no key are dropped. */
+function toKeyed<T, K extends string>(
+  entries: readonly T[] | null | undefined,
+  key: (entry: T) => K | null | undefined,
+  value: (entry: T) => number,
+): Partial<Record<K, number>> | undefined {
+  if (!entries || entries.length === 0) return undefined;
+
+  const result: Partial<Record<K, number>> = {};
+  for (const entry of entries) {
+    const name = key(entry);
+    if (name) result[name] = value(entry);
+  }
+  return Object.keys(result).length > 0 ? result : undefined;
+}
+
+export function toCalorieConfig(
+  row: AppSettingsRow['calorieConfig'] | undefined,
+): CalorieConfig | undefined {
+  if (!row) return undefined;
+
+  const config: CalorieConfig = {
+    ...(toKeyed(row.categoryMets, (e) => e.category, (e) => e.met)
+      ? { categoryMets: toKeyed(row.categoryMets, (e) => e.category, (e) => e.met) }
+      : {}),
+    ...(toKeyed(row.activityMultipliers, (e) => e.activityLevel, (e) => e.multiplier)
+      ? {
+          activityMultipliers: toKeyed(
+            row.activityMultipliers,
+            (e) => e.activityLevel,
+            (e) => e.multiplier,
+          ),
+        }
+      : {}),
+    ...(toKeyed(row.goalAdjustments, (e) => e.goal, (e) => e.adjustment)
+      ? {
+          goalAdjustments: toKeyed(
+            row.goalAdjustments,
+            (e) => e.goal,
+            (e) => e.adjustment,
+          ),
+        }
+      : {}),
+    ...(row.kcalPerStepPerKg != null ? { kcalPerStepPerKg: row.kcalPerStepPerKg } : {}),
+    ...(row.secondsPerSet != null ? { secondsPerSet: row.secondsPerSet } : {}),
+    ...(row.defaultRestSeconds != null
+      ? { defaultRestSeconds: row.defaultRestSeconds }
+      : {}),
+    ...(row.restMetFraction != null ? { restMetFraction: row.restMetFraction } : {}),
+    ...(row.minIntakeMale != null ? { minIntakeMale: row.minIntakeMale } : {}),
+    ...(row.minIntakeFemale != null ? { minIntakeFemale: row.minIntakeFemale } : {}),
+  };
+
+  return Object.keys(config).length > 0 ? config : undefined;
+}
+
 export function toAppSettings(row: AppSettingsRow): AppSettings {
+  const calorieConfig = toCalorieConfig(row.calorieConfig);
+
   return {
     id: row.id,
     freeChatsLimit: row.freeChatsLimit,
+    ...(calorieConfig ? { calorieConfig } : {}),
     aiPrompts: row.aiPrompts
       .filter(
         (prompt): prompt is typeof prompt & { promptCategory: NonNullable<typeof prompt.promptCategory> } =>

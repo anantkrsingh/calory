@@ -780,11 +780,47 @@ model DailyMealLog {
   @@map("daily_meal_logs")
 }
 
+/// One admin-tuned MET value for an exercise category. Modelled as a list
+/// rather than a keyed map because Mongo composite types have fixed fields.
+type CategoryMetConfig {
+  category ExerciseCategory
+  met      Float
+}
+
+/// Admin override of the BMR -> TDEE multiplier for one activity level.
+type ActivityMultiplierConfig {
+  activityLevel ActivityLevel
+  multiplier    Float
+}
+
+/// Admin override of the TDEE adjustment for one fitness goal, as a fraction
+/// (-0.2 is a 20% deficit).
+type GoalAdjustmentConfig {
+  goal       FitnessGoal
+  adjustment Float
+}
+
+/// Admin-tunable inputs to the calorie engine. Every field is optional —
+/// anything unset falls back to the researched defaults in
+/// `@fitness/types/calories`, so an empty config is valid and correct.
+type CalorieConfig {
+  categoryMets         CategoryMetConfig[]
+  activityMultipliers  ActivityMultiplierConfig[]
+  goalAdjustments      GoalAdjustmentConfig[]
+  kcalPerStepPerKg     Float?
+  secondsPerSet        Int?
+  defaultRestSeconds   Int?
+  restMetFraction      Float?
+  minIntakeMale        Int?
+  minIntakeFemale      Int?
+}
+
 /// App-wide configuration edited from the admin panel. Always exactly one row.
 model AppSettings {
   id             String          @id @default(auto()) @map("_id") @db.ObjectId
   freeChatsLimit Int             @default(5)
   aiPrompts      AiPromptConfig[]
+  calorieConfig  CalorieConfig?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

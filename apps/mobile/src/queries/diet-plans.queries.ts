@@ -13,6 +13,8 @@ import {
 } from '@tanstack/react-query';
 
 import { dietPlansService } from '@/services/diet-plans.service';
+
+import { CaloriesQueries } from './calories.queries';
 import { selectIsAuthenticated, useAuthStore } from '@/stores/auth.store';
 
 export class DietPlansQueries {
@@ -96,6 +98,10 @@ export function useMarkDietItemsTaken(): UseMutationResult<
       dietPlansService.markTaken(date, input),
     onSuccess: (data, { date }) => {
       queryClient.setQueryData(DietPlansQueries.keys.today(date), data);
+      // Intake changed, so the day's balance did too.
+      void queryClient.invalidateQueries({
+        queryKey: CaloriesQueries.keys.day(date),
+      });
     },
   });
 }

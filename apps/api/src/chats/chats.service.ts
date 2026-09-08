@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import {
   paginate,
+  toCalorieConfig,
   toChatConversation,
   toChatMessage,
   toSkipTake,
@@ -26,6 +27,10 @@ import {
   ASK_QUESTION_MARKER,
   ChatMessageRole,
   PromptCategory,
+  bmiCategory,
+  calculateBmi,
+  energyProfile,
+  yearsSince,
 } from '@fitness/types';
 import {
   dayOfWeekSchema,
@@ -59,26 +64,6 @@ function titleFromContent(content: string): string {
   if (trimmed.length <= TITLE_MAX) return trimmed;
   return `${trimmed.slice(0, TITLE_MAX - 1).trimEnd()}…`;
 }
-
-const yearsSince = (isoDate: string): number | null => {
-  const born = new Date(isoDate);
-  if (Number.isNaN(born.getTime())) return null;
-  const ms = Date.now() - born.getTime();
-  return Math.floor(ms / (365.25 * 24 * 60 * 60 * 1000));
-};
-
-/** Standard BMI = kg / m^2, rounded to one decimal. */
-const calculateBmi = (heightCm: number, weightKg: number): number => {
-  const heightM = heightCm / 100;
-  return Math.round((weightKg / (heightM * heightM)) * 10) / 10;
-};
-
-const bmiCategory = (bmi: number): string => {
-  if (bmi < 18.5) return 'underweight';
-  if (bmi < 25) return 'normal';
-  if (bmi < 30) return 'overweight';
-  return 'obese';
-};
 
 function buildAssistantContent(event: {
   text: string;
@@ -207,7 +192,9 @@ export class ChatsService {
     return tool({
       description:
         'This user’s profile: age, sex, height, weight, BMI, activity level, ' +
-        'fitness goals. Call before guessing any of these.',
+        'fitness goals, plus their computed BMR, TDEE and daily calorie ' +
+        'target. Call before guessing any of these — never estimate calorie ' +
+        'figures yourself, quote the ones returned here.',
       inputSchema: z.object({}),
       execute: async () => {
         const user = await this.prisma.user.findUnique({
@@ -222,14 +209,28 @@ export class ChatsService {
 
         const heightCm = user.profile.heightCm ?? null;
         const weightKg = latest?.weightKg ?? null;
+        const ageYears = user.profile.dateOfBirth
+          ? yearsSince(user.profile.dateOfBirth)
+          : null;
         const bmi =
           heightCm && weightKg ? calculateBmi(heightCm, weightKg) : null;
 
+        const settings = await this.prisma.appSettings.findFirst();
+        const energy = energyProfile(
+          {
+            weightKg,
+            heightCm,
+            ageYears,
+            sex: user.profile.sex ?? null,
+            activityLevel: user.profile.activityLevel ?? null,
+            fitnessGoals: user.profile.fitnessGoals,
+          },
+          toCalorieConfig(settings?.calorieConfig),
+        );
+
         return {
           displayName: user.profile.displayName,
-          ageYears: user.profile.dateOfBirth
-            ? yearsSince(user.profile.dateOfBirth)
-            : null,
+          ageYears,
           sex: user.profile.sex ?? null,
           heightCm,
           weightKg,
@@ -237,6 +238,10 @@ export class ChatsService {
           fitnessGoals: user.profile.fitnessGoals,
           bmi,
           bmiCategory: bmi ? bmiCategory(bmi) : null,
+          // Computed server-side — quote these rather than inventing figures.
+          bmr: energy.bmr,
+          tdee: energy.tdee,
+          targetCalories: energy.targetCalories,
           units: user.preferences.units,
         };
       },

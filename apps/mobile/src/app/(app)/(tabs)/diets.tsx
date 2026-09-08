@@ -4,6 +4,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { CalorieBalanceCard } from '@/components/diet/CalorieBalanceCard';
 import { DietMealCard } from '@/components/diet/DietMealCard';
 import { DietMealsSkeleton, DietMetricsSkeleton } from '@/components/diet/DietMealsSkeleton';
 import { DietModeSwitcher, type DietMode } from '@/components/diet/DietModeSwitcher';
@@ -15,6 +16,7 @@ import PrimaryButton from '@/components/ui/PrimaryButton';
 import { BottomTabInset, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { currentWeekDates, todayIsoDate, weekdayName } from '@/lib/date';
+import { useCalorieBalance } from '@/queries/calories.queries';
 import { useMarkDietItemsTaken, useTodayDiet } from '@/queries/diet-plans.queries';
 
 export default function DietsScreen() {
@@ -41,17 +43,22 @@ export default function DietsScreen() {
   // below), never the whole screen.
   const dayQuery = useTodayDiet(displayDate);
   const { data } = dayQuery;
+  const caloriesQuery = useCalorieBalance(displayDate);
   const markTaken = useMarkDietItemsTaken();
 
   const [refreshing, setRefreshing] = useState(false);
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
-      await Promise.all([statusQuery.refetch(), dayQuery.refetch()]);
+      await Promise.all([
+        statusQuery.refetch(),
+        dayQuery.refetch(),
+        caloriesQuery.refetch(),
+      ]);
     } finally {
       setRefreshing(false);
     }
-  }, [statusQuery, dayQuery]);
+  }, [statusQuery, dayQuery, caloriesQuery]);
 
   // The actual generate call, and the questions behind it, live on their own
   // modal screen (see `(app)/diet-preferences.tsx`) — this just navigates
@@ -146,11 +153,17 @@ export default function DietsScreen() {
     }
 
     return (
-      <View style={[styles.statsRow, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-        <Stat label="Calories" value={`${day.targetCalories}`} />
-        <Stat label="Protein" value={`${day.targetProteinG ?? 0}g`} />
-        <Stat label="Fat" value={`${day.targetFatG ?? 0}g`} />
-        <Stat label="Carbs" value={`${day.targetCarbsG ?? 0}g`} />
+      <View style={styles.metrics}>
+        {caloriesQuery.data ? (
+          <CalorieBalanceCard balance={caloriesQuery.data} />
+        ) : null}
+
+        <View style={[styles.statsRow, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+          <Stat label="Calories" value={`${day.targetCalories}`} />
+          <Stat label="Protein" value={`${day.targetProteinG ?? 0}g`} />
+          <Stat label="Fat" value={`${day.targetFatG ?? 0}g`} />
+          <Stat label="Carbs" value={`${day.targetCarbsG ?? 0}g`} />
+        </View>
       </View>
     );
   };
@@ -293,6 +306,9 @@ function Stat({ label, value }: { label: string; value: string }) {
 }
 
 const styles = StyleSheet.create({
+  metrics: {
+    gap: Spacing.three,
+  },
   content: {
     paddingHorizontal: 0,
   },

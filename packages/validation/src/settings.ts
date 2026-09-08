@@ -1,5 +1,6 @@
 import { z } from 'zod';
 
+import { calorieConfigSchema } from './calories';
 import { promptCategorySchema } from './enums';
 
 export const aiPromptConfigSchema = z.object({
@@ -26,6 +27,7 @@ export const updateSettingsSchema = z.object({
       }
     })
     .optional(),
+  calorieConfig: calorieConfigSchema.optional(),
 });
 
 export type AiPromptConfigInput = z.infer<typeof aiPromptConfigSchema>;

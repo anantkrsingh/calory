@@ -9,13 +9,23 @@ const baseUser = {
   passwordHash: 'old-hash',
 };
 
+type UpdateData = { passwordHash: string; refreshTokenHash: string | null };
+
 function makeService(user: typeof baseUser | null) {
   const prisma = {
     user: {
-      findUnique: jest.fn().mockResolvedValue(user),
+      findUnique: jest
+        .fn<Promise<typeof baseUser | null>, [unknown?]>()
+        .mockResolvedValue(user),
       update: jest
-        .fn()
-        .mockImplementation(({ data }) => ({ ...user, ...data })),
+        .fn<
+          typeof baseUser & UpdateData,
+          [{ where: { id: string }; data: UpdateData }]
+        >()
+        .mockImplementation(({ data }) => ({
+          ...(user as typeof baseUser),
+          ...data,
+        })),
     },
   };
 
@@ -67,7 +77,7 @@ describe('AuthService.resetPassword', () => {
       '1234',
       'password_reset',
     );
-    const [[{ where, data }]] = prisma.user.update.mock.calls;
+    const { where, data } = prisma.user.update.mock.calls[0]![0];
     expect(where).toEqual({ id: 'existing-id' });
     expect(data.refreshTokenHash).toBeNull();
     await expect(compare('NewPassw0rd', data.passwordHash)).resolves.toBe(true);

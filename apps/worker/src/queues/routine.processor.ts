@@ -6,10 +6,15 @@ import {
   type OnModuleInit,
 } from '@nestjs/common';
 import { resolvePrompt, weeklyRoutineSchema } from '@fitness/ai';
+import { toCalorieConfig } from '@fitness/db';
 import type { WeeklyRoutine } from '@fitness/ai';
 import {
   ROUTINE_QUEUE_NAME,
   ROUTINE_RECONCILE_QUEUE_NAME,
+  bmiCategory,
+  calculateBmi,
+  energyProfile,
+  yearsSince,
   type DayOfWeek,
   type RoutineDayStatus,
   type RoutineJobData,
@@ -43,26 +48,6 @@ const ROUTINE_OBJECT_MAX_OUTPUT_TOKENS = 16000;
 // Give the repair attempt even more headroom — a truncated first attempt
 // means the budget above wasn't enough.
 const ROUTINE_OBJECT_REPAIR_MAX_OUTPUT_TOKENS = 24000;
-
-const yearsSince = (isoDate: string): number | null => {
-  const born = new Date(isoDate);
-  if (Number.isNaN(born.getTime())) return null;
-  const ms = Date.now() - born.getTime();
-  return Math.floor(ms / (365.25 * 24 * 60 * 60 * 1000));
-};
-
-/** Standard BMI = kg / m^2, rounded to one decimal. */
-const calculateBmi = (heightCm: number, weightKg: number): number => {
-  const heightM = heightCm / 100;
-  return Math.round((weightKg / (heightM * heightM)) * 10) / 10;
-};
-
-const bmiCategory = (bmi: number): string => {
-  if (bmi < 18.5) return 'underweight';
-  if (bmi < 25) return 'normal';
-  if (bmi < 30) return 'overweight';
-  return 'obese';
-};
 
 // Models routinely send 0 for reps/durationSec when the field just doesn't
 // apply to that exercise, instead of omitting it — 0 of either is never a
@@ -287,7 +272,8 @@ export class RoutineProcessor implements OnModuleInit, OnModuleDestroy {
     return tool({
       description:
         'Get the profile of the user this routine is for: age, sex, height, ' +
-        'weight, BMI, activity level, chosen fitness goals and weekly workout target.',
+        'weight, BMI, activity level, chosen fitness goals and weekly workout ' +
+        'target, plus their computed BMR, TDEE and dailyCalorieTarget.',
       inputSchema: z.object({}),
       execute: async () => {
         const user = await this.prisma.user.findUnique({
@@ -302,15 +288,28 @@ export class RoutineProcessor implements OnModuleInit, OnModuleDestroy {
 
         const heightCm = user.profile.heightCm ?? null;
         const weightKg = latest?.weightKg ?? null;
+        const ageYears = user.profile.dateOfBirth
+          ? yearsSince(user.profile.dateOfBirth)
+          : null;
         // Computed here, not left to the model — it drives the calorie targets.
         const bmi =
           heightCm && weightKg ? calculateBmi(heightCm, weightKg) : null;
+        const settings = await this.prisma.appSettings.findFirst();
+        const energy = energyProfile(
+          {
+            weightKg,
+            heightCm,
+            ageYears,
+            sex: user.profile.sex ?? null,
+            activityLevel: user.profile.activityLevel ?? null,
+            fitnessGoals: user.profile.fitnessGoals,
+          },
+          toCalorieConfig(settings?.calorieConfig),
+        );
 
         return {
           displayName: user.profile.displayName,
-          ageYears: user.profile.dateOfBirth
-            ? yearsSince(user.profile.dateOfBirth)
-            : null,
+          ageYears,
           sex: user.profile.sex ?? null,
           heightCm,
           activityLevel: user.profile.activityLevel ?? null,
@@ -322,6 +321,11 @@ export class RoutineProcessor implements OnModuleInit, OnModuleDestroy {
           bodyFatPercentage: latest?.bodyFatPercentage ?? null,
           bmi,
           bmiCategory: bmi ? bmiCategory(bmi) : null,
+          // Mifflin-St Jeor, computed server-side. Use dailyCalorieTarget as
+          // the plan's intake target verbatim rather than estimating one.
+          bmr: energy.bmr,
+          tdee: energy.tdee,
+          dailyCalorieTarget: energy.targetCalories,
           units: user.preferences.units,
         };
       },
@@ -411,7 +415,7 @@ export class RoutineProcessor implements OnModuleInit, OnModuleDestroy {
       // This is tool-calling + a plain-text summary, not a hard reasoning
       // task — skip reasoning entirely so it can't eat its own output budget
       // on invisible reasoning tokens. Ignored by non-reasoning models.
-      providerOptions: { openai: { reasoningEffort: 'minimal' } },
+      providerOptions: { openai: { reasoningEffort: 'low' } },
     });
 
     const toolCalls = research.steps.flatMap((step) => step.toolCalls);
@@ -598,7 +602,7 @@ export class RoutineProcessor implements OnModuleInit, OnModuleDestroy {
         // spent on invisible reasoning tokens before any JSON comes out
         // (that's what `finishReason: 'length'` with 0 chars means). Ignored
         // by non-reasoning models.
-        providerOptions: { openai: { reasoningEffort: 'minimal' } },
+        providerOptions: { openai: { reasoningEffort: 'low' } },
       });
     } catch (error) {
       if (!NoObjectGeneratedError.isInstance(error)) throw error;
@@ -636,7 +640,7 @@ export class RoutineProcessor implements OnModuleInit, OnModuleDestroy {
               'Produce a corrected response that satisfies every field exactly.',
             ].join('\n'),
         maxOutputTokens: ROUTINE_OBJECT_REPAIR_MAX_OUTPUT_TOKENS,
-        providerOptions: { openai: { reasoningEffort: 'minimal' } },
+        providerOptions: { openai: { reasoningEffort: 'low' } },
       });
     }
   }

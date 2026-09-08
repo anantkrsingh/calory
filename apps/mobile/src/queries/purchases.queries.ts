@@ -12,6 +12,7 @@ import {
   fetchCustomerInfo,
   fetchOfferings,
   hasActiveEntitlement,
+  IAP_ENABLED,
   purchasePackage as purchasePackageRequest,
   restorePurchases as restorePurchasesRequest,
 } from '@/lib/purchases';
@@ -50,12 +51,12 @@ export class PurchasesQueries {
  * nothing set up in the dashboard yet — and should render as such. */
 export function useOfferings(): UseQueryResult<PurchasesOfferings | null> {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
-  return useQuery(PurchasesQueries.offerings(isAuthenticated));
+  return useQuery(PurchasesQueries.offerings(IAP_ENABLED && isAuthenticated));
 }
 
 export function useCustomerInfo(): UseQueryResult<CustomerInfo | null> {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
-  return useQuery(PurchasesQueries.customerInfo(isAuthenticated));
+  return useQuery(PurchasesQueries.customerInfo(IAP_ENABLED && isAuthenticated));
 }
 
 /** The single flag the rest of the app should gate premium features on. */

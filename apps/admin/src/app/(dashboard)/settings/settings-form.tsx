@@ -4,12 +4,13 @@ import {
   PROMPT_CATEGORIES,
   PROMPT_CATEGORY_LABELS,
 } from "@fitness/ai";
-import type { AiPromptConfig, PromptCategory } from "@fitness/types";
+import type { AiPromptConfig, CalorieConfig, PromptCategory } from "@fitness/types";
 import { PromptCategory as PromptCategories } from "@fitness/types";
 import { Settings2, X } from "lucide-react";
 import { useActionState, useState } from "react";
 
 import { CustomDropdown } from "@/components/custom-dropdown";
+import { CalorieConfigFields } from "./calorie-config-fields";
 import { updateSettingsAction, type SettingsState } from "./actions";
 
 const initialState: SettingsState = {};
@@ -32,7 +33,11 @@ function buildInitialPrompts(configured: AiPromptConfig[]): AiPromptConfig[] {
 export function SettingsForm({
   initial,
 }: {
-  initial: { freeChatsLimit: number; aiPrompts: AiPromptConfig[] };
+  initial: {
+    freeChatsLimit: number;
+    aiPrompts: AiPromptConfig[];
+    calorieConfig?: CalorieConfig;
+  };
 }) {
   const [state, formAction, isPending] = useActionState(updateSettingsAction, initialState);
   const [prompts, setPrompts] = useState<AiPromptConfig[]>(() =>
@@ -136,6 +141,8 @@ export function SettingsForm({
             })}
           </div>
         </section>
+
+        <CalorieConfigFields initial={initial.calorieConfig} />
 
         <input type="hidden" name="aiPrompts" value={JSON.stringify(prompts)} />
 

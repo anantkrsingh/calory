@@ -3,6 +3,7 @@ import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
 import { mmkvStorage } from '@/lib/storage';
+import { useChatSessionStore } from '@/stores/chat-session.store';
 
 interface AuthState {
   user: User | null;
@@ -42,7 +43,16 @@ export const useAuthStore = create<AuthStore>()(
 
       setHydrated: () => set({ hydrated: true }),
 
-      clear: () => set({ user: null, tokens: null }),
+      clear: () => {
+        set({ user: null, tokens: null });
+        // The chat tab remembers the last-open conversation by id (see
+        // chat-session.store) — it's device-persisted, not user-scoped, so
+        // it must be wiped here too. Otherwise a different account signing
+        // in on this device would land on the previous account's thread id
+        // (the API rejects it as not found, but the chat screen has no
+        // business referencing another account's conversation at all).
+        useChatSessionStore.getState().setActiveConversationId(null);
+      },
     }),
     {
       name: 'fitness.auth',
