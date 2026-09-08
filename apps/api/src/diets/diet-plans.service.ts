@@ -1,10 +1,12 @@
+import { randomUUID } from 'node:crypto';
+
 import {
   Injectable,
   Logger,
   NotFoundException,
   ServiceUnavailableException,
 } from '@nestjs/common';
-import { DIET_PLAN_INCLUDE, toDietPlan } from '@fitness/db';
+import { DIET_PLAN_INCLUDE, toDietPlan, toLoggedPortions } from '@fitness/db';
 import { DayOfWeek } from '@fitness/types';
 import type {
   DietPlan,
@@ -15,7 +17,9 @@ import type {
 } from '@fitness/types';
 import type {
   GenerateDietPlanInput,
+  LogPortionInput,
   MarkDietItemsTakenInput,
+  RemovePortionInput,
 } from '@fitness/validation';
 
 import { resolveDietCuisine } from './geo-cuisine';
@@ -152,15 +156,21 @@ export class DietPlansService {
     ]);
 
     const takenItemIds = log?.takenItemIds ?? [];
+    const extraItems = toLoggedPortions(log?.extraItems);
 
     if (!planRow || planRow.status !== 'active') {
-      return { planStatus: planRow?.status ?? null, date, takenItemIds };
+      return {
+        planStatus: planRow?.status ?? null,
+        date,
+        takenItemIds,
+        extraItems,
+      };
     }
 
     const plan = toDietPlan(planRow);
     const day = plan.days.find((d) => d.dayOfWeek === dayOfWeekOf(date));
 
-    return { planStatus: plan.status, date, day, takenItemIds };
+    return { planStatus: plan.status, date, day, takenItemIds, extraItems };
   }
 
   /**
@@ -208,6 +218,80 @@ export class DietPlansService {
       create: { userId, date, takenItemIds: Array.from(current) },
       update: { takenItemIds: Array.from(current) },
     });
+
+    return this.getToday(userId, date);
+  }
+  /**
+   * Logs an off-plan food by household portion. Macros are read from the
+   * catalogue here, never taken from the request — the client sends only what
+   * was eaten and how much, so a tampered body cannot invent nutrition.
+   *
+   * Values are snapshotted onto the entry, so an admin retuning the catalogue
+   * later never rewrites what someone already logged.
+   */
+  async logPortion(
+    userId: Id,
+    date: IsoDate,
+    input: LogPortionInput,
+  ): Promise<TodayDiet> {
+    const food = await this.prisma.portionFood.findUnique({
+      where: { id: input.portionId },
+    });
+    if (!food || !food.isActive) {
+      throw new NotFoundException('That food is not available');
+    }
+
+    const scale = (per: number): number => Math.round(per * input.quantity);
+
+    const entry = {
+      id: randomUUID(),
+      portionId: food.id,
+      name: food.name,
+      unit: food.unit,
+      quantity: input.quantity,
+      calories: scale(food.calories),
+      proteinG: scale(food.proteinG),
+      fatG: scale(food.fatG),
+      carbsG: scale(food.carbsG),
+      loggedAt: new Date(),
+    };
+
+    const log = await this.prisma.dailyMealLog.findUnique({
+      where: { userId_date: { userId, date } },
+    });
+
+    // Mongo scalar/composite arrays only support a full replace via Prisma,
+    // same read-modify-write convention as `takenItemIds`.
+    await this.prisma.dailyMealLog.upsert({
+      where: { userId_date: { userId, date } },
+      create: { userId, date, takenItemIds: [], extraItems: [entry] },
+      update: { extraItems: [...(log?.extraItems ?? []), entry] },
+    });
+
+    return this.getToday(userId, date);
+  }
+
+  /** Removes one off-plan entry. Unknown ids are a no-op rather than an error,
+   * so a double-tap on a slow connection cannot fail. */
+  async removePortion(
+    userId: Id,
+    date: IsoDate,
+    input: RemovePortionInput,
+  ): Promise<TodayDiet> {
+    const log = await this.prisma.dailyMealLog.findUnique({
+      where: { userId_date: { userId, date } },
+    });
+
+    if (log) {
+      await this.prisma.dailyMealLog.update({
+        where: { id: log.id },
+        data: {
+          extraItems: log.extraItems.filter(
+            (item) => item.id !== input.entryId,
+          ),
+        },
+      });
+    }
 
     return this.getToday(userId, date);
   }

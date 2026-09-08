@@ -1,4 +1,6 @@
 import { z } from 'zod';
+import { loggedPortionSchema } from './portion';
+
 
 import {
   activityLevelSchema,
@@ -448,6 +450,7 @@ export const todayDietSchema = z.object({
   date: isoDateSchema,
   day: dietPlanDaySchema.optional(),
   takenItemIds: z.array(objectIdSchema),
+  extraItems: z.array(loggedPortionSchema),
 });
 
 export const healthResponseSchema = z.object({

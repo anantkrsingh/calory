@@ -198,7 +198,7 @@ Plan switcher, week selector, skeletons and `Stat` row are unchanged.
 ## Verification
 
 - `pnpm build`: 9/9 packages.
-- `@fitness/api`: 44/44 tests pass (17 new); `tsc --noEmit` clean; lint clean.
+- `@fitness/api`: 54/54 tests pass (27 new); `tsc --noEmit` clean; lint clean.
 - `@fitness/worker`: `tsc --noEmit` clean; lint clean.
 - `@fitness/admin`: `tsc --noEmit` clean; lint clean.
 
@@ -210,9 +210,147 @@ touched is `diets.tsx`, additively (+23/−7).
 
 ---
 
+## Adaptive TDEE (added 2026-09-08)
+
+The formula estimate rests on a self-reported activity multiplier, and research
+notes these "rarely match individual daily patterns". So expenditure is now
+**measured** once there is enough history:
+
+```
+observed TDEE = mean daily intake − (weight trend slope kg/day × 7700)
+```
+
+If someone eats 2200 kcal and holds weight, their TDEE is 2200 — whatever the
+formula said. This self-corrects for a wrong activity level, a slowed
+metabolism, or systematic under-logging.
+
+`7700 kcal/kg` is the Wishnofsky (1958) figure every adaptive tracker builds on.
+
+### Method
+
+| Step | Value | Why |
+|---|---|---|
+| Trend smoothing | EWMA, `alpha = 0.10` | ~1-week half-life: ignores a salty dinner, follows a real trend within days |
+| Missing weigh-ins | linear interpolation | a skipped day must not flatten the slope |
+| Slope | least-squares over the smoothed trend | robust to a single odd reading |
+| Window | 21-day lookback | covers a 14-day measurement regardless of the range requested |
+| Minimum data | 7 logged intake days | below this the number is noise, so the formula stands |
+| Drift clamp | ±35% of the formula | one mis-logged week nudges the estimate, never runs away |
+
+Unlogged days are excluded rather than counted as zero — a gap in the record is
+not a fast.
+
+### Behaviour
+
+- Below 7 logged days: `isAdaptive: false`, formula value used, nothing changes.
+- Once adaptive: `tdee` and `targetCalories` are both re-derived from the
+  measured figure, so the intake target tracks reality.
+- `CalorieBalance.adaptive` exposes `formulaTdee`, `observedTdee`,
+  `trendKgPerDay`, `daysOfData` and `clampedTo`, so the difference is inspectable
+  rather than hidden.
+- The mobile card adds a line once active: *"Measured from 14 days of your own
+  weight and intake, trending down 0.42 kg/week."* The weekly rate is shown
+  because kg/day is too small to read.
+
+### Data
+
+No schema change — `BodyMeasurement.recordedAt`/`weightKg` and
+`DailyMealLog.takenItemIds` already carry everything needed, and
+`@@index([userId, recordedAt])` already exists.
+
+### Tests
+
+10 further assertions in `calories.spec.ts`: fallback below the minimum, flat
+weight reading intake as maintenance, expenditure rising on a loss and falling
+on a gain, the drift clamp, unlogged days ignored, no-baseline case, EWMA
+damping, gap interpolation, and empty history.
+
+---
+
+## Off-plan food logging (added 2026-09-08)
+
+### Why
+
+Intake could only be recorded by ticking items in the AI-generated plan. Anything
+eaten off-plan — a restaurant meal, a snack, chai — **could not be logged at
+all**, which is a hole in its own right and actively breaks adaptive TDEE: the
+engine divides by mean daily intake, so unlogged food makes it conclude TDEE is
+lower than reality and then sets the target too low.
+
+### Why household portions, not grams
+
+Research into the Indian market (the primary one here) is unambiguous: nobody
+weighs home cooking. HealthifyMe — the market leader, ~10,000-item Indian
+database built over 12 years — logs *"Dal Makhani — 1 katori"*, not *"247 g"*.
+Global apps that ask for grams or barcodes fail on Indian food because it is
+overwhelmingly home-cooked and served in mixed plates.
+
+Barcode scanning was considered and rejected as the first step: it has better
+raw accuracy (8.7% MAPE vs 18.3% for manual entry) but only works on packaged
+food, so it would sit unused for dal and roti.
+
+Reference weights used for the seed (a standard katori is ~150 ml):
+
+| Portion | Weight | Calories |
+|---|---|---|
+| 1 roti (medium, 8") | ~35 g | 100 |
+| 1 katori rice | ~150 g | 200 |
+| 1 katori dal | ~150 g | 135 |
+| 1 katori sabzi | ~150 g | 110 |
+| 1 glass milk | ~200 ml | 130 |
+
+24 items seeded, covering staples, protein, breakfast, drinks, and the usual
+under-logged culprits (ghee, sugar, nuts). All admin-editable.
+
+### Data
+
+| Model | Purpose |
+|---|---|
+| `PortionFood` | The admin-curated catalogue: name, unit, macros per one unit |
+| `LoggedPortion` on `DailyMealLog.extraItems` | What was actually eaten |
+
+Macros are **snapshotted onto each log entry**, so an admin retuning the
+catalogue later never rewrites what someone already logged. `portionId` is kept
+for grouping but is deliberately not a relation — an entry must survive its
+catalogue item being deleted.
+
+### Trust boundary
+
+The client sends only `{ portionId, quantity }`. Macros are resolved
+server-side from the catalogue in `DietPlansService.logPortion`, so a tampered
+request cannot invent nutrition figures.
+
+### API
+
+| Route | Purpose |
+|---|---|
+| `GET /portions` | The picker's catalogue |
+| `POST/PATCH/DELETE /portions[/:id]` | Admin CRUD |
+| `POST /diet-plans/today/:date/portions` | Log an off-plan food |
+| `DELETE /diet-plans/today/:date/portions` | Remove one entry |
+
+Removing an unknown id is a no-op rather than an error, so a double-tap on a
+slow connection cannot fail.
+
+### UI — deliberately minimal
+
+The existing meal checklist is unchanged. Below it sits an `ExtrasCard` that is
+a **single "Add something else you ate" row when empty**, so users who follow
+their plan exactly see almost nothing new. Tapping it opens a sheet of the
+catalogue with +/− steppers — 2-3 taps per meal, no typing, no weighing, no
+search. Half-portion steps, since "half a katori" is common.
+
+`CaloriesService` sums `extraItems` into `consumedCalories` and into the
+adaptive intake history, so logged extras move both the day's balance and the
+measured TDEE.
+
+---
+
 ## Migration note
 
 `AppSettings.calorieConfig` is optional and absent on existing rows, so no data
 migration is needed — every user gets the researched defaults until an admin
 overrides something. Run `pnpm db:generate` after pulling, since the Prisma
-schema gained the `CalorieConfig` composite types.
+schema gained the `CalorieConfig` composite types plus `PortionFood` and
+`LoggedPortion`, then `pnpm db:seed` to load the 24-item portion catalogue
+(idempotent — existing rows are left alone so admin edits survive a reseed).

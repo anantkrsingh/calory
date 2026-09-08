@@ -11,7 +11,7 @@ export default async function SettingsPage() {
   const settings = await apiFetch<AppSettings>("/settings");
 
   return (
-    <div className="max-w-3xl p-8">
+    <div className="p-8">
       <h1 className="mb-6 text-xl font-semibold text-neutral-900">Settings</h1>
       <SettingsForm initial={{
         freeChatsLimit: settings.freeChatsLimit,

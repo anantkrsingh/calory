@@ -16,3 +16,4 @@ export * from './ai';
 export * from './chat';
 export * from './settings';
 export * from './plan';
+export * from './portion';

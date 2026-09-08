@@ -302,6 +302,207 @@ export function energyProfile(
   };
 }
 
+// ---------------------------------------------------------------------------
+// Adaptive TDEE — measured expenditure, not a formula
+// ---------------------------------------------------------------------------
+
+/**
+ * Energy in a kilogram of body-weight change. The Wishnofsky (1958) figure —
+ * imperfect for very lean or very obese people, but the value every adaptive
+ * tracker builds on.
+ */
+export const KCAL_PER_KG = 7700;
+
+/**
+ * Smoothing factor for the weight trend. 0.10 gives roughly a one-week
+ * half-life: long enough to shrug off a salty dinner, short enough to follow a
+ * real trend within days.
+ */
+export const DEFAULT_WEIGHT_TREND_ALPHA = 0.1;
+
+/** Window the observed expenditure is measured over. */
+export const DEFAULT_ADAPTIVE_WINDOW_DAYS = 14;
+
+/** Below this many days of intake data the estimate is noise, so the formula
+ * value is used untouched. */
+export const MIN_ADAPTIVE_DAYS = 7;
+
+/**
+ * How far the adaptive estimate may pull away from the formula baseline. A
+ * mis-logged week should nudge the number, not send it somewhere absurd.
+ */
+export const ADAPTIVE_MAX_DRIFT = 0.35;
+
+export interface WeightPoint {
+  date: IsoDate;
+  weightKg: number;
+}
+
+export interface IntakePoint {
+  date: IsoDate;
+  calories: number;
+}
+
+/**
+ * Exponentially weighted moving average over the weigh-ins, oldest first.
+ * Gaps are linearly interpolated so a missed day does not flatten the trend.
+ *
+ * Returns one smoothed point per calendar day covered by the input.
+ */
+export function smoothWeightTrend(
+  points: readonly WeightPoint[],
+  alpha: number = DEFAULT_WEIGHT_TREND_ALPHA,
+): WeightPoint[] {
+  if (points.length === 0) return [];
+
+  const sorted = [...points].sort((a, b) => a.date.localeCompare(b.date));
+  const dayMs = 24 * 60 * 60 * 1000;
+
+  // Fill missing days by straight-line interpolation between weigh-ins.
+  const filled: WeightPoint[] = [];
+  for (let i = 0; i < sorted.length; i += 1) {
+    const current = sorted[i]!;
+    filled.push(current);
+
+    const next = sorted[i + 1];
+    if (!next) break;
+
+    const from = Date.parse(`${current.date}T00:00:00.000Z`);
+    const to = Date.parse(`${next.date}T00:00:00.000Z`);
+    const gapDays = Math.round((to - from) / dayMs);
+    if (gapDays <= 1) continue;
+
+    const step = (next.weightKg - current.weightKg) / gapDays;
+    for (let d = 1; d < gapDays; d += 1) {
+      filled.push({
+        date: new Date(from + d * dayMs).toISOString().slice(0, 10),
+        weightKg: current.weightKg + step * d,
+      });
+    }
+  }
+
+  let trend = filled[0]!.weightKg;
+  return filled.map((point) => {
+    trend += alpha * (point.weightKg - trend);
+    return { date: point.date, weightKg: Math.round(trend * 1000) / 1000 };
+  });
+}
+
+/** Least-squares slope in kg/day over the smoothed trend. */
+function trendSlopeKgPerDay(trend: readonly WeightPoint[]): number | null {
+  if (trend.length < 2) return null;
+
+  const t0 = Date.parse(`${trend[0]!.date}T00:00:00.000Z`);
+  const dayMs = 24 * 60 * 60 * 1000;
+
+  const xs = trend.map((p) => (Date.parse(`${p.date}T00:00:00.000Z`) - t0) / dayMs);
+  const ys = trend.map((p) => p.weightKg);
+  const n = xs.length;
+
+  const meanX = xs.reduce((a, b) => a + b, 0) / n;
+  const meanY = ys.reduce((a, b) => a + b, 0) / n;
+
+  let num = 0;
+  let den = 0;
+  for (let i = 0; i < n; i += 1) {
+    num += (xs[i]! - meanX) * (ys[i]! - meanY);
+    den += (xs[i]! - meanX) ** 2;
+  }
+
+  return den === 0 ? null : num / den;
+}
+
+export interface AdaptiveTdee {
+  /** The formula estimate, for comparison. */
+  formulaTdee: number | null;
+  /** What the weight trend and intake actually imply, before clamping. */
+  observedTdee: number | null;
+  /** The figure to use: observed when there is enough data, else the formula. */
+  tdee: number | null;
+  /** kg/day — negative is losing. */
+  trendKgPerDay: number | null;
+  /** Days of intake data behind `observedTdee`. */
+  daysOfData: number;
+  /** True once the observed value is being used. */
+  isAdaptive: boolean;
+  /** Set when the observed value was pulled back to the drift limit. */
+  clampedTo?: 'floor' | 'ceiling';
+}
+
+/**
+ * Measured expenditure from what actually happened:
+ *
+ *   observed = mean daily intake − (trend slope kg/day × 7700)
+ *
+ * If someone eats 2200 kcal and holds weight, their TDEE is 2200 whatever the
+ * formula says. This is the one estimate that self-corrects for an inaccurate
+ * activity multiplier, a slowed metabolism, or systematic under-logging.
+ *
+ * Falls back to `formulaTdee` below `MIN_ADAPTIVE_DAYS` of data, and is clamped
+ * to ±`ADAPTIVE_MAX_DRIFT` of it so one mis-logged week cannot run away.
+ */
+export function adaptiveTdee(
+  formulaTdee: number | null,
+  weights: readonly WeightPoint[],
+  intake: readonly IntakePoint[],
+  options: { alpha?: number; minDays?: number; maxDrift?: number } = {},
+): AdaptiveTdee {
+  const alpha = options.alpha ?? DEFAULT_WEIGHT_TREND_ALPHA;
+  const minDays = options.minDays ?? MIN_ADAPTIVE_DAYS;
+  const maxDrift = options.maxDrift ?? ADAPTIVE_MAX_DRIFT;
+
+  // Only days with a real intake figure count; a zero-logged day is a gap in
+  // the record, not a fast.
+  const logged = intake.filter((point) => point.calories > 0);
+  const trend = smoothWeightTrend(weights, alpha);
+  const slope = trendSlopeKgPerDay(trend);
+
+  const base: AdaptiveTdee = {
+    formulaTdee,
+    observedTdee: null,
+    tdee: formulaTdee,
+    trendKgPerDay: slope === null ? null : Math.round(slope * 10000) / 10000,
+    daysOfData: logged.length,
+    isAdaptive: false,
+  };
+
+  if (logged.length < minDays || slope === null) return base;
+
+  const meanIntake =
+    logged.reduce((sum, point) => sum + point.calories, 0) / logged.length;
+  const observed = Math.round(meanIntake - slope * KCAL_PER_KG);
+
+  // Without a formula baseline there is nothing to clamp against, so the
+  // observed value stands on its own.
+  if (formulaTdee === null) {
+    return { ...base, observedTdee: observed, tdee: observed, isAdaptive: true };
+  }
+
+  const floor = Math.round(formulaTdee * (1 - maxDrift));
+  const ceiling = Math.round(formulaTdee * (1 + maxDrift));
+
+  if (observed < floor) {
+    return {
+      ...base,
+      observedTdee: observed,
+      tdee: floor,
+      isAdaptive: true,
+      clampedTo: 'floor',
+    };
+  }
+  if (observed > ceiling) {
+    return {
+      ...base,
+      observedTdee: observed,
+      tdee: ceiling,
+      isAdaptive: true,
+      clampedTo: 'ceiling',
+    };
+  }
+
+  return { ...base, observedTdee: observed, tdee: observed, isAdaptive: true };
+}
+
 /** A single day's energy balance. */
 export interface CalorieBalance {
   date: IsoDate;
@@ -323,4 +524,7 @@ export interface CalorieBalance {
   netCalories: number | null;
   /** target - consumed, floored at 0. */
   remainingCalories: number | null;
+  /** Measured expenditure from weight trend vs. intake, once there is enough
+   * data — the figure `tdee` and `targetCalories` are derived from. */
+  adaptive?: AdaptiveTdee;
 }
