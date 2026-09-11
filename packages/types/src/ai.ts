@@ -1,3 +1,4 @@
+import type { LoggedPortion } from './portion';
 import type { DayOfWeek } from './enums';
 import type { Entity, Id, IsoDate, IsoDateTime } from './common';
 
@@ -224,4 +225,6 @@ export interface TodayDiet {
   day?: DietPlanDay;
   /** `DietMealItem.id`s marked taken on this calendar date. */
   takenItemIds: Id[];
+  /** Food eaten that was not on the plan, logged by household portion. */
+  extraItems: LoggedPortion[];
 }

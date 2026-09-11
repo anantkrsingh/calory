@@ -1,6 +1,8 @@
 import type {
   AppSettings,
   CalorieConfig,
+  LoggedPortion,
+  PortionFood,
   BodyMeasurement,
   ChatConversation,
   ChatMessage,
@@ -10,6 +12,9 @@ import type {
   Exercise,
   ExerciseLogFields,
   Goal,
+  NotificationCampaign,
+  NotificationDelivery,
+  NotificationDeliveryCounts,
   Plan,
   Routine,
   User,
@@ -20,6 +25,8 @@ import type {
 
 import type {
   AppSettingsRow,
+  DailyMealLogRow,
+  PortionFoodRow,
   BodyMeasurementRow,
   ChatConversationRow,
   ChatMessageRow,
@@ -28,6 +35,8 @@ import type {
   DietPlanRow,
   ExerciseRow,
   GoalRow,
+  NotificationCampaignRow,
+  NotificationDeliveryRow,
   PlanRow,
   RoutineRow,
   UserRow,
@@ -337,6 +346,43 @@ export function toCalorieConfig(
   return Object.keys(config).length > 0 ? config : undefined;
 }
 
+export function toPortionFood(row: PortionFoodRow): PortionFood {
+  return {
+    id: row.id,
+    name: row.name,
+    unit: row.unit,
+    ...(row.gramsPerUnit != null ? { gramsPerUnit: row.gramsPerUnit } : {}),
+    calories: row.calories,
+    proteinG: row.proteinG,
+    fatG: row.fatG,
+    carbsG: row.carbsG,
+    sortOrder: row.sortOrder,
+    isActive: row.isActive,
+    createdAt: iso(row.createdAt),
+    updatedAt: iso(row.updatedAt),
+  };
+}
+
+/** `DailyMealLog.extraItems` → the wire contract. */
+export function toLoggedPortions(
+  rows: DailyMealLogRow['extraItems'] | null | undefined,
+): LoggedPortion[] {
+  if (!rows) return [];
+
+  return rows.map((row) => ({
+    id: row.id,
+    ...(row.portionId ? { portionId: row.portionId } : {}),
+    name: row.name,
+    unit: row.unit,
+    quantity: row.quantity,
+    calories: row.calories,
+    proteinG: row.proteinG,
+    fatG: row.fatG,
+    carbsG: row.carbsG,
+    loggedAt: iso(row.loggedAt),
+  }));
+}
+
 export function toAppSettings(row: AppSettingsRow): AppSettings {
   const calorieConfig = toCalorieConfig(row.calorieConfig);
 
@@ -484,6 +530,50 @@ export function toChatMessage(row: ChatMessageRow): ChatMessage {
     inputTokens: orUndefined(row.inputTokens),
     outputTokens: orUndefined(row.outputTokens),
     totalTokens: orUndefined(row.totalTokens),
+    createdAt: iso(row.createdAt),
+    updatedAt: iso(row.updatedAt),
+  };
+}
+
+/** `counts` comes from a separate groupBy aggregate — see `notifications.service.ts`. */
+export function toNotificationCampaign(
+  row: NotificationCampaignRow,
+  counts: NotificationDeliveryCounts,
+): NotificationCampaign {
+  return {
+    id: row.id,
+    title: row.title,
+    body: row.body,
+    targetType: row.targetType,
+    targetUserIds: row.targetUserIds.length > 0 ? row.targetUserIds : undefined,
+    status: row.status,
+    scheduledAt: isoOrUndefined(row.scheduledAt),
+    sentAt: isoOrUndefined(row.sentAt),
+    error: orUndefined(row.error),
+    recipientCount: row.recipientCount,
+    createdByEmail: row.createdByEmail,
+    counts,
+    createdAt: iso(row.createdAt),
+    updatedAt: iso(row.updatedAt),
+  };
+}
+
+export function toNotificationDelivery(
+  row: NotificationDeliveryRow,
+): NotificationDelivery {
+  return {
+    id: row.id,
+    campaignId: row.campaignId,
+    userId: row.userId,
+    userEmail: row.userEmail,
+    userDisplayName: row.userDisplayName,
+    pushToken: row.pushToken,
+    status: row.status,
+    errorCode: orUndefined(row.errorCode),
+    errorMessage: orUndefined(row.errorMessage),
+    sentAt: isoOrUndefined(row.sentAt),
+    deliveredAt: isoOrUndefined(row.deliveredAt),
+    failedAt: isoOrUndefined(row.failedAt),
     createdAt: iso(row.createdAt),
     updatedAt: iso(row.updatedAt),
   };

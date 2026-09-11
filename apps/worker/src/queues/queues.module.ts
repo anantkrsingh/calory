@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 
 import { AccountDeletionProcessor } from './account-deletion.processor';
 import { DietPlanProcessor } from './diet-plan.processor';
+import { NotificationProcessor } from './notification.processor';
 import { OtpQueueProcessor } from './otp.processor';
 import { QuoteProcessor } from './quote.processor';
 import { RoutineProcessor } from './routine.processor';
@@ -13,6 +14,7 @@ import { RoutineProcessor } from './routine.processor';
     RoutineProcessor,
     DietPlanProcessor,
     AccountDeletionProcessor,
+    NotificationProcessor,
   ],
 })
 export class QueuesModule {}

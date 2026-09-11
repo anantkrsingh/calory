@@ -47,6 +47,12 @@ export const envSchema = z.object({
   FACEBOOK_APP_SECRET: z.string().optional(),
   X_CLIENT_ID: z.string().optional(),
   X_CLIENT_SECRET: z.string().optional(),
+  APPLE_CLIENT_IDS: z
+    .string()
+    .optional()
+    .describe(
+      'Comma-separated app bundle / services ids accepted as identity token audiences',
+    ),
 
   LLM_PROVIDER: z.enum(['openai', 'gemini']).default('openai'),
   /** Overrides the provider's default model when set. */
@@ -64,6 +70,12 @@ export const envSchema = z.object({
   // Hard-deletes accounts whose grace period (ACCOUNT_DELETION_GRACE_DAYS in
   // users.service.ts) has elapsed since they requested deletion.
   ACCOUNT_DELETION_CRON: z.string().default('0 4 * * *'),
+
+  // Sign push requests so Expo can attribute quota to this project — optional,
+  // but recommended in production; only the worker actually sends pushes.
+  EXPO_ACCESS_TOKEN: z.string().optional(),
+  // How often the worker polls Expo for delivery receipts on sent pushes.
+  NOTIFICATION_RECEIPT_CRON: z.string().default('*/5 * * * *'),
 
   // Mirrors `PAGINATION.defaultLimit`/`PAGINATION.maxLimit` in
   // `packages/validation/src/constants.ts`.

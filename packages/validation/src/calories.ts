@@ -12,6 +12,17 @@ export const calorieRangeQuerySchema = z.object({
   to: isoDateSchema,
 });
 
+/** Mirrors `AdaptiveTdee` in @fitness/types. */
+export const adaptiveTdeeSchema = z.object({
+  formulaTdee: z.number().int().nullable(),
+  observedTdee: z.number().int().nullable(),
+  tdee: z.number().int().nullable(),
+  trendKgPerDay: z.number().nullable(),
+  daysOfData: z.number().int(),
+  isAdaptive: z.boolean(),
+  clampedTo: z.enum(['floor', 'ceiling']).optional(),
+});
+
 /** Mirrors `CalorieBalance` in @fitness/types. Nullable fields read as null
  * until the profile carries enough to compute a BMR. */
 export const calorieBalanceSchema = z.object({
@@ -28,6 +39,7 @@ export const calorieBalanceSchema = z.object({
   burnedTotal: z.number().int(),
   netCalories: z.number().int().nullable(),
   remainingCalories: z.number().int().nullable(),
+  adaptive: adaptiveTdeeSchema.optional(),
 });
 
 /** MET must stay in a physiologically sensible band — 1 is resting, and

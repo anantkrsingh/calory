@@ -43,4 +43,10 @@ export const LIMITS = {
   dietExcludedFood: { min: 1, max: 60 },
   /** How many foods a user can exclude from one diet plan. */
   dietExclusions: { max: 30 },
+  notificationTitle: { min: 1, max: 65 },
+  /** Expo/APNs truncate well before this; kept generous but bounded. */
+  notificationBody: { min: 1, max: 240 },
+  /** Hand-picked recipients per campaign — generous but bounded so a huge
+   * paste can't turn into an accidental near-broadcast. */
+  notificationTargetUsers: { min: 1, max: 5000 },
 } as const;

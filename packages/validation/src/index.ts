@@ -17,3 +17,5 @@ export * from './upload';
 export * from './workout-routine';
 export * from './diet-plan';
 export * from './calories';
+export * from './notification';
+export * from './portion';

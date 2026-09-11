@@ -1,6 +1,7 @@
 import type { DietPlan, IsoDate, TodayDiet } from '@fitness/types';
 import type {
   GenerateDietPlanInput,
+  LogPortionInput,
   MarkDietItemsTakenInput,
 } from '@fitness/validation';
 import {
@@ -99,6 +100,48 @@ export function useMarkDietItemsTaken(): UseMutationResult<
     onSuccess: (data, { date }) => {
       queryClient.setQueryData(DietPlansQueries.keys.today(date), data);
       // Intake changed, so the day's balance did too.
+      void queryClient.invalidateQueries({
+        queryKey: CaloriesQueries.keys.day(date),
+      });
+    },
+  });
+}
+
+type LogPortionVariables = { date: IsoDate; input: LogPortionInput };
+
+/** Logging off-plan food changes today's intake, so the calorie balance is
+ * invalidated alongside the diet itself. */
+export function useLogPortion(): UseMutationResult<
+  TodayDiet,
+  Error,
+  LogPortionVariables
+> {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ date, input }: LogPortionVariables) =>
+      dietPlansService.logPortion(date, input),
+    onSuccess: (data, { date }) => {
+      queryClient.setQueryData(DietPlansQueries.keys.today(date), data);
+      void queryClient.invalidateQueries({
+        queryKey: CaloriesQueries.keys.day(date),
+      });
+    },
+  });
+}
+
+export function useRemovePortion(): UseMutationResult<
+  TodayDiet,
+  Error,
+  { date: IsoDate; entryId: string }
+> {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ date, entryId }) =>
+      dietPlansService.removePortion(date, entryId),
+    onSuccess: (data, { date }) => {
+      queryClient.setQueryData(DietPlansQueries.keys.today(date), data);
       void queryClient.invalidateQueries({
         queryKey: CaloriesQueries.keys.day(date),
       });

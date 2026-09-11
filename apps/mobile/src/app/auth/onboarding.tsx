@@ -1,6 +1,6 @@
 import { useRouter } from "expo-router";
 import { SymbolView } from "expo-symbols";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -32,7 +32,7 @@ import { useCreateMeasurement, useUpdateProfile } from "@/queries";
 import { selectUser, useAuthStore } from "@/stores/auth.store";
 import { useOnboardingStore } from "@/stores/onboarding.store";
 
-const STEPS_WITH_ACCOUNT = 5; // Sex, BodyMetrics, Dob, Goals, Activity — skips Email/Name.
+const STEPS_WITH_ACCOUNT = 6; // Sex, BodyMetrics, Dob, Goals, Activity, Name — skips Email.
 
 export default function OnboardingScreen() {
   const theme = useTheme();
@@ -58,6 +58,17 @@ export default function OnboardingScreen() {
     updateProfile.isPending || createMeasurement.isPending;
 
   const canContinue = isStepComplete(currentStep, userData);
+
+  // Social sign-in may already have a real name (Google/Facebook usually
+  // share one; Apple never does) — prefill the Name step with it instead of
+  // making the user retype what the provider already gave us.
+  useEffect(() => {
+    if (isLoggedIn && currentUser.profile.displayName && !userData.displayName) {
+      updateUserData({ displayName: currentUser.profile.displayName });
+    }
+    // Only meant to run once, when the screen picks up a logged-in user.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoggedIn]);
 
   // Reanimated bakes the outgoing step's `exiting` animation into its last-rendered
   // props. Changing `direction` and `currentStep` in the same tick (React batches
@@ -96,6 +107,7 @@ export default function OnboardingScreen() {
     try {
       await updateProfile.mutateAsync({
         profile: {
+          displayName: userData.displayName,
           sex: userData.sex,
           dateOfBirth: userData.dateOfBirth,
           heightCm: userData.heightCm,

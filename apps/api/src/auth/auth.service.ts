@@ -222,11 +222,20 @@ export class AuthService {
           ...(profile.emailVerified && !existing.emailVerified
             ? { emailVerified: true }
             : {}),
-          ...(profile.avatarUrl
+          // Backfills whatever this provider adds that the account still
+          // lacks — a later Google link can supply the name an earlier,
+          // name-less Apple sign-up left blank.
+          ...(profile.avatarUrl ||
+          (profile.displayName && !existing.profile?.displayName)
             ? {
                 profile: {
                   ...(existing.profile ?? {}),
-                  avatarUrl: profile.avatarUrl,
+                  ...(profile.avatarUrl
+                    ? { avatarUrl: profile.avatarUrl }
+                    : {}),
+                  ...(profile.displayName && !existing.profile?.displayName
+                    ? { displayName: profile.displayName }
+                    : {}),
                 },
               }
             : {}),
@@ -252,7 +261,11 @@ export class AuthService {
         email,
         emailVerified: profile.emailVerified,
         profile: {
-          displayName: profile.displayName || email.split('@')[0] || email,
+          // Left blank when the provider shares no name (Apple never does)
+          // — the client formats a stand-in from the email and onboarding
+          // asks for a real one; synthesizing one here would just get in
+          // the way of both.
+          displayName: profile.displayName ?? '',
           avatarUrl: profile.avatarUrl ?? null,
         },
         preferences: {},

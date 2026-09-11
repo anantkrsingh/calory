@@ -26,6 +26,7 @@ function CalorieBalanceCardComponent({ balance }: CalorieBalanceCardProps) {
     burnedTotal,
     bmr,
     tdee,
+    adaptive,
   } = balance;
 
   const hasTarget = targetCalories !== null && targetCalories > 0;
@@ -99,8 +100,26 @@ function CalorieBalanceCardComponent({ balance }: CalorieBalanceCardProps) {
           BMR {bmr} · TDEE {tdee} · burned {burnedTotal} kcal today
         </ThemedText>
       ) : null}
+
+      {adaptive?.isAdaptive ? (
+        <ThemedText themeColor="textSecondary" style={styles.footnote}>
+          Measured from {adaptive.daysOfData} days of your own weight and
+          intake{trendLabel(adaptive.trendKgPerDay)}.
+        </ThemedText>
+      ) : null}
     </View>
   );
+}
+
+/** kg/day is too small to read; show the weekly rate instead. */
+function trendLabel(kgPerDay: number | null): string {
+  if (kgPerDay === null) return '';
+
+  const perWeek = kgPerDay * 7;
+  if (Math.abs(perWeek) < 0.05) return ', weight holding steady';
+
+  const direction = perWeek < 0 ? 'down' : 'up';
+  return `, trending ${direction} ${Math.abs(perWeek).toFixed(2)} kg/week`;
 }
 
 function BurnStat({

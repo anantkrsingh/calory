@@ -12,6 +12,9 @@ import {
   MEASUREMENT_SITES,
   MuscleGroup,
   ChatMessageRole,
+  NotificationCampaignStatus,
+  NotificationDeliveryStatus,
+  NotificationTargetType,
   PromptCategory,
   RoutineDayStatus,
   SetType,
@@ -48,3 +51,10 @@ export const dayOfWeekSchema = z.enum(DayOfWeek);
 export const routineDayStatusSchema = z.enum(RoutineDayStatus);
 export const dietTypeSchema = z.enum(DietType);
 export const dietCuisineSchema = z.enum(DietCuisine);
+export const notificationTargetTypeSchema = z.enum(NotificationTargetType);
+export const notificationCampaignStatusSchema = z.enum(
+  NotificationCampaignStatus,
+);
+export const notificationDeliveryStatusSchema = z.enum(
+  NotificationDeliveryStatus,
+);

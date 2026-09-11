@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   HttpStatus,
@@ -19,10 +20,14 @@ import {
   dietPlanSchema,
   generateDietPlanSchema,
   isoDateSchema,
+  logPortionSchema,
   markDietItemsTakenSchema,
+  removePortionSchema,
   todayDietSchema,
   type GenerateDietPlanInput,
+  type LogPortionInput,
   type MarkDietItemsTakenInput,
+  type RemovePortionInput,
 } from '@fitness/validation';
 
 import { ClientIp, CurrentUser } from '../common/decorators';
@@ -111,5 +116,40 @@ export class DietPlansController {
     @Body(zodPipe(markDietItemsTakenSchema)) body: MarkDietItemsTakenInput,
   ): Promise<TodayDiet> {
     return this.dietPlans.markTaken(user.id, date, body);
+  }
+  @Post('today/:date/portions')
+  @ApiOperation({
+    summary: 'Log an off-plan food by household portion',
+    description:
+      'For anything eaten that was not on the plan. Send the catalogue id ' +
+      'and how many portions — macros are resolved server-side from the ' +
+      'catalogue, so the request cannot set its own nutrition values.',
+  })
+  @ApiZodBody(logPortionSchema)
+  @ApiZodResponse(todayDietSchema, {
+    description: "Today's diet and progress",
+    name: 'TodayDiet',
+  })
+  logPortion(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('date', zodPipe(isoDateSchema)) date: string,
+    @Body(zodPipe(logPortionSchema)) body: LogPortionInput,
+  ): Promise<TodayDiet> {
+    return this.dietPlans.logPortion(user.id, date, body);
+  }
+
+  @Delete('today/:date/portions')
+  @ApiOperation({ summary: 'Remove an off-plan food entry' })
+  @ApiZodBody(removePortionSchema)
+  @ApiZodResponse(todayDietSchema, {
+    description: "Today's diet and progress",
+    name: 'TodayDiet',
+  })
+  removePortion(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('date', zodPipe(isoDateSchema)) date: string,
+    @Body(zodPipe(removePortionSchema)) body: RemovePortionInput,
+  ): Promise<TodayDiet> {
+    return this.dietPlans.removePortion(user.id, date, body);
   }
 }

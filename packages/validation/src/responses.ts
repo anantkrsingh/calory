@@ -1,4 +1,6 @@
 import { z } from 'zod';
+import { loggedPortionSchema } from './portion';
+
 
 import {
   activityLevelSchema,
@@ -12,6 +14,9 @@ import {
   goalTypeSchema,
   measurementSiteSchema,
   muscleGroupSchema,
+  notificationCampaignStatusSchema,
+  notificationDeliveryStatusSchema,
+  notificationTargetTypeSchema,
   promptCategorySchema,
   routineDayStatusSchema,
   setTypeSchema,
@@ -448,6 +453,7 @@ export const todayDietSchema = z.object({
   date: isoDateSchema,
   day: dietPlanDaySchema.optional(),
   takenItemIds: z.array(objectIdSchema),
+  extraItems: z.array(loggedPortionSchema),
 });
 
 export const healthResponseSchema = z.object({
@@ -499,4 +505,41 @@ export const otpVerifyResponseSchema = z.object({
   success: z.boolean(),
   message: z.string().optional(),
   userId: objectIdSchema.optional(),
+});
+
+export const notificationDeliveryCountsSchema = z.object({
+  pending: z.number().int(),
+  sent: z.number().int(),
+  delivered: z.number().int(),
+  failed: z.number().int(),
+});
+
+export const notificationCampaignSchema = z.object({
+  ...entityFields,
+  title: z.string(),
+  body: z.string(),
+  targetType: notificationTargetTypeSchema,
+  targetUserIds: z.array(objectIdSchema).optional(),
+  status: notificationCampaignStatusSchema,
+  scheduledAt: isoDateTimeSchema.optional(),
+  sentAt: isoDateTimeSchema.optional(),
+  error: z.string().optional(),
+  recipientCount: z.number().int(),
+  createdByEmail: z.string(),
+  counts: notificationDeliveryCountsSchema,
+});
+
+export const notificationDeliverySchema = z.object({
+  ...entityFields,
+  campaignId: objectIdSchema,
+  userId: objectIdSchema,
+  userEmail: z.string(),
+  userDisplayName: z.string(),
+  pushToken: z.string(),
+  status: notificationDeliveryStatusSchema,
+  errorCode: z.string().optional(),
+  errorMessage: z.string().optional(),
+  sentAt: isoDateTimeSchema.optional(),
+  deliveredAt: isoDateTimeSchema.optional(),
+  failedAt: isoDateTimeSchema.optional(),
 });

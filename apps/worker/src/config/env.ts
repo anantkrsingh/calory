@@ -68,6 +68,12 @@ export const envSchema = z.object({
   // deletion — see account-deletion.processor.ts.
   ACCOUNT_DELETION_CRON: z.string().default('0 4 * * *'),
 
+  // Sign push requests so Expo can attribute quota to this project — optional,
+  // but recommended in production; see notification.processor.ts.
+  EXPO_ACCESS_TOKEN: z.string().optional(),
+  // How often to poll Expo for delivery receipts on already-sent pushes.
+  NOTIFICATION_RECEIPT_CRON: z.string().default('*/5 * * * *'),
+
   // Mirrors `PAGINATION.defaultLimit`/`PAGINATION.maxLimit` in
   // `packages/validation/src/constants.ts`.
   DEFAULT_PAGE_SIZE: z.coerce.number().int().positive().max(100).default(20),

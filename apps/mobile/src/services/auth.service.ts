@@ -75,6 +75,10 @@ export class AuthService extends BaseService {
     return this.loginSocial('x', input);
   }
 
+  async loginApple(input: SocialLoginInput): Promise<AuthSession> {
+    return this.loginSocial('apple', input);
+  }
+
   private async loginSocial(
     provider: AuthProvider,
     input: SocialLoginInput,

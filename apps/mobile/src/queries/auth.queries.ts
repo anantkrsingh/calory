@@ -88,6 +88,7 @@ const SOCIAL_LOGINS: Record<
   google: (input) => authService.loginGoogle(input),
   facebook: (input) => authService.loginFacebook(input),
   x: (input) => authService.loginX(input),
+  apple: (input) => authService.loginApple(input),
 };
 
 export function useRegister(): UseMutationResult<

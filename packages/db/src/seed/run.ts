@@ -7,6 +7,7 @@ import {
   PLACEHOLDER_GALLERY,
   PLACEHOLDER_THUMBNAIL,
 } from './exercises';
+import { PORTION_FOOD_SEED } from './portion-foods';
 
 /**
  * Idempotent seed for the shared exercise catalogue. Re-running it updates
@@ -57,6 +58,27 @@ async function main(): Promise<void> {
 
     console.log(
       `Seeded exercise catalogue: ${created} created, ${updated} updated.`,
+    );
+
+    // Household-portion catalogue for off-plan food logging. Only created on
+    // first run — an admin may have retuned the macros, and a reseed must not
+    // clobber that. New entries added to the seed still land.
+    let portionsCreated = 0;
+    for (const food of PORTION_FOOD_SEED) {
+      const existing = await prisma.portionFood.findFirst({
+        where: { name: food.name, unit: food.unit },
+        select: { id: true },
+      });
+      if (existing) continue;
+
+      await prisma.portionFood.create({ data: food });
+      portionsCreated += 1;
+    }
+
+    console.log(
+      `Seeded portion foods: ${portionsCreated} created, ${
+        PORTION_FOOD_SEED.length - portionsCreated
+      } already present.`,
     );
   } finally {
     await prisma.$disconnect();
