@@ -88,6 +88,7 @@ jobs:
           CLOUDINARY_API_KEY: ${{ secrets.CLOUDINARY_API_KEY }}
           CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET }}
           DEFAULT_PAGE_SIZE: ${{ secrets.DEFAULT_PAGE_SIZE }}
+          APPLE_CLIENT_IDS: ${{ secrets.APPLE_CLIENT_IDS }}
         run: |
           set -euo pipefail
           if [ -z "${MONGODB_URI:-}" ] || [ -z "${JWT_SECRET:-}" ]; then
@@ -134,7 +135,7 @@ jobs:
           append CLOUDINARY_CLOUD_NAME "${CLOUDINARY_CLOUD_NAME:-}"
           append CLOUDINARY_API_KEY "${CLOUDINARY_API_KEY:-}"
           append CLOUDINARY_API_SECRET "${CLOUDINARY_API_SECRET:-}"
-
+          append APPLE_CLIENT_IDS "${APPLE_CLIENT_IDS:-}"
       - name: Deploy with Docker Compose
         run: |
           set -euo pipefail
