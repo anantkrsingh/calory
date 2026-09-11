@@ -10,6 +10,8 @@ import {
   caloriesForExercise,
   caloriesFromSteps,
   energyProfile,
+  adaptiveTdee,
+  smoothWeightTrend,
 } from '@fitness/types';
 import type { CalorieConfig } from '@fitness/types';
 
@@ -240,5 +242,144 @@ describe('admin calorie config', () => {
 
     expect(result.bmr).toBe(1780);
     expect(result.tdee).toBe(3560);
+  });
+});
+
+describe('adaptive TDEE', () => {
+  /** n consecutive days from 2026-01-01. */
+  const days = (n: number): string[] =>
+    Array.from({ length: n }, (_, i) =>
+      new Date(Date.UTC(2026, 0, 1 + i)).toISOString().slice(0, 10),
+    );
+
+  const flatIntake = (n: number, calories: number) =>
+    days(n).map((date) => ({ date, calories }));
+
+  it('falls back to the formula below the minimum days of data', () => {
+    const result = adaptiveTdee(
+      2500,
+      days(3).map((date, i) => ({ date, weightKg: 80 - i * 0.05 })),
+      flatIntake(3, 2200),
+    );
+
+    expect(result.isAdaptive).toBe(false);
+    expect(result.tdee).toBe(2500);
+    expect(result.daysOfData).toBe(3);
+  });
+
+  it('reads a stable weight at a known intake as that intake being maintenance', () => {
+    const result = adaptiveTdee(
+      2500,
+      days(14).map((date) => ({ date, weightKg: 80 })),
+      flatIntake(14, 2200),
+    );
+
+    expect(result.isAdaptive).toBe(true);
+    // Flat weight → expenditure equals intake, whatever the formula claimed.
+    expect(result.tdee).toBe(2200);
+    expect(result.trendKgPerDay).toBe(0);
+  });
+
+  it('raises expenditure when weight falls at a known intake', () => {
+    // 0.5 kg/week down = 0.0714 kg/day ≈ 550 kcal/day deficit.
+    const result = adaptiveTdee(
+      2600,
+      days(21).map((date, i) => ({ date, weightKg: 80 - i * (0.5 / 7) })),
+      flatIntake(21, 2200),
+    );
+
+    expect(result.isAdaptive).toBe(true);
+    expect(result.observedTdee).toBeGreaterThan(2200);
+    expect(result.trendKgPerDay).toBeLessThan(0);
+  });
+
+  it('lowers expenditure when weight rises at a known intake', () => {
+    const result = adaptiveTdee(
+      2600,
+      days(21).map((date, i) => ({ date, weightKg: 80 + i * (0.5 / 7) })),
+      flatIntake(21, 2800),
+    );
+
+    expect(result.observedTdee).toBeLessThan(2800);
+    expect(result.trendKgPerDay).toBeGreaterThan(0);
+  });
+
+  it('clamps a runaway estimate to the drift limit', () => {
+    // Absurd 3 kg/week loss at a low intake would imply a huge expenditure.
+    const result = adaptiveTdee(
+      2000,
+      days(14).map((date, i) => ({ date, weightKg: 90 - i * (3 / 7) })),
+      flatIntake(14, 1800),
+    );
+
+    expect(result.clampedTo).toBe('ceiling');
+    expect(result.tdee).toBe(2700); // 2000 * 1.35
+    expect(result.observedTdee).toBeGreaterThan(2700);
+  });
+
+  it('ignores unlogged days rather than treating them as a fast', () => {
+    const intake = flatIntake(14, 2200).map((point, i) =>
+      i % 2 === 0 ? point : { ...point, calories: 0 },
+    );
+
+    const result = adaptiveTdee(
+      2500,
+      days(14).map((date) => ({ date, weightKg: 80 })),
+      intake,
+    );
+
+    // Only the 7 real days count, and the mean is unpolluted by the zeros.
+    expect(result.daysOfData).toBe(7);
+    expect(result.tdee).toBe(2200);
+  });
+
+  it('stands alone when there is no formula baseline to clamp against', () => {
+    const result = adaptiveTdee(
+      null,
+      days(14).map((date) => ({ date, weightKg: 80 })),
+      flatIntake(14, 2100),
+    );
+
+    expect(result.formulaTdee).toBeNull();
+    expect(result.tdee).toBe(2100);
+    expect(result.isAdaptive).toBe(true);
+  });
+
+  it('smooths daily water-weight noise out of the trend', () => {
+    const noisy = days(10).map((date, i) => ({
+      date,
+      weightKg: 80 + (i % 2 === 0 ? 0.8 : -0.8),
+    }));
+
+    const smoothed = smoothWeightTrend(noisy);
+    const spreadOf = (points: { weightKg: number }[]) =>
+      Math.max(...points.map((p) => p.weightKg)) -
+      Math.min(...points.map((p) => p.weightKg));
+
+    // The raw 1.6 kg swing must be materially damped, and the trend must stay
+    // centred rather than chasing either extreme.
+    expect(spreadOf(smoothed)).toBeLessThan(spreadOf(noisy) / 2);
+    expect(smoothed.at(-1)!.weightKg).toBeGreaterThan(79.4);
+    expect(smoothed.at(-1)!.weightKg).toBeLessThan(80.6);
+  });
+
+  it('interpolates missing weigh-ins instead of flattening the trend', () => {
+    const sparse = [
+      { date: '2026-01-01', weightKg: 80 },
+      { date: '2026-01-08', weightKg: 79 },
+    ];
+
+    const smoothed = smoothWeightTrend(sparse);
+
+    // One point per day across the gap, not just the two weigh-ins.
+    expect(smoothed).toHaveLength(8);
+    expect(smoothed.at(-1)!.weightKg).toBeLessThan(80);
+  });
+
+  it('handles an empty history without throwing', () => {
+    expect(smoothWeightTrend([])).toEqual([]);
+    const result = adaptiveTdee(2400, [], []);
+    expect(result.tdee).toBe(2400);
+    expect(result.isAdaptive).toBe(false);
   });
 });

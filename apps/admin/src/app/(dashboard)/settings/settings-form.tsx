@@ -79,6 +79,7 @@ export function SettingsForm({
   return (
     <>
       <form action={formAction} className="flex flex-col gap-8">
+        <div className="grid grid-cols-1 gap-8 xl:grid-cols-[minmax(0,20rem)_minmax(0,1fr)]">
         <section>
           <h2 className="mb-1 text-sm font-semibold text-neutral-900">Free AI chats per user</h2>
           <p className="mb-3 text-sm text-neutral-500">
@@ -89,7 +90,7 @@ export function SettingsForm({
             name="freeChatsLimit"
             min={0}
             defaultValue={initial.freeChatsLimit}
-            className="w-32 cursor-text rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 placeholder:text-neutral-400 outline-none focus:border-neutral-900"
+            className="w-full max-w-[12rem] cursor-text rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 placeholder:text-neutral-400 outline-none focus:border-neutral-900"
           />
         </section>
 
@@ -141,6 +142,7 @@ export function SettingsForm({
             })}
           </div>
         </section>
+        </div>
 
         <CalorieConfigFields initial={initial.calorieConfig} />
 

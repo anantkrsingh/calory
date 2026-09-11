@@ -1,6 +1,7 @@
 import type { DietPlan, IsoDate, TodayDiet } from '@fitness/types';
 import type {
   GenerateDietPlanInput,
+  LogPortionInput,
   MarkDietItemsTakenInput,
 } from '@fitness/validation';
 import type { AxiosInstance } from 'axios';
@@ -46,6 +47,27 @@ export class DietPlansService extends BaseService {
     const { data } = await this.client.patch<TodayDiet>(
       this.url('today', date),
       input,
+    );
+    return data;
+  }
+
+  /** Logs an off-plan food. Macros are resolved server-side from the
+   * catalogue, so only the id and quantity are sent. */
+  async logPortion(
+    date: IsoDate,
+    input: LogPortionInput,
+  ): Promise<TodayDiet> {
+    const { data } = await this.client.post<TodayDiet>(
+      this.url('today', date, 'portions'),
+      input,
+    );
+    return data;
+  }
+
+  async removePortion(date: IsoDate, entryId: string): Promise<TodayDiet> {
+    const { data } = await this.client.delete<TodayDiet>(
+      this.url('today', date, 'portions'),
+      { data: { entryId } },
     );
     return data;
   }

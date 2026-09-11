@@ -794,12 +794,36 @@ model DailyMealLog {
   date         String
   /// `DietMealItem.id`s marked taken on this date.
   takenItemIds String[] @db.ObjectId @default([])
+  /// Food eaten that was not on the plan, logged by household portion.
+  extraItems   LoggedPortion[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@unique([userId, date])
   @@map("daily_meal_logs")
+}
+
+/// One off-plan food entry, logged in household portions rather than grams —
+/// "2 roti", "1 katori dal" — the way portions are actually spoken about.
+/// Macros are snapshotted at log time so editing the catalogue later never
+/// rewrites history.
+type LoggedPortion {
+  /// Client-generated (UUID), same convention as WorkoutSet.
+  id       String
+  /// The catalogue entry this came from, for grouping and analytics. Not a
+  /// relation — a logged entry must survive the catalogue item being removed.
+  portionId String?
+  /// Denormalised so an old entry still reads correctly.
+  name     String
+  /// e.g. "roti", "katori" — the unit, not a weight.
+  unit     String
+  quantity Float
+  calories Int
+  proteinG Int
+  fatG     Int
+  carbsG   Int
+  loggedAt DateTime @default(now())
 }
 
 /// One admin-tuned MET value for an exercise category. Modelled as a list
@@ -835,6 +859,33 @@ type CalorieConfig {
   restMetFraction      Float?
   minIntakeMale        Int?
   minIntakeFemale      Int?
+}
+
+/// A common food in household-portion terms, editable from the admin panel.
+/// Seeded with Indian staples since that is the primary market; the unit is a
+/// katori/roti/glass rather than a gram because nobody weighs home cooking.
+model PortionFood {
+  id   String @id @default(auto()) @map("_id") @db.ObjectId
+  name String
+  /// e.g. "roti", "katori", "glass", "piece".
+  unit String
+  /// Approximate grams for one unit — informational, shown to the user.
+  gramsPerUnit Int?
+  /// Macros for exactly one unit.
+  calories Int
+  proteinG Int
+  fatG     Int
+  carbsG   Int
+  /// Controls ordering in the picker; lower shows first.
+  sortOrder Int     @default(0)
+  isActive  Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([name, unit])
+  @@index([isActive, sortOrder])
+  @@map("portion_foods")
 }
 
 /// App-wide configuration edited from the admin panel. Always exactly one row.

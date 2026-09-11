@@ -1,6 +1,8 @@
 import type {
   AppSettings,
   CalorieConfig,
+  LoggedPortion,
+  PortionFood,
   BodyMeasurement,
   ChatConversation,
   ChatMessage,
@@ -23,6 +25,8 @@ import type {
 
 import type {
   AppSettingsRow,
+  DailyMealLogRow,
+  PortionFoodRow,
   BodyMeasurementRow,
   ChatConversationRow,
   ChatMessageRow,
@@ -340,6 +344,43 @@ export function toCalorieConfig(
   };
 
   return Object.keys(config).length > 0 ? config : undefined;
+}
+
+export function toPortionFood(row: PortionFoodRow): PortionFood {
+  return {
+    id: row.id,
+    name: row.name,
+    unit: row.unit,
+    ...(row.gramsPerUnit != null ? { gramsPerUnit: row.gramsPerUnit } : {}),
+    calories: row.calories,
+    proteinG: row.proteinG,
+    fatG: row.fatG,
+    carbsG: row.carbsG,
+    sortOrder: row.sortOrder,
+    isActive: row.isActive,
+    createdAt: iso(row.createdAt),
+    updatedAt: iso(row.updatedAt),
+  };
+}
+
+/** `DailyMealLog.extraItems` → the wire contract. */
+export function toLoggedPortions(
+  rows: DailyMealLogRow['extraItems'] | null | undefined,
+): LoggedPortion[] {
+  if (!rows) return [];
+
+  return rows.map((row) => ({
+    id: row.id,
+    ...(row.portionId ? { portionId: row.portionId } : {}),
+    name: row.name,
+    unit: row.unit,
+    quantity: row.quantity,
+    calories: row.calories,
+    proteinG: row.proteinG,
+    fatG: row.fatG,
+    carbsG: row.carbsG,
+    loggedAt: iso(row.loggedAt),
+  }));
 }
 
 export function toAppSettings(row: AppSettingsRow): AppSettings {

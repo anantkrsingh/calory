@@ -16,6 +16,7 @@ import { HealthModule } from './health/health.module';
 import { MeasurementsModule } from './measurements/measurements.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { PlansModule } from './plans/plans.module';
+import { PortionsModule } from './portions/portions.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { QuotesModule } from './quotes/quotes.module';
 import { QueuesModule } from './queues/queues.module';
@@ -41,6 +42,7 @@ import { WorkoutsModule } from './workouts/workouts.module';
     RoutinesModule,
     DietPlansModule,
     CaloriesModule,
+    PortionsModule,
     MeasurementsModule,
     GoalsModule,
     QuotesModule,

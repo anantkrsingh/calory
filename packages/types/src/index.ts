@@ -17,3 +17,4 @@ export * from './chat';
 export * from './settings';
 export * from './plan';
 export * from './notifications';
+export * from './portion';

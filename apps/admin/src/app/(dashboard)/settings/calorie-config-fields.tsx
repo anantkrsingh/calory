@@ -50,7 +50,7 @@ const GOAL_LABELS: Record<FitnessGoal, string> = {
 };
 
 const inputClass =
-  "w-28 cursor-text rounded-lg border border-neutral-300 bg-white px-3 py-1.5 text-sm text-neutral-900 placeholder:text-neutral-400 outline-none focus:border-neutral-900";
+  "w-24 shrink-0 cursor-text rounded-lg border border-neutral-300 bg-white px-2.5 py-1.5 text-right text-sm text-neutral-900 placeholder:text-neutral-400 outline-none focus:border-neutral-900";
 
 type NumericMap = Record<string, string>;
 
@@ -144,7 +144,7 @@ export function CalorieConfigFields({ initial }: { initial?: CalorieConfig }) {
 
       <input type="hidden" name="calorieConfig" value={JSON.stringify(payload)} />
 
-      <div className="overflow-hidden rounded-xl border border-neutral-200 bg-white">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 2xl:grid-cols-3">
         <Group title="MET per exercise category" note="Drives calories burned per logged set.">
           {Object.values(ExerciseCategory).map((category) => (
             <Row
@@ -217,7 +217,7 @@ export function CalorieConfigFields({ initial }: { initial?: CalorieConfig }) {
           ))}
         </Group>
 
-        <Group title="Other constants" note="Applied across every calculation.">
+        <Group title="Other constants" note="Applied across every calculation." wide>
           <Row
             label="kcal per step per kg"
             hint={`Default ${DEFAULT_KCAL_PER_STEP_PER_KG.toFixed(6)} (~0.04 kcal/step at 70 kg)`}
@@ -307,19 +307,26 @@ export function CalorieConfigFields({ initial }: { initial?: CalorieConfig }) {
 function Group({
   title,
   note,
+  wide,
   children,
 }: {
   title: string;
   note: string;
+  /** Spans two columns — for the group with twice as many rows as the rest. */
+  wide?: boolean;
   children: React.ReactNode;
 }) {
   return (
-    <div className="border-b border-neutral-200 last:border-b-0">
-      <div className="bg-neutral-50 px-4 py-2">
+    <div
+      className={`flex flex-col overflow-hidden rounded-xl border border-neutral-200 bg-white ${
+        wide ? "lg:col-span-2 2xl:col-span-1" : ""
+      }`}
+    >
+      <div className="border-b border-neutral-200 bg-neutral-50 px-4 py-2.5">
         <p className="text-xs font-semibold text-neutral-700">{title}</p>
         <p className="text-xs text-neutral-500">{note}</p>
       </div>
-      {children}
+      <div className="flex-1">{children}</div>
     </div>
   );
 }
@@ -334,10 +341,12 @@ function Row({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex items-center justify-between gap-4 border-b border-neutral-100 px-4 py-3 last:border-b-0">
-      <div className="min-w-0">
+    <div className="flex items-center justify-between gap-3 border-b border-neutral-100 px-4 py-2.5 last:border-b-0">
+      <div className="min-w-0 flex-1">
         <p className="text-sm text-neutral-900">{label}</p>
-        <p className="truncate text-xs text-neutral-500">{hint}</p>
+        {/* Wraps rather than truncates — the source of each default is the
+            point of showing it. */}
+        <p className="text-xs leading-snug text-neutral-500">{hint}</p>
       </div>
       {children}
     </div>

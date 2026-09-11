@@ -6,6 +6,8 @@ import {
 } from '@fitness/db';
 import {
   DayOfWeek,
+  adaptiveTdee,
+  calculateCalorieTarget,
   caloriesForExercise,
   caloriesFromSteps,
   energyProfile,
@@ -19,8 +21,10 @@ import type {
   ExerciseCategory,
   FitnessGoal,
   Id,
+  IntakePoint,
   IsoDate,
   Sex,
+  WeightPoint,
 } from '@fitness/types';
 
 import { PrismaService } from '../prisma/prisma.service';
@@ -57,6 +61,10 @@ function enumerateDates(from: IsoDate, to: IsoDate): IsoDate[] {
  * used to scale burn estimates, never to compute a BMR (which stays null). */
 const ASSUMED_WEIGHT_KG = 70;
 
+/** History pulled for the adaptive estimate, independent of the range asked
+ * for — a single-day request still needs the preceding fortnight of context. */
+const ADAPTIVE_LOOKBACK_DAYS = 21;
+
 @Injectable()
 export class CaloriesService {
   constructor(
@@ -87,9 +95,16 @@ export class CaloriesService {
       new Date(`${to}T00:00:00.000Z`).getTime() + DAY_MS,
     );
 
+    // The adaptive estimate needs history before `from`, so weights and meal
+    // logs are read from further back than the requested range.
+    const lookbackStart = new Date(
+      rangeStart.getTime() - ADAPTIVE_LOOKBACK_DAYS * DAY_MS,
+    );
+    const lookbackFrom = lookbackStart.toISOString().slice(0, 10);
+
     const [
       user,
-      latestMeasurement,
+      weightRows,
       steps,
       mealLogs,
       dietPlanRow,
@@ -101,18 +116,22 @@ export class CaloriesService {
         where: { id: userId },
         select: { profile: true },
       }),
-      this.prisma.bodyMeasurement.findFirst({
-        where: { userId },
-        orderBy: { recordedAt: 'desc' },
-        select: { weightKg: true },
+      this.prisma.bodyMeasurement.findMany({
+        where: {
+          userId,
+          weightKg: { not: null },
+          recordedAt: { gte: lookbackStart },
+        },
+        orderBy: { recordedAt: 'asc' },
+        select: { recordedAt: true, weightKg: true },
       }),
       this.prisma.dailySteps.findMany({
         where: { userId, date: { gte: from, lte: to } },
         select: { date: true, steps: true },
       }),
       this.prisma.dailyMealLog.findMany({
-        where: { userId, date: { gte: from, lte: to } },
-        select: { date: true, takenItemIds: true },
+        where: { userId, date: { gte: lookbackFrom, lte: to } },
+        select: { date: true, takenItemIds: true, extraItems: true },
       }),
       this.prisma.dietPlan.findFirst({
         where: { userId, status: 'active' },
@@ -134,12 +153,26 @@ export class CaloriesService {
     if (!user) throw new NotFoundException('User not found');
 
     const config = settings.calorieConfig;
-    const weightKg = latestMeasurement?.weightKg ?? null;
+    const weightHistory: WeightPoint[] = weightRows
+      .filter(
+        (row): row is typeof row & { weightKg: number } =>
+          row.weightKg !== null,
+      )
+      .map((row) => ({
+        date: row.recordedAt.toISOString().slice(0, 10),
+        weightKg: row.weightKg,
+      }));
+    const weightKg = weightHistory.at(-1)?.weightKg ?? null;
     const resting = restingRates(user.profile, weightKg, config);
 
     const stepsByDate = new Map(steps.map((row) => [row.date, row.steps]));
     const takenByDate = new Map(
       mealLogs.map((row) => [row.date, new Set(row.takenItemIds)]),
+    );
+    // Off-plan food logged by portion, summed per date and added to intake —
+    // without this, quick-logged food would not move the balance at all.
+    const extrasByDate = new Map(
+      mealLogs.map((row) => [row.date, sumExtras(row.extraItems)]),
     );
 
     const dietDays = dietPlanRow ? toDietPlan(dietPlanRow).days : [];
@@ -155,10 +188,41 @@ export class CaloriesService {
       config,
     );
 
+    // Intake per day across the whole lookback, so the adaptive estimate has
+    // history even when only one day was requested.
+    const intakeHistory: IntakePoint[] = [...takenByDate.keys()]
+      .sort()
+      .map((date) => ({
+        date,
+        calories:
+          sumConsumed(
+            dietDayByWeekday.get(dayOfWeekOf(date)),
+            takenByDate.get(date),
+          ).consumedCalories + (extrasByDate.get(date)?.consumedCalories ?? 0),
+      }));
+
+    const adaptive = adaptiveTdee(resting.tdee, weightHistory, intakeHistory);
+
+    // Once measured expenditure is available it replaces the formula figure,
+    // and the intake target is re-derived from it.
+    const effectiveTdee = adaptive.tdee;
+    const effectiveTarget =
+      adaptive.isAdaptive && effectiveTdee !== null && user.profile.sex
+        ? calculateCalorieTarget(
+            effectiveTdee,
+            user.profile.fitnessGoals ?? [],
+            user.profile.sex,
+            config,
+          )
+        : resting.targetCalories;
+
     return dates.map((date) => {
-      const consumed = sumConsumed(
-        dietDayByWeekday.get(dayOfWeekOf(date)),
-        takenByDate.get(date),
+      const consumed = addConsumed(
+        sumConsumed(
+          dietDayByWeekday.get(dayOfWeekOf(date)),
+          takenByDate.get(date),
+        ),
+        extrasByDate.get(date),
       );
 
       const burnedFromExercise = burnedByDate.get(date) ?? 0;
@@ -172,20 +236,21 @@ export class CaloriesService {
       return {
         date,
         bmr: resting.bmr,
-        tdee: resting.tdee,
-        targetCalories: resting.targetCalories,
+        tdee: effectiveTdee,
+        targetCalories: effectiveTarget,
         ...consumed,
         burnedFromExercise,
         burnedFromSteps,
         burnedTotal,
         netCalories:
-          resting.tdee === null
+          effectiveTdee === null
             ? null
-            : consumed.consumedCalories - (resting.tdee + burnedTotal),
+            : consumed.consumedCalories - (effectiveTdee + burnedTotal),
         remainingCalories:
-          resting.targetCalories === null
+          effectiveTarget === null
             ? null
-            : Math.max(resting.targetCalories - consumed.consumedCalories, 0),
+            : Math.max(effectiveTarget - consumed.consumedCalories, 0),
+        adaptive,
       };
     });
   }
@@ -301,6 +366,50 @@ function restingRates(
     },
     config,
   );
+}
+
+interface Consumed {
+  consumedCalories: number;
+  consumedProteinG: number;
+  consumedFatG: number;
+  consumedCarbsG: number;
+}
+
+const EMPTY_CONSUMED: Consumed = {
+  consumedCalories: 0,
+  consumedProteinG: 0,
+  consumedFatG: 0,
+  consumedCarbsG: 0,
+};
+
+/** Macros from off-plan food logged by household portion. */
+function sumExtras(
+  entries: readonly {
+    calories: number;
+    proteinG: number;
+    fatG: number;
+    carbsG: number;
+  }[],
+): Consumed {
+  return entries.reduce(
+    (acc, entry) => ({
+      consumedCalories: acc.consumedCalories + entry.calories,
+      consumedProteinG: acc.consumedProteinG + entry.proteinG,
+      consumedFatG: acc.consumedFatG + entry.fatG,
+      consumedCarbsG: acc.consumedCarbsG + entry.carbsG,
+    }),
+    EMPTY_CONSUMED,
+  );
+}
+
+function addConsumed(a: Consumed, b: Consumed | undefined): Consumed {
+  if (!b) return a;
+  return {
+    consumedCalories: a.consumedCalories + b.consumedCalories,
+    consumedProteinG: a.consumedProteinG + b.consumedProteinG,
+    consumedFatG: a.consumedFatG + b.consumedFatG,
+    consumedCarbsG: a.consumedCarbsG + b.consumedCarbsG,
+  };
 }
 
 /** Macros from the items the user actually ticked off in today's plan. */

@@ -1,10 +1,12 @@
 import { useRouter } from 'expo-router';
 import { RotateCw } from 'lucide-react-native';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { AddPortionSheet, type AddPortionSheetRef } from '@/components/diet/AddPortionSheet';
 import { CalorieBalanceCard } from '@/components/diet/CalorieBalanceCard';
+import { ExtrasCard } from '@/components/diet/ExtrasCard';
 import { DietMealCard } from '@/components/diet/DietMealCard';
 import { DietMealsSkeleton, DietMetricsSkeleton } from '@/components/diet/DietMealsSkeleton';
 import { DietModeSwitcher, type DietMode } from '@/components/diet/DietModeSwitcher';
@@ -17,7 +19,11 @@ import { BottomTabInset, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { currentWeekDates, todayIsoDate, weekdayName } from '@/lib/date';
 import { useCalorieBalance } from '@/queries/calories.queries';
-import { useMarkDietItemsTaken, useTodayDiet } from '@/queries/diet-plans.queries';
+import {
+  useMarkDietItemsTaken,
+  useRemovePortion,
+  useTodayDiet,
+} from '@/queries/diet-plans.queries';
 
 export default function DietsScreen() {
   const theme = useTheme();
@@ -45,6 +51,8 @@ export default function DietsScreen() {
   const { data } = dayQuery;
   const caloriesQuery = useCalorieBalance(displayDate);
   const markTaken = useMarkDietItemsTaken();
+  const removePortion = useRemovePortion();
+  const addPortionRef = useRef<AddPortionSheetRef>(null);
 
   const [refreshing, setRefreshing] = useState(false);
   const onRefresh = useCallback(async () => {
@@ -135,6 +143,15 @@ export default function DietsScreen() {
               disabled={markTaken.isPending}
             />
           ))}
+
+          <ExtrasCard
+            entries={data?.extraItems ?? []}
+            onAdd={() => addPortionRef.current?.present()}
+            onRemove={(entryId) => {
+              void removePortion.mutateAsync({ date: displayDate, entryId });
+            }}
+            disabled={removePortion.isPending}
+          />
         </View>
       </View>
     );
@@ -288,6 +305,8 @@ export default function DietsScreen() {
         }>
         {renderBody()}
       </ScrollView>
+
+      <AddPortionSheet ref={addPortionRef} date={displayDate} />
     </TabScreen>
   );
 }
