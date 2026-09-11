@@ -9,6 +9,7 @@ import {
   type DiscoveryDocument,
 } from "expo-auth-session";
 import * as WebBrowser from "expo-web-browser";
+import { Platform } from "react-native";
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -35,6 +36,9 @@ const CLIENT_IDS: Record<AuthProvider, string | undefined> = {
   google: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID,
   facebook: process.env.EXPO_PUBLIC_FACEBOOK_APP_ID,
   x: process.env.EXPO_PUBLIC_X_CLIENT_ID,
+  // Sign in with Apple needs no client id here — it's tied to the app's
+  // bundle id via the native entitlement, not a configured OAuth client.
+  apple: undefined,
 };
 
 const redirectUri = (): string => makeRedirectUri({ scheme: "mobile" });
@@ -114,6 +118,39 @@ export async function authorizeX(): Promise<SocialLoginInput> {
   return { token: code, redirectUri: uri, codeVerifier: request.codeVerifier };
 }
 
+export async function authorizeApple(): Promise<SocialLoginInput> {
+  if (Platform.OS !== "ios") throw new SocialAuthUnavailableError("apple");
+
+  const AppleAuthentication = await import("expo-apple-authentication");
+
+  if (!(await AppleAuthentication.isAvailableAsync())) {
+    throw new SocialAuthUnavailableError("apple");
+  }
+
+  try {
+    const credential = await AppleAuthentication.signInAsync({
+      requestedScopes: [
+        AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+        AppleAuthentication.AppleAuthenticationScope.EMAIL,
+      ],
+    });
+
+    if (!credential.identityToken) throw new SocialAuthUnavailableError("apple");
+
+    return { token: credential.identityToken };
+  } catch (error) {
+    if (
+      error &&
+      typeof error === "object" &&
+      "code" in error &&
+      error.code === "ERR_REQUEST_CANCELED"
+    ) {
+      throw new SocialAuthCancelledError();
+    }
+    throw error;
+  }
+}
+
 export const SOCIAL_AUTHORIZERS: Record<
   AuthProvider,
   () => Promise<SocialLoginInput>
@@ -121,4 +158,5 @@ export const SOCIAL_AUTHORIZERS: Record<
   google: authorizeGoogle,
   facebook: authorizeFacebook,
   x: authorizeX,
+  apple: authorizeApple,
 };

@@ -2,7 +2,7 @@ import { DEFAULT_DAILY_STEPS_GOAL } from "@/constants/app";
 import type { TodayRoutineExercise } from "@fitness/types";
 import { useRouter } from "expo-router";
 import { Flame, Footprints } from "lucide-react-native";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { RefreshControl, ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -10,6 +10,10 @@ import { TabScreen } from "@/components/tab-screen";
 import { ThemedText } from "@/components/themed-text";
 import { CircularProgressRing } from "@/components/ui/CircularProgressRing";
 import { DaySummarySkeleton } from "@/components/home/DaySummarySkeleton";
+import {
+  NamePromptSheet,
+  type NamePromptSheetRef,
+} from "@/components/home/NamePromptSheet";
 import { RoutineGeneratingCard } from "@/components/home/RoutineGeneratingCard";
 import { TodayExerciseRow } from "@/components/home/TodayExerciseRow";
 import { WeekCaloriesStrip } from "@/components/home/WeekCaloriesStrip";
@@ -26,6 +30,7 @@ import { useStepsTracker } from "@/hooks/use-steps-tracker";
 import { currentWeekDates, todayIsoDate, weekdayName } from "@/lib/date";
 import { useTodayQuote } from "@/queries/quotes.queries";
 import { useTodayRoutine, useWeekCalories } from "@/queries/workout-routines.queries";
+import { selectUser, useAuthStore } from "@/stores/auth.store";
 
 const RING_SIZE = 96;
 const RING_STROKE = 12;
@@ -35,7 +40,9 @@ export default function HomeScreen() {
   const router = useRouter();
   const theme = useTheme();
   const insets = useSafeAreaInsets();
+  const user = useAuthStore(selectUser);
   const weekProgressSheetRef = useRef<WeekProgressSheetRef>(null);
+  const namePromptSheetRef = useRef<NamePromptSheetRef>(null);
   const today = useState(todayIsoDate)[0];
   const weekDates = useState(currentWeekDates)[0];
   const [selectedDate, setSelectedDate] = useState(today);
@@ -58,6 +65,14 @@ export default function HomeScreen() {
   const { steps: liveSteps } = useStepsTracker();
 
   useRegisterPushNotifications();
+
+  // Apple sign-in never shares a name, so an account can reach the home
+  // screen with the profile's displayName still blank — ask for it here.
+  useEffect(() => {
+    if (user && !user.profile.displayName?.trim()) {
+      namePromptSheetRef.current?.present();
+    }
+  }, [user]);
 
   const [refreshing, setRefreshing] = useState(false);
   const onRefresh = useCallback(async () => {
@@ -243,6 +258,8 @@ export default function HomeScreen() {
         days={weekCalories ?? []}
         today={today}
       />
+
+      <NamePromptSheet ref={namePromptSheetRef} />
     </TabScreen>
   );
 }

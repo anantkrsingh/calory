@@ -6,6 +6,7 @@ import {
 import { AuthProvider, type SocialProfile } from '@fitness/types';
 import type { SocialLoginInput } from '@fitness/validation';
 import { OAuth2Client } from 'google-auth-library';
+import { createRemoteJWKSet, jwtVerify, type JWTPayload } from 'jose';
 
 import type { Env } from '../config/env';
 
@@ -211,6 +212,56 @@ export async function verifyX(
   };
 }
 
+// Apple's JWKS is fetched lazily and cached/refreshed by the library, same
+// pattern as the Google OAuth2Client above.
+const appleJwks = createRemoteJWKSet(
+  new URL('https://appleid.apple.com/auth/keys'),
+);
+
+export async function verifyApple(
+  input: SocialLoginInput,
+  env: Env,
+): Promise<SocialProfile> {
+  const audiences = requireConfig(env.APPLE_CLIENT_IDS, AuthProvider.Apple)
+    .split(',')
+    .map((id) => id.trim())
+    .filter(Boolean);
+
+  let payload: JWTPayload | undefined;
+  try {
+    ({ payload } = await jwtVerify(input.token, appleJwks, {
+      issuer: 'https://appleid.apple.com',
+      audience: audiences,
+    }));
+  } catch (error) {
+    logger.error(
+      `Apple identity token verification failed: ${error instanceof Error ? error.message : String(error)}`,
+    );
+    reject(AuthProvider.Apple);
+  }
+
+  const subject = payload?.sub;
+  if (!subject || !payload) {
+    logger.warn(
+      `Apple identity token verified but payload had no subject: ${JSON.stringify(payload)}`,
+    );
+    reject(AuthProvider.Apple);
+  }
+
+  const email = typeof payload.email === 'string' ? payload.email : undefined;
+
+  return {
+    provider: AuthProvider.Apple,
+    subject,
+    email,
+    // Apple never puts the name in the token — only in the native credential
+    // on the device's first authorization, which this endpoint doesn't see.
+    displayName: undefined,
+    emailVerified:
+      payload.email_verified === true || payload.email_verified === 'true',
+  };
+}
+
 export const SOCIAL_VERIFIERS: Record<
   AuthProvider,
   (input: SocialLoginInput, env: Env) => Promise<SocialProfile>
@@ -218,4 +269,5 @@ export const SOCIAL_VERIFIERS: Record<
   [AuthProvider.Google]: verifyGoogle,
   [AuthProvider.Facebook]: verifyFacebook,
   [AuthProvider.X]: verifyX,
+  [AuthProvider.Apple]: verifyApple,
 };

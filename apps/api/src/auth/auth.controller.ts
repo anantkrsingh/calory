@@ -188,6 +188,31 @@ export class AuthController {
   }
 
   @Public()
+  @Post('apple')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Sign in with Apple',
+    description:
+      'Send the identity token from the native Sign in with Apple flow as ' +
+      '`token`. An account already registered with this email is linked ' +
+      'rather than rejected.',
+  })
+  @ApiZodBody(socialLoginSchema)
+  @ApiZodResponse(authSessionSchema, {
+    status: 200,
+    name: 'AuthSession',
+    description: 'Session issued',
+  })
+  @ApiResponse({ status: 400, description: 'Token failed verification' })
+  @ApiResponse({ status: 409, description: 'Provider shared no email address' })
+  @ApiResponse({ status: 501, description: 'Apple sign-in is not configured' })
+  loginApple(
+    @Body(zodPipe(socialLoginSchema)) body: SocialLoginInput,
+  ): Promise<AuthSession> {
+    return this.auth.loginSocial(AuthProvider.Apple, body);
+  }
+
+  @Public()
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({

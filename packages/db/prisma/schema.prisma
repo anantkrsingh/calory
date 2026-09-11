@@ -29,6 +29,7 @@ enum AuthProvider {
   google
   facebook
   x
+  apple
 }
 
 enum UnitSystem {
@@ -195,6 +196,26 @@ enum DietCuisine {
   american
 }
 
+enum NotificationTargetType {
+  all
+  users
+}
+
+enum NotificationCampaignStatus {
+  scheduled
+  sending
+  sent
+  canceled
+  failed
+}
+
+enum NotificationDeliveryStatus {
+  pending
+  sent
+  delivered
+  failed
+}
+
 // ---------------------------------------------------------------------------
 // Composite types
 // ---------------------------------------------------------------------------
@@ -354,6 +375,7 @@ model User {
   dailySteps      DailySteps[]
   dietPlans       DietPlan[]
   dailyMealLogs   DailyMealLog[]
+  notificationDeliveries NotificationDelivery[]
 
   @@map("users")
 }
@@ -867,4 +889,78 @@ model ChatMessage {
 
   @@index([conversationId, createdAt])
   @@map("chat_messages")
+}
+
+/// An admin-authored push notification, sent immediately or at a scheduled
+/// time to every user or a hand-picked list. One row per send — the actual
+/// per-device delivery is tracked in `NotificationDelivery`.
+model NotificationCampaign {
+  id    String @id @default(auto()) @map("_id") @db.ObjectId
+  title String
+  body  String
+
+  targetType    NotificationTargetType
+  /// Only set (and only meaningful) when `targetType` is `users`.
+  targetUserIds String[]               @db.ObjectId @default([])
+
+  status NotificationCampaignStatus @default(scheduled)
+  /// Null means "send immediately" — the worker job carries no delay.
+  scheduledAt DateTime?
+  /// When the worker actually started dispatching.
+  sentAt      DateTime?
+  /// Set if the whole dispatch failed before any device was attempted
+  /// (e.g. the worker couldn't reach the database).
+  error       String?
+
+  /// Devices attempted — i.e. `NotificationDelivery` rows created, not
+  /// distinct users (one user can hold several push tokens).
+  recipientCount Int @default(0)
+
+  /// Snapshot, not a relation — keeps the campaign readable after the
+  /// admin account that sent it is gone.
+  createdByEmail String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  deliveries NotificationDelivery[]
+
+  @@index([status, scheduledAt])
+  @@map("notification_campaigns")
+}
+
+/// One push token's delivery attempt for a campaign. A user with several
+/// devices gets several rows per campaign.
+model NotificationDelivery {
+  id           String               @id @default(auto()) @map("_id") @db.ObjectId
+  campaignId   String               @db.ObjectId
+  campaign     NotificationCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  userId       String               @db.ObjectId
+  user         User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// Snapshot of the user at send time, so the log stays readable even if
+  /// the profile changes (or the token gets pruned) afterwards.
+  userEmail       String
+  userDisplayName String
+  pushToken       String
+
+  status NotificationDeliveryStatus @default(pending)
+
+  /// Expo's push ticket id — set once the message is handed off, used to
+  /// look up the delivery receipt later.
+  ticketId     String?
+  errorCode    String?
+  errorMessage String?
+
+  sentAt      DateTime?
+  deliveredAt DateTime?
+  failedAt    DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([campaignId, status])
+  @@index([status, ticketId])
+  @@index([userId])
+  @@map("notification_deliveries")
 }

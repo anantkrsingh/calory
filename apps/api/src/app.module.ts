@@ -14,6 +14,7 @@ import { ExercisesModule } from './exercises/exercises.module';
 import { GoalsModule } from './goals/goals.module';
 import { HealthModule } from './health/health.module';
 import { MeasurementsModule } from './measurements/measurements.module';
+import { NotificationsModule } from './notifications/notifications.module';
 import { PlansModule } from './plans/plans.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { QuotesModule } from './quotes/quotes.module';
@@ -49,6 +50,7 @@ import { WorkoutsModule } from './workouts/workouts.module';
     HealthModule,
     UploadsModule,
     StepsModule,
+    NotificationsModule,
   ],
   providers: [
     // Authenticated by default; routes opt out with `@Public()`.

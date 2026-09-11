@@ -3,6 +3,7 @@ import { useRouter } from "expo-router";
 import { useEffect, useRef } from "react";
 import {
   Alert,
+  Platform,
   Pressable,
   StyleSheet,
   View,
@@ -138,6 +139,18 @@ export default function WelcomeScreen() {
               />
             }
           />
+          {Platform.OS === "ios" && (
+            <SocialButton
+              onClick={() => void socialLogin.signIn("apple")}
+              loading={socialLogin.pendingProvider === "apple"}
+              icon={
+                <Image
+                  style={{ width: 28, height: 28 }}
+                  source={require("@/assets/icons/social/apple.svg")}
+                />
+              }
+            />
+          )}
         </View>
 
         <View style={styles.signInRow}>

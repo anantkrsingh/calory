@@ -7,6 +7,8 @@ import type {
   DailySteps,
   Exercise,
   Goal,
+  NotificationCampaign,
+  NotificationDelivery,
   Plan,
   Prisma,
   Routine,
@@ -38,6 +40,8 @@ export type RoutineDayExerciseRow = RoutineDayExercise;
 export type ChatConversationRow = ChatConversation;
 export type ChatMessageRow = ChatMessage;
 export type DailyMealLogRow = DailyMealLog;
+export type NotificationCampaignRow = NotificationCampaign;
+export type NotificationDeliveryRow = NotificationDelivery;
 
 /**
  * `days`/`exercises` are normalized into their own collections now (see the

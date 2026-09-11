@@ -3,6 +3,7 @@ import { Queue } from 'bullmq';
 
 import { BULL_QUEUE_PROVIDER, QueueProvider } from './queues.constants';
 import { DietPlanQueue } from './diet-plan.queue';
+import { NotificationQueue } from './notification.queue';
 import { OtpController } from './otp.controller';
 import { OtpQueue } from './otp.queue';
 import { OtpService } from './otp.service';
@@ -45,6 +46,7 @@ const queueProvider: QueueProvider = (name: string) => {
     OtpService,
     RoutineQueue,
     DietPlanQueue,
+    NotificationQueue,
   ],
   controllers: [OtpController],
   exports: [
@@ -53,6 +55,7 @@ const queueProvider: QueueProvider = (name: string) => {
     OtpService,
     RoutineQueue,
     DietPlanQueue,
+    NotificationQueue,
   ],
 })
 export class QueuesModule {}

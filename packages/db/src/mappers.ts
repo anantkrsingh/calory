@@ -10,6 +10,9 @@ import type {
   Exercise,
   ExerciseLogFields,
   Goal,
+  NotificationCampaign,
+  NotificationDelivery,
+  NotificationDeliveryCounts,
   Plan,
   Routine,
   User,
@@ -28,6 +31,8 @@ import type {
   DietPlanRow,
   ExerciseRow,
   GoalRow,
+  NotificationCampaignRow,
+  NotificationDeliveryRow,
   PlanRow,
   RoutineRow,
   UserRow,
@@ -484,6 +489,50 @@ export function toChatMessage(row: ChatMessageRow): ChatMessage {
     inputTokens: orUndefined(row.inputTokens),
     outputTokens: orUndefined(row.outputTokens),
     totalTokens: orUndefined(row.totalTokens),
+    createdAt: iso(row.createdAt),
+    updatedAt: iso(row.updatedAt),
+  };
+}
+
+/** `counts` comes from a separate groupBy aggregate — see `notifications.service.ts`. */
+export function toNotificationCampaign(
+  row: NotificationCampaignRow,
+  counts: NotificationDeliveryCounts,
+): NotificationCampaign {
+  return {
+    id: row.id,
+    title: row.title,
+    body: row.body,
+    targetType: row.targetType,
+    targetUserIds: row.targetUserIds.length > 0 ? row.targetUserIds : undefined,
+    status: row.status,
+    scheduledAt: isoOrUndefined(row.scheduledAt),
+    sentAt: isoOrUndefined(row.sentAt),
+    error: orUndefined(row.error),
+    recipientCount: row.recipientCount,
+    createdByEmail: row.createdByEmail,
+    counts,
+    createdAt: iso(row.createdAt),
+    updatedAt: iso(row.updatedAt),
+  };
+}
+
+export function toNotificationDelivery(
+  row: NotificationDeliveryRow,
+): NotificationDelivery {
+  return {
+    id: row.id,
+    campaignId: row.campaignId,
+    userId: row.userId,
+    userEmail: row.userEmail,
+    userDisplayName: row.userDisplayName,
+    pushToken: row.pushToken,
+    status: row.status,
+    errorCode: orUndefined(row.errorCode),
+    errorMessage: orUndefined(row.errorMessage),
+    sentAt: isoOrUndefined(row.sentAt),
+    deliveredAt: isoOrUndefined(row.deliveredAt),
+    failedAt: isoOrUndefined(row.failedAt),
     createdAt: iso(row.createdAt),
     updatedAt: iso(row.updatedAt),
   };
