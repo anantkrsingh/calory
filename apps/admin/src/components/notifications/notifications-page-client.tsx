@@ -30,10 +30,21 @@ function formatDateTime(value?: string): string {
   });
 }
 
+const PLATFORM_LABEL: Record<NotificationCampaign["targetPlatform"], string> = {
+  all: "",
+  ios: " · iOS only",
+  android: " · Android only",
+};
+
 function targetLabel(campaign: NotificationCampaign): string {
-  if (campaign.targetType === "all") return "All users";
-  const count = campaign.targetUserIds?.length ?? 0;
-  return `${count} user${count === 1 ? "" : "s"}`;
+  const base =
+    campaign.targetType === "all"
+      ? "All users"
+      : (() => {
+          const count = campaign.targetUserIds?.length ?? 0;
+          return `${count} user${count === 1 ? "" : "s"}`;
+        })();
+  return `${base}${PLATFORM_LABEL[campaign.targetPlatform]}`;
 }
 
 function buildQueryUrl(page: number, status?: string): string {

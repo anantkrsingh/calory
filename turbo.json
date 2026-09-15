@@ -42,6 +42,10 @@
       "dependsOn": ["build"],
       "cache": false
     },
+    "db:migrate:push-tokens": {
+      "dependsOn": ["build"],
+      "cache": false
+    },
     "db:studio": {
       "cache": false,
       "persistent": true

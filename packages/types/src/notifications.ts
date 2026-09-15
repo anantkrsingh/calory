@@ -1,4 +1,5 @@
 import type { Entity, Id, IsoDateTime } from './common';
+import type { DevicePlatform } from './enums';
 
 export const NOTIFICATION_QUEUE_NAME = 'notification';
 
@@ -8,6 +9,15 @@ export const NotificationTargetType = {
 } as const;
 export type NotificationTargetType =
   (typeof NotificationTargetType)[keyof typeof NotificationTargetType];
+
+/** Which device platforms a campaign goes to — `All` means both. */
+export const NotificationTargetPlatform = {
+  All: 'all',
+  Ios: 'ios',
+  Android: 'android',
+} as const;
+export type NotificationTargetPlatform =
+  (typeof NotificationTargetPlatform)[keyof typeof NotificationTargetPlatform];
 
 export const NotificationCampaignStatus = {
   Scheduled: 'scheduled',
@@ -42,6 +52,8 @@ export interface NotificationCampaign extends Entity {
   targetType: NotificationTargetType;
   /** Only present (and meaningful) when `targetType` is `users`. */
   targetUserIds?: Id[];
+  /** Which device platforms this campaign was sent to. */
+  targetPlatform: NotificationTargetPlatform;
   status: NotificationCampaignStatus;
   /** Unset means it was (or will be) sent immediately. */
   scheduledAt?: IsoDateTime;
@@ -59,6 +71,9 @@ export interface NotificationDelivery extends Entity {
   userEmail: string;
   userDisplayName: string;
   pushToken: string;
+  /** Unset only for a device that registered before platform tracking
+   * existed and hasn't re-registered since. */
+  platform?: DevicePlatform;
   status: NotificationDeliveryStatus;
   errorCode?: string;
   errorMessage?: string;

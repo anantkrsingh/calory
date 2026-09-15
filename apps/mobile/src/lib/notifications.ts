@@ -31,13 +31,21 @@ async function ensureAndroidChannel(): Promise<void> {
   androidChannelReady = true;
 }
 
+/** The only two OSes `registerForPushNotificationsAsync`/`getCurrentPushTokenAsync`
+ * ever run on — both bail out to `null` before this point on web. */
+export type MobilePlatform = 'ios' | 'android';
+
 /**
  * Asks for notification permission if it hasn't been decided yet, then
- * resolves to the device's Expo push token. Resolves `null` — never
- * throws — on web, on a simulator/emulator (Expo push tokens don't exist
- * there), or if the permission prompt is declined.
+ * resolves to the device's Expo push token plus the platform it came from —
+ * the admin panel uses the platform to target iOS-only/Android-only sends.
+ * Resolves `null` — never throws — on web, on a simulator/emulator (Expo
+ * push tokens don't exist there), or if the permission prompt is declined.
  */
-export async function registerForPushNotificationsAsync(): Promise<string | null> {
+export async function registerForPushNotificationsAsync(): Promise<{
+  token: string;
+  platform: MobilePlatform;
+} | null> {
   if (Platform.OS === 'web' || !Device.isDevice) return null;
 
   try {
@@ -63,7 +71,7 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
     }
 
     const { data } = await Notifications.getExpoPushTokenAsync({ projectId });
-    return data;
+    return { token: data, platform: Platform.OS as MobilePlatform };
   } catch (error) {
     if (__DEV__) console.warn('[notifications] registration failed', error);
     return null;

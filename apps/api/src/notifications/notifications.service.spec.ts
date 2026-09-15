@@ -9,6 +9,7 @@ const baseCampaign = {
   body: 'World',
   targetType: 'all' as const,
   targetUserIds: [] as string[],
+  targetPlatform: 'all' as const,
   status: 'scheduled' as NotificationCampaignStatus,
   scheduledAt: null as Date | null,
   sentAt: null as Date | null,
@@ -70,7 +71,7 @@ describe('NotificationsService.create', () => {
     const { service, queue } = makeService(null);
 
     await service.create(
-      { title: 'Hi', body: 'Body', targetType: 'all' },
+      { title: 'Hi', body: 'Body', targetType: 'all', targetPlatform: 'all' },
       'admin@example.com',
     );
 
@@ -86,6 +87,7 @@ describe('NotificationsService.create', () => {
           title: 'Hi',
           body: 'Body',
           targetType: 'all',
+          targetPlatform: 'all',
           scheduledAt: new Date(Date.now() - 60_000).toISOString(),
         },
         'admin@example.com',
@@ -98,7 +100,7 @@ describe('NotificationsService.create', () => {
     const { service, prisma } = makeService(null, { dispatch });
 
     const result = await service.create(
-      { title: 'Hi', body: 'Body', targetType: 'all' },
+      { title: 'Hi', body: 'Body', targetType: 'all', targetPlatform: 'all' },
       'admin@example.com',
     );
 
@@ -118,6 +120,7 @@ describe('NotificationsService.create', () => {
         body: 'Body',
         targetType: 'users',
         targetUserIds: ['user-1', 'user-2'],
+        targetPlatform: 'all',
       },
       'admin@example.com',
     );

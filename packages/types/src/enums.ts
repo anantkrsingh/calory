@@ -164,6 +164,13 @@ export const ChatMessageRole = {
 export type ChatMessageRole =
   (typeof ChatMessageRole)[keyof typeof ChatMessageRole];
 
+/** Mobile OS a device (and its push token) runs on. */
+export const DevicePlatform = {
+  Ios: 'ios',
+  Android: 'android',
+} as const;
+export type DevicePlatform = (typeof DevicePlatform)[keyof typeof DevicePlatform];
+
 export const DayOfWeek = {
   Monday: 'monday',
   Tuesday: 'tuesday',

@@ -21,9 +21,9 @@ export function useRegisterPushNotifications(): void {
     attemptedRef.current = true;
 
     void (async () => {
-      const token = await registerForPushNotificationsAsync();
-      if (token) {
-        registerPushToken.mutate({ token });
+      const result = await registerForPushNotificationsAsync();
+      if (result) {
+        registerPushToken.mutate(result);
       }
     })();
     // Runs once per authenticated session; `registerPushToken` is a stable

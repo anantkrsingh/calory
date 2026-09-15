@@ -221,6 +221,19 @@ enum NotificationDeliveryStatus {
   failed
 }
 
+/// The mobile device platforms a push token (or a delivery) belongs to.
+enum DevicePlatform {
+  ios
+  android
+}
+
+/// Which device platforms a campaign should be sent to. `all` means both.
+enum NotificationTargetPlatform {
+  all
+  ios
+  android
+}
+
 // ---------------------------------------------------------------------------
 // Composite types
 // ---------------------------------------------------------------------------
@@ -248,6 +261,17 @@ type UserPreferences {
   /// IANA zone; drives "today" boundaries in stats.
   timezone             String     @default("UTC")
   notificationsEnabled Boolean    @default(false)
+}
+
+/// One device's Expo push token plus the platform it was issued on, so an
+/// admin campaign can target iOS-only or Android-only sends.
+///
+/// `platform` is nullable only to carry tokens saved before this field
+/// existed — see `packages/db/src/migrations/normalize-push-tokens.ts`. Every
+/// token registered through the current app version always sets it.
+type PushToken {
+  token    String
+  platform DevicePlatform?
 }
 
 /// One logged set. Which fields matter depends on the exercise's category.
@@ -369,7 +393,7 @@ model User {
 
   /// Expo push tokens, one per device the user has granted notification
   /// permission on. Never exposed on the public User contract.
-  pushTokens String[] @default([])
+  pushTokens PushToken[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -962,6 +986,9 @@ model NotificationCampaign {
   targetType    NotificationTargetType
   /// Only set (and only meaningful) when `targetType` is `users`.
   targetUserIds String[]               @db.ObjectId @default([])
+  /// Which device platforms to send to — `all` (default), `ios`, or
+  /// `android`. Applies on top of `targetType`/`targetUserIds`.
+  targetPlatform NotificationTargetPlatform @default(all)
 
   status NotificationCampaignStatus @default(scheduled)
   /// Null means "send immediately" — the worker job carries no delay.
@@ -1003,6 +1030,10 @@ model NotificationDelivery {
   userEmail       String
   userDisplayName String
   pushToken       String
+  /// Null only for a device whose push token predates platform tracking and
+  /// hasn't re-registered since — excluded from an iOS-only/Android-only
+  /// send, still reached by an "all" send.
+  platform        DevicePlatform?
 
   status NotificationDeliveryStatus @default(pending)
 

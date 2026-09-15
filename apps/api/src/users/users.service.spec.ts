@@ -2,9 +2,11 @@ import { NotFoundException } from '@nestjs/common';
 
 import { UsersService } from './users.service';
 
+type PushToken = { token: string; platform: 'ios' | 'android' };
+
 const baseUser = {
   id: 'existing-id',
-  pushTokens: ['token-a'],
+  pushTokens: [{ token: 'token-a', platform: 'ios' }] as PushToken[],
   preferences: {
     units: 'metric',
     timezone: 'UTC',
@@ -13,7 +15,7 @@ const baseUser = {
 };
 
 type UpdateData = {
-  pushTokens?: string[];
+  pushTokens?: PushToken[];
   preferences?: typeof baseUser.preferences;
 };
 
@@ -41,29 +43,44 @@ describe('UsersService.registerPushToken', () => {
   it('adds a new token and turns notifications on', async () => {
     const { service, prisma } = makeService(baseUser);
 
-    await service.registerPushToken('existing-id', 'token-b');
+    await service.registerPushToken('existing-id', 'token-b', 'android');
 
     const { data } = prisma.user.update.mock.calls[0]![0];
-    expect(data.pushTokens).toEqual(['token-a', 'token-b']);
+    expect(data.pushTokens).toEqual([
+      { token: 'token-a', platform: 'ios' },
+      { token: 'token-b', platform: 'android' },
+    ]);
     expect(data.preferences?.notificationsEnabled).toBe(true);
   });
 
-  it('is a no-op when the token and the flag are already set', async () => {
+  it('is a no-op when the token, platform and the flag are already set', async () => {
     const { service, prisma } = makeService({
       ...baseUser,
       preferences: { ...baseUser.preferences, notificationsEnabled: true },
     });
 
-    await service.registerPushToken('existing-id', 'token-a');
+    await service.registerPushToken('existing-id', 'token-a', 'ios');
 
     expect(prisma.user.update).not.toHaveBeenCalled();
+  });
+
+  it('refreshes the platform when the same token re-registers under a different one', async () => {
+    const { service, prisma } = makeService({
+      ...baseUser,
+      preferences: { ...baseUser.preferences, notificationsEnabled: true },
+    });
+
+    await service.registerPushToken('existing-id', 'token-a', 'android');
+
+    const { data } = prisma.user.update.mock.calls[0]![0];
+    expect(data.pushTokens).toEqual([{ token: 'token-a', platform: 'android' }]);
   });
 
   it('rejects an unknown user', async () => {
     const { service } = makeService(null);
 
     await expect(
-      service.registerPushToken('ghost-id', 'token-a'),
+      service.registerPushToken('ghost-id', 'token-a', 'ios'),
     ).rejects.toBeInstanceOf(NotFoundException);
   });
 });
@@ -72,13 +89,16 @@ describe('UsersService.unregisterPushToken', () => {
   it('drops the token without touching notification preferences', async () => {
     const { service, prisma } = makeService({
       ...baseUser,
-      pushTokens: ['token-a', 'token-b'],
+      pushTokens: [
+        { token: 'token-a', platform: 'ios' },
+        { token: 'token-b', platform: 'android' },
+      ],
     });
 
     await service.unregisterPushToken('existing-id', 'token-a');
 
     const { data } = prisma.user.update.mock.calls[0]![0];
-    expect(data.pushTokens).toEqual(['token-b']);
+    expect(data.pushTokens).toEqual([{ token: 'token-b', platform: 'android' }]);
     expect(data.preferences).toBeUndefined();
   });
 
