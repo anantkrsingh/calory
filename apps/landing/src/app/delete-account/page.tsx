@@ -5,8 +5,8 @@ import { LegalShell } from "@/components/legal-shell";
 import { APP_NAME, LEGAL_UPDATED, SUPPORT_EMAIL } from "@/lib/site";
 
 export const metadata: Metadata = {
-  title: "Delete Your Account — Calory",
-  description: "How to permanently delete your Calory account and data.",
+  title: "Delete Your Account — Fit Crate",
+  description: "How to permanently delete your Fit Crate account and data.",
 };
 
 const KEEP_ITEMS = [
@@ -34,17 +34,17 @@ export default function DeleteAccountPage() {
 
       <h2>Option 1 — Delete in the app</h2>
       <p>
-        Open Calory, go to <strong>Profile → Delete Account</strong>, and confirm. Your account
+        Open Fit Crate, go to <strong>Profile → Delete Account</strong>, and confirm. Your account
         and data are removed right away.
       </p>
 
       <h2>Option 2 — Request deletion by email</h2>
       <p>
         If you can&apos;t access the app, email{" "}
-        <a href={`mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent("Delete my Calory account")}`}>
+        <a href={`mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent("Delete my Fit Crate account")}`}>
           {SUPPORT_EMAIL}
         </a>{" "}
-        from the address on your account with the subject &ldquo;Delete my Calory account.&rdquo;
+        from the address on your account with the subject &ldquo;Delete my Fit Crate account.&rdquo;
         We&apos;ll verify it&apos;s you and confirm once your account has been deleted, generally
         within 30 days.
       </p>
