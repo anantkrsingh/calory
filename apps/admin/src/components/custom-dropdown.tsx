@@ -8,6 +8,8 @@ export interface CustomDropdownOption {
   label: string;
   sublabel?: string;
   badge?: string;
+  /** Small icon shown before the label — both in the trigger and the option row. */
+  icon?: string;
 }
 
 interface CustomDropdownProps {
@@ -49,8 +51,13 @@ export function CustomDropdown({
         onClick={() => setIsOpen(!isOpen)}
         className="cursor-pointer flex w-full items-center justify-between rounded-xl border border-neutral-200 bg-white px-3.5 py-2.5 text-sm text-neutral-900 shadow-xs transition hover:border-neutral-300 focus:border-neutral-900 focus:outline-none"
       >
-        <span className="truncate font-medium text-neutral-800">
-          {selectedOption ? selectedOption.label : placeholder}
+        <span className="flex min-w-0 items-center gap-2">
+          {selectedOption?.icon ? (
+            <img src={selectedOption.icon} alt="" className="h-4 w-4 shrink-0" />
+          ) : null}
+          <span className="truncate font-medium text-neutral-800">
+            {selectedOption ? selectedOption.label : placeholder}
+          </span>
         </span>
         <ChevronDown
           size={16}
@@ -82,17 +89,22 @@ export function CustomDropdown({
                     : "text-neutral-700 hover:bg-neutral-100"
                 }`}
               >
-                <div className="flex flex-col">
-                  <span>{option.label}</span>
-                  {option.sublabel ? (
-                    <span
-                      className={`text-[11px] ${
-                        isSelected ? "text-neutral-300" : "text-neutral-400"
-                      }`}
-                    >
-                      {option.sublabel}
-                    </span>
+                <div className="flex min-w-0 items-center gap-2">
+                  {option.icon ? (
+                    <img src={option.icon} alt="" className="h-4 w-4 shrink-0" />
                   ) : null}
+                  <div className="flex min-w-0 flex-col">
+                    <span className="truncate">{option.label}</span>
+                    {option.sublabel ? (
+                      <span
+                        className={`text-[11px] ${
+                          isSelected ? "text-neutral-300" : "text-neutral-400"
+                        }`}
+                      >
+                        {option.sublabel}
+                      </span>
+                    ) : null}
+                  </div>
                 </div>
                 {isSelected ? <Check size={14} className="shrink-0 ml-2" /> : null}
               </button>

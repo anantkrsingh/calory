@@ -9,6 +9,7 @@ import {
   FitnessGoal,
   GoalStatus,
   GoalType,
+  LlmProvider,
   MEASUREMENT_SITES,
   MuscleGroup,
   ChatMessageRole,
@@ -58,3 +59,4 @@ export const notificationCampaignStatusSchema = z.enum(
 export const notificationDeliveryStatusSchema = z.enum(
   NotificationDeliveryStatus,
 );
+export const llmProviderSchema = z.enum(LlmProvider);

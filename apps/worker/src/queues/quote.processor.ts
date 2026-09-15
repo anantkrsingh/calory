@@ -5,16 +5,21 @@ import {
   type OnModuleDestroy,
   type OnModuleInit,
 } from '@nestjs/common';
-import { quoteOfTheDaySchema, resolvePrompt } from '@fitness/ai';
 import {
+  quoteOfTheDaySchema,
+  resolveModelConfig,
+  resolvePrompt,
+} from '@fitness/ai';
+import {
+  PromptCategory,
   QUOTE_QUEUE_NAME,
   type QuoteJobData,
   type QuoteJobResult,
 } from '@fitness/types';
-import { generateObject, type LanguageModel } from 'ai';
+import { generateObject } from 'ai';
 import { Queue, Worker, type Job } from 'bullmq';
 
-import { AI_MODEL } from '../ai/ai.module';
+import { AI_MODEL_RESOLVER, type AiModelResolver } from '../ai/ai.module';
 import { ENV, type Env } from '../config/env.module';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -31,7 +36,7 @@ export class QuoteProcessor implements OnModuleInit, OnModuleDestroy {
 
   constructor(
     @Inject(ENV) private readonly env: Env,
-    @Inject(AI_MODEL) private readonly model: LanguageModel | null,
+    @Inject(AI_MODEL_RESOLVER) private readonly resolveModel: AiModelResolver,
     private readonly prisma: PrismaService,
   ) {}
 
@@ -125,15 +130,21 @@ export class QuoteProcessor implements OnModuleInit, OnModuleDestroy {
       return { date, quoteOfTheDay: existing.quoteOfTheDay };
     }
 
-    if (!this.model) {
+    const settings = await this.prisma.appSettings.findFirst();
+    const modelConfig = resolveModelConfig(
+      PromptCategory.QuoteOfTheDay,
+      settings?.aiPrompts,
+    );
+    const model = this.resolveModel(modelConfig);
+
+    if (!model) {
       throw new Error('No LLM provider configured; cannot generate a quote');
     }
 
-    const settings = await this.prisma.appSettings.findFirst();
     const prompt = resolvePrompt('quote_of_the_day', settings?.aiPrompts);
 
     const { object } = await generateObject({
-      model: this.model,
+      model,
       schema: quoteOfTheDaySchema,
       prompt,
     });

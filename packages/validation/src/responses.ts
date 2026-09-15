@@ -12,6 +12,7 @@ import {
   exerciseCategorySchema,
   goalStatusSchema,
   goalTypeSchema,
+  llmProviderSchema,
   measurementSiteSchema,
   muscleGroupSchema,
   notificationCampaignStatusSchema,
@@ -470,6 +471,8 @@ export const appSettingsSchema = z.object({
     z.object({
       promptCategory: promptCategorySchema,
       prompt: z.string(),
+      provider: llmProviderSchema.optional(),
+      model: z.string().optional(),
     }),
   ),
 });

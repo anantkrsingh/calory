@@ -148,6 +148,13 @@ export const PromptCategory = {
 export type PromptCategory =
   (typeof PromptCategory)[keyof typeof PromptCategory];
 
+/** LLM backend an AI feature's model runs on. */
+export const LlmProvider = {
+  OpenAI: 'openai',
+  Gemini: 'gemini',
+} as const;
+export type LlmProvider = (typeof LlmProvider)[keyof typeof LlmProvider];
+
 /** Role of a persisted chat message. */
 export const ChatMessageRole = {
   User: 'user',

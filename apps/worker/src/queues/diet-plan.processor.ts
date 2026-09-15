@@ -5,11 +5,16 @@ import {
   type OnModuleDestroy,
   type OnModuleInit,
 } from '@nestjs/common';
-import { resolvePrompt, weeklyDietSchema } from '@fitness/ai';
+import {
+  resolveModelConfig,
+  resolvePrompt,
+  weeklyDietSchema,
+} from '@fitness/ai';
 import { toCalorieConfig } from '@fitness/db';
 import type { WeeklyDiet } from '@fitness/ai';
 import {
   DIET_PLAN_QUEUE_NAME,
+  PromptCategory,
   bmiCategory,
   calculateBmi,
   energyProfile,
@@ -32,7 +37,7 @@ import {
 import { Worker, type Job } from 'bullmq';
 import { z } from 'zod';
 
-import { AI_MODEL } from '../ai/ai.module';
+import { AI_MODEL_RESOLVER, type AiModelResolver } from '../ai/ai.module';
 import { ENV, type Env } from '../config/env.module';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -126,7 +131,7 @@ export class DietPlanProcessor implements OnModuleInit, OnModuleDestroy {
 
   constructor(
     @Inject(ENV) private readonly env: Env,
-    @Inject(AI_MODEL) private readonly model: LanguageModel | null,
+    @Inject(AI_MODEL_RESOLVER) private readonly resolveModel: AiModelResolver,
     private readonly prisma: PrismaService,
   ) {}
 
@@ -249,12 +254,6 @@ export class DietPlanProcessor implements OnModuleInit, OnModuleDestroy {
 
     this.logger.log(`${tag}: starting generation`);
 
-    if (!this.model) {
-      throw new Error(
-        'No LLM provider configured; cannot generate a diet plan',
-      );
-    }
-
     const plan = await this.prisma.dietPlan.findUnique({
       where: { id: dietPlanId },
     });
@@ -266,6 +265,16 @@ export class DietPlanProcessor implements OnModuleInit, OnModuleDestroy {
     }
 
     const settings = await this.prisma.appSettings.findFirst();
+    const model = this.resolveModel(
+      resolveModelConfig(PromptCategory.DietPlan, settings?.aiPrompts),
+    );
+
+    if (!model) {
+      throw new Error(
+        'No LLM provider configured; cannot generate a diet plan',
+      );
+    }
+
     const prompt = resolvePrompt('diet_plan', settings?.aiPrompts);
     const usesAdminPrompt =
       settings?.aiPrompts?.some((p) => p.promptCategory === 'diet_plan') ??
@@ -284,7 +293,7 @@ export class DietPlanProcessor implements OnModuleInit, OnModuleDestroy {
     // generateObject takes no tools, so gather context first, then structure it.
     this.logger.log(`${tag}: gathering context via tools`);
     const research = await generateText({
-      model: this.model,
+      model,
       prompt: `${promptWithPreferences}\n\nCall the tools to gather what you need, then outline the week in plain text.`,
       tools: { getUserDetails: this.userDetailsTool(userId) },
       stopWhen: stepCountIs(3),
@@ -316,7 +325,7 @@ export class DietPlanProcessor implements OnModuleInit, OnModuleDestroy {
     ].join('\n');
 
     const { object, usage } = await this.generateWeeklyDiet(
-      this.model,
+      model,
       objectPrompt,
       tag,
     );

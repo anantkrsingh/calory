@@ -1,15 +1,19 @@
 "use client";
 
 import {
+  LLM_MODEL_CATALOG,
+  LLM_PROVIDER_ICONS,
+  LLM_PROVIDER_LABELS,
+  LLM_PROVIDERS,
   PROMPT_CATEGORIES,
   PROMPT_CATEGORY_LABELS,
 } from "@fitness/ai";
-import type { AiPromptConfig, CalorieConfig, PromptCategory } from "@fitness/types";
+import type { AiPromptConfig, CalorieConfig, LlmProvider, PromptCategory } from "@fitness/types";
 import { PromptCategory as PromptCategories } from "@fitness/types";
 import { Settings2, X } from "lucide-react";
 import { useActionState, useState } from "react";
 
-import { CustomDropdown } from "@/components/custom-dropdown";
+import { CustomDropdown, type CustomDropdownOption } from "@/components/custom-dropdown";
 import { CalorieConfigFields } from "./calorie-config-fields";
 import { updateSettingsAction, type SettingsState } from "./actions";
 
@@ -20,12 +24,36 @@ const CATEGORY_OPTIONS = PROMPT_CATEGORIES.map((value) => ({
   label: PROMPT_CATEGORY_LABELS[value],
 }));
 
+const SERVER_DEFAULT = "";
+const CUSTOM_MODEL = "__custom__";
+
+const PROVIDER_OPTIONS: CustomDropdownOption[] = [
+  { value: SERVER_DEFAULT, label: "Server default" },
+  ...LLM_PROVIDERS.map((provider) => ({
+    value: provider,
+    label: LLM_PROVIDER_LABELS[provider],
+    icon: LLM_PROVIDER_ICONS[provider],
+  })),
+];
+
+function modelOptionsFor(provider: LlmProvider): CustomDropdownOption[] {
+  return [
+    ...LLM_MODEL_CATALOG[provider].map((entry) => ({
+      value: entry.id,
+      label: entry.label,
+    })),
+    { value: CUSTOM_MODEL, label: "Custom model id…" },
+  ];
+}
+
 function buildInitialPrompts(configured: AiPromptConfig[]): AiPromptConfig[] {
   return PROMPT_CATEGORIES.map((promptCategory) => {
     const existing = configured.find((entry) => entry.promptCategory === promptCategory);
     return {
       promptCategory,
       prompt: existing?.prompt ?? "",
+      provider: existing?.provider,
+      model: existing?.model,
     };
   });
 }
@@ -48,6 +76,9 @@ export function SettingsForm({
   const [selectedCategory, setSelectedCategory] = useState<PromptCategory>(
     PromptCategories.QuoteOfTheDay,
   );
+  // Whether the model field is showing the freeform text input — set whenever
+  // the stored model isn't one of the current provider's catalog entries.
+  const [customModelEntry, setCustomModelEntry] = useState(false);
 
   const selectedDraft =
     draftPrompts.find((entry) => entry.promptCategory === selectedCategory) ??
@@ -55,7 +86,16 @@ export function SettingsForm({
 
   const openModal = () => {
     setDraftPrompts(prompts);
-    setSelectedCategory(prompts[0]?.promptCategory ?? PromptCategories.QuoteOfTheDay);
+    const firstCategory = prompts[0]?.promptCategory ?? PromptCategories.QuoteOfTheDay;
+    setSelectedCategory(firstCategory);
+    const first = prompts.find((entry) => entry.promptCategory === firstCategory);
+    setCustomModelEntry(
+      Boolean(
+        first?.provider &&
+          first.model &&
+          !LLM_MODEL_CATALOG[first.provider].some((entry) => entry.id === first.model),
+      ),
+    );
     setIsModalOpen(true);
   };
 
@@ -68,10 +108,51 @@ export function SettingsForm({
     setIsModalOpen(false);
   };
 
+  const selectCategory = (category: PromptCategory) => {
+    setSelectedCategory(category);
+    const entry = draftPrompts.find((item) => item.promptCategory === category);
+    setCustomModelEntry(
+      Boolean(
+        entry?.provider &&
+          entry.model &&
+          !LLM_MODEL_CATALOG[entry.provider].some((option) => option.id === entry.model),
+      ),
+    );
+  };
+
   const updateSelectedPrompt = (prompt: string) => {
     setDraftPrompts((current) =>
       current.map((item) =>
         item.promptCategory === selectedCategory ? { ...item, prompt } : item,
+      ),
+    );
+  };
+
+  const updateSelectedProvider = (value: string) => {
+    const provider = value === SERVER_DEFAULT ? undefined : (value as LlmProvider);
+    setCustomModelEntry(false);
+    setDraftPrompts((current) =>
+      current.map((item) =>
+        item.promptCategory === selectedCategory
+          ? { ...item, provider, model: undefined }
+          : item,
+      ),
+    );
+  };
+
+  const updateSelectedModel = (value: string) => {
+    if (value === CUSTOM_MODEL) {
+      setCustomModelEntry(true);
+      setDraftPrompts((current) =>
+        current.map((item) =>
+          item.promptCategory === selectedCategory ? { ...item, model: "" } : item,
+        ),
+      );
+      return;
+    }
+    setDraftPrompts((current) =>
+      current.map((item) =>
+        item.promptCategory === selectedCategory ? { ...item, model: value } : item,
       ),
     );
   };
@@ -97,9 +178,10 @@ export function SettingsForm({
         <section>
           <div className="mb-3 flex items-start justify-between gap-4">
             <div>
-              <h2 className="text-sm font-semibold text-neutral-900">AI prompts</h2>
+              <h2 className="text-sm font-semibold text-neutral-900">AI prompts &amp; models</h2>
               <p className="text-sm text-neutral-500">
-                System prompts for each AI feature. Leave blank to use the built-in fallback.
+                Per-feature system prompt and LLM. Leave on server default to use the
+                built-in fallback and the LLM_PROVIDER/LLM_MODEL env vars.
               </p>
             </div>
             <button
@@ -114,7 +196,7 @@ export function SettingsForm({
 
           <div className="overflow-hidden rounded-xl border border-neutral-200 bg-white">
             {prompts.map((entry) => {
-              const isCustom = entry.prompt.trim().length > 0;
+              const isCustomPrompt = entry.prompt.trim().length > 0;
               return (
                 <div
                   key={entry.promptCategory}
@@ -125,18 +207,25 @@ export function SettingsForm({
                       {PROMPT_CATEGORY_LABELS[entry.promptCategory]}
                     </p>
                     <p className="text-xs text-neutral-500">
-                      {isCustom ? "Custom prompt configured" : "Using built-in fallback"}
+                      {isCustomPrompt ? "Custom prompt configured" : "Using built-in fallback"}
                     </p>
                   </div>
-                  <span
-                    className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                      isCustom
-                        ? "bg-neutral-900 text-white"
-                        : "bg-neutral-100 text-neutral-600"
-                    }`}
-                  >
-                    {isCustom ? "Custom" : "Fallback"}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    {entry.provider ? (
+                      <span className="inline-flex items-center gap-1.5 rounded-full border border-neutral-200 bg-white px-2.5 py-1 text-xs font-medium text-neutral-700">
+                        <img
+                          src={LLM_PROVIDER_ICONS[entry.provider]}
+                          alt=""
+                          className="h-3.5 w-3.5"
+                        />
+                        {entry.model ?? "default model"}
+                      </span>
+                    ) : (
+                      <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs font-medium text-neutral-500">
+                        Server default
+                      </span>
+                    )}
+                  </div>
                 </div>
               );
             })}
@@ -164,7 +253,7 @@ export function SettingsForm({
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
           <div className="flex w-full max-w-xl max-h-[90vh] flex-col overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-xl">
             <div className="flex items-center justify-between border-b border-neutral-100 px-6 py-4">
-              <h2 className="text-lg font-semibold text-neutral-900">Configure AI prompt</h2>
+              <h2 className="text-lg font-semibold text-neutral-900">Configure AI feature</h2>
               <button
                 type="button"
                 onClick={closeModal}
@@ -180,8 +269,44 @@ export function SettingsForm({
                 <CustomDropdown
                   options={CATEGORY_OPTIONS}
                   value={selectedCategory}
-                  onChange={(value) => setSelectedCategory(value as PromptCategory)}
+                  onChange={(value) => selectCategory(value as PromptCategory)}
                 />
+              </div>
+
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-medium text-neutral-700">Model provider</label>
+                  <CustomDropdown
+                    options={PROVIDER_OPTIONS}
+                    value={selectedDraft.provider ?? SERVER_DEFAULT}
+                    onChange={updateSelectedProvider}
+                    placeholder="Server default"
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-medium text-neutral-700">Model</label>
+                  {!selectedDraft.provider ? (
+                    <div className="flex h-[42px] items-center rounded-xl border border-dashed border-neutral-200 px-3.5 text-xs text-neutral-400">
+                      Pick a provider first
+                    </div>
+                  ) : customModelEntry ? (
+                    <input
+                      type="text"
+                      value={selectedDraft.model ?? ""}
+                      onChange={(event) => updateSelectedModel(event.target.value)}
+                      placeholder="e.g. gpt-4.1-nano"
+                      className="w-full cursor-text rounded-xl border border-neutral-300 bg-white px-3.5 py-2.5 text-sm text-neutral-900 outline-none focus:border-neutral-900"
+                    />
+                  ) : (
+                    <CustomDropdown
+                      options={modelOptionsFor(selectedDraft.provider)}
+                      value={selectedDraft.model ?? ""}
+                      onChange={updateSelectedModel}
+                      placeholder="Provider default"
+                    />
+                  )}
+                </div>
               </div>
 
               <div className="flex flex-col gap-1.5">
