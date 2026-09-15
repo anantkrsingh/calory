@@ -73,7 +73,9 @@ describe('UsersService.registerPushToken', () => {
     await service.registerPushToken('existing-id', 'token-a', 'android');
 
     const { data } = prisma.user.update.mock.calls[0]![0];
-    expect(data.pushTokens).toEqual([{ token: 'token-a', platform: 'android' }]);
+    expect(data.pushTokens).toEqual([
+      { token: 'token-a', platform: 'android' },
+    ]);
   });
 
   it('rejects an unknown user', async () => {
@@ -98,7 +100,9 @@ describe('UsersService.unregisterPushToken', () => {
     await service.unregisterPushToken('existing-id', 'token-a');
 
     const { data } = prisma.user.update.mock.calls[0]![0];
-    expect(data.pushTokens).toEqual([{ token: 'token-b', platform: 'android' }]);
+    expect(data.pushTokens).toEqual([
+      { token: 'token-b', platform: 'android' },
+    ]);
     expect(data.preferences).toBeUndefined();
   });
 

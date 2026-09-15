@@ -102,7 +102,10 @@ export class UsersService {
     if (!current) throw new NotFoundException('User not found');
 
     const existing = current.pushTokens.find((entry) => entry.token === token);
-    if (existing?.platform === platform && current.preferences.notificationsEnabled) {
+    if (
+      existing?.platform === platform &&
+      current.preferences.notificationsEnabled
+    ) {
       return;
     }
 
