@@ -72,7 +72,7 @@ function messageFor(error: unknown, fallback: string): string {
 }
 
 /**
- * "Calory Pro" paywall — the app's subscription upsell, presented as a modal
+ * "Fit Crate Pro" paywall — the app's subscription upsell, presented as a modal
  * from anywhere (`router.push('/premium')`). Plans come straight from the
  * RevenueCat current offering (see `src/lib/purchases.ts`); an already-Pro
  * user sees their subscription status instead of the purchase flow.
@@ -115,7 +115,7 @@ export default function PremiumScreen() {
     try {
       const customerInfo = await purchase.mutateAsync(selectedPackage);
       if (hasActiveEntitlement(customerInfo)) {
-        Alert.alert('Welcome to Calory Pro 🎉', 'Your subscription is now active.', [
+        Alert.alert('Welcome to Fit Crate Pro 🎉', 'Your subscription is now active.', [
           { text: 'OK', onPress: () => router.back() },
         ]);
       } else {
@@ -132,7 +132,7 @@ export default function PremiumScreen() {
     try {
       const customerInfo = await restore.mutateAsync();
       if (hasActiveEntitlement(customerInfo)) {
-        Alert.alert('Restored', 'Your Calory Pro subscription is active again.');
+        Alert.alert('Restored', 'Your Fit Crate Pro subscription is active again.');
       } else {
         Alert.alert('Nothing to restore', 'We couldn’t find an active purchase for this account.');
       }
@@ -160,7 +160,7 @@ export default function PremiumScreen() {
         ]}>
         <View style={styles.hero}>
           <ThemedText family="ubuntu" fontWeight="700" style={styles.title}>
-            Calory Pro
+            Fit Crate Pro
           </ThemedText>
           <ThemedText themeColor="textSecondary" style={styles.subtitle}>
             Train hard. Track everything — unlocked.
@@ -283,7 +283,7 @@ function ProStatus({ customerInfo }: { customerInfo: ReturnType<typeof useCustom
         <BadgeCheck size={28} color="#FFFFFF" />
       </View>
       <ThemedText fontWeight="700" style={styles.proTitle}>
-        You’re on Calory Pro
+        You’re on Fit Crate Pro
       </ThemedText>
       <ThemedText themeColor="textSecondary" style={styles.proSubtitle}>
         {expiresLabel
