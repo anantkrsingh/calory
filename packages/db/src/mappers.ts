@@ -398,6 +398,8 @@ export function toAppSettings(row: AppSettingsRow): AppSettings {
       .map((prompt) => ({
         promptCategory: prompt.promptCategory,
         prompt: prompt.prompt,
+        provider: orUndefined(prompt.provider),
+        model: orUndefined(prompt.model),
       })),
     createdAt: iso(row.createdAt),
     updatedAt: iso(row.updatedAt),

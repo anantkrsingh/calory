@@ -14,7 +14,7 @@ import {
   toSkipTake,
   type ChatConversationRow,
 } from '@fitness/db';
-import { resolvePrompt } from '@fitness/ai';
+import { resolveModelConfig, resolvePrompt } from '@fitness/ai';
 import type {
   AskQuestionPayload,
   ChatConversation,
@@ -44,10 +44,14 @@ import {
   type SendChatMessageInput,
   type UpdateChatInput,
 } from '@fitness/validation';
-import { stepCountIs, streamText, tool, type LanguageModel } from 'ai';
+import { stepCountIs, streamText, tool } from 'ai';
 import { z } from 'zod';
 
-import { AI_MODEL, requireModel } from '../ai/ai.module';
+import {
+  AI_MODEL_RESOLVER,
+  requireModel,
+  type AiModelResolver,
+} from '../ai/ai.module';
 import { LIMITS } from '../config/constants';
 import { ExercisesService } from '../exercises/exercises.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -95,7 +99,7 @@ export class ChatsService {
     private readonly prisma: PrismaService,
     private readonly workoutRoutines: WorkoutRoutineService,
     private readonly exercises: ExercisesService,
-    @Inject(AI_MODEL) private readonly model: LanguageModel | null,
+    @Inject(AI_MODEL_RESOLVER) private readonly resolveModel: AiModelResolver,
   ) {}
 
   async list(
@@ -352,7 +356,12 @@ export class ChatsService {
     conversationId: Id,
     input: SendChatMessageInput,
   ) {
-    const model = requireModel(this.model);
+    const settings = await this.prisma.appSettings.findFirst();
+    const modelConfig = resolveModelConfig(
+      PromptCategory.UserChat,
+      settings?.aiPrompts,
+    );
+    const model = requireModel(this.resolveModel(modelConfig));
     const conversation = await this.getOwned(userId, conversationId);
 
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
@@ -404,7 +413,6 @@ export class ChatsService {
         };
       });
 
-    const settings = await this.prisma.appSettings.findFirst();
     const system = resolvePrompt(PromptCategory.UserChat, settings?.aiPrompts);
 
     const result = streamText({

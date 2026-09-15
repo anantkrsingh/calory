@@ -1,4 +1,4 @@
-import { PromptCategory } from '@fitness/types';
+import { LlmProvider, PromptCategory } from '@fitness/types';
 
 export const PROMPT_CATEGORIES = Object.values(PromptCategory);
 
@@ -111,4 +111,27 @@ export function resolvePrompt(
 ): string {
   const match = configured?.find((entry) => entry.promptCategory === category);
   return match?.prompt?.trim() || DEFAULT_PROMPTS[category];
+}
+
+/**
+ * The provider/model an admin picked for one AI feature, if any — `undefined`
+ * means "use the server's default" (same convention as `resolvePrompt`).
+ * Only returns a provider when one is actually set; a `model` with no
+ * `provider` is meaningless (which provider's model id would it even be?).
+ */
+export function resolveModelConfig(
+  category: PromptCategory,
+  configured:
+    | {
+        promptCategory: string;
+        // `| null` too: a raw Prisma row's optional composite fields come
+        // back nullable, not undefined — callers pass either shape.
+        provider?: LlmProvider | null;
+        model?: string | null;
+      }[]
+    | undefined,
+): { provider: LlmProvider; model?: string } | undefined {
+  const match = configured?.find((entry) => entry.promptCategory === category);
+  if (!match?.provider) return undefined;
+  return { provider: match.provider, model: match.model?.trim() || undefined };
 }

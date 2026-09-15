@@ -29,6 +29,12 @@ FROM deps AS builder
 COPY packages ./packages
 COPY apps/api ./apps/api
 ENV MONGODB_URI=mongodb://127.0.0.1:27017/build
+# Run unconditionally, outside turbo's cache: `prisma generate` writes the
+# client into node_modules, which turbo's build `outputs` (dist/** etc.) don't
+# cover. On a cached hit for @fitness/db#build turbo skips re-running it,
+# leaving the freshly pnpm-installed @prisma/client stub in place and the
+# service fails at boot with "did not initialize yet".
+RUN pnpm --filter=@fitness/db run db:generate
 RUN --mount=type=cache,id=turbo-api,target=/app/.turbo \
     pnpm exec turbo run build --filter=@fitness/api...
 

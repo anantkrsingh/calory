@@ -5,10 +5,15 @@ import {
   type OnModuleDestroy,
   type OnModuleInit,
 } from '@nestjs/common';
-import { resolvePrompt, weeklyRoutineSchema } from '@fitness/ai';
+import {
+  resolveModelConfig,
+  resolvePrompt,
+  weeklyRoutineSchema,
+} from '@fitness/ai';
 import { toCalorieConfig } from '@fitness/db';
 import type { WeeklyRoutine } from '@fitness/ai';
 import {
+  PromptCategory,
   ROUTINE_QUEUE_NAME,
   ROUTINE_RECONCILE_QUEUE_NAME,
   bmiCategory,
@@ -33,7 +38,7 @@ import {
 import { Queue, Worker, type Job } from 'bullmq';
 import { z } from 'zod';
 
-import { AI_MODEL } from '../ai/ai.module';
+import { AI_MODEL_RESOLVER, type AiModelResolver } from '../ai/ai.module';
 import { ENV, type Env } from '../config/env.module';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -73,7 +78,7 @@ export class RoutineProcessor implements OnModuleInit, OnModuleDestroy {
 
   constructor(
     @Inject(ENV) private readonly env: Env,
-    @Inject(AI_MODEL) private readonly model: LanguageModel | null,
+    @Inject(AI_MODEL_RESOLVER) private readonly resolveModel: AiModelResolver,
     private readonly prisma: PrismaService,
   ) {}
 
@@ -378,10 +383,6 @@ export class RoutineProcessor implements OnModuleInit, OnModuleDestroy {
 
     this.logger.log(`${tag}: starting generation`);
 
-    if (!this.model) {
-      throw new Error('No LLM provider configured; cannot generate a routine');
-    }
-
     const routine = await this.prisma.workoutRoutine.findUnique({
       where: { id: routineId },
     });
@@ -393,6 +394,14 @@ export class RoutineProcessor implements OnModuleInit, OnModuleDestroy {
     }
 
     const settings = await this.prisma.appSettings.findFirst();
+    const model = this.resolveModel(
+      resolveModelConfig(PromptCategory.WorkoutRoutine, settings?.aiPrompts),
+    );
+
+    if (!model) {
+      throw new Error('No LLM provider configured; cannot generate a routine');
+    }
+
     const prompt = resolvePrompt('workout_routine', settings?.aiPrompts);
     const usesAdminPrompt =
       settings?.aiPrompts?.some(
@@ -405,7 +414,7 @@ export class RoutineProcessor implements OnModuleInit, OnModuleDestroy {
     // generateObject takes no tools, so gather context first, then structure it.
     this.logger.log(`${tag}: gathering context via tools`);
     const research = await generateText({
-      model: this.model,
+      model,
       prompt: `${prompt}\n\nCall the tools to gather what you need, then outline the week in plain text.`,
       tools: {
         getUserDetails: this.userDetailsTool(userId),
@@ -440,7 +449,7 @@ export class RoutineProcessor implements OnModuleInit, OnModuleDestroy {
     ].join('\n');
 
     const { object, usage } = await this.generateWeeklyRoutine(
-      this.model,
+      model,
       objectPrompt,
       tag,
     );

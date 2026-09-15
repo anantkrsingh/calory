@@ -139,6 +139,11 @@ enum PromptCategory {
   diet_plan
 }
 
+enum LlmProvider {
+  openai
+  gemini
+}
+
 enum ChatMessageRole {
   user
   assistant
@@ -306,6 +311,10 @@ type RoutineExercise {
 type AiPromptConfig {
   promptCategory PromptCategory
   prompt         String
+  /// Unset falls back to the server's default provider/model (LLM_PROVIDER /
+  /// LLM_MODEL env vars).
+  provider       LlmProvider?
+  model          String?
 }
 
 type BodyMeasurements {
