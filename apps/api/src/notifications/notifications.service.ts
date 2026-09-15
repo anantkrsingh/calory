@@ -57,6 +57,7 @@ export class NotificationsService {
         body: input.body,
         targetType: input.targetType,
         targetUserIds: input.targetType === 'users' ? input.targetUserIds : [],
+        targetPlatform: input.targetPlatform,
         status: 'scheduled',
         scheduledAt,
         createdByEmail,

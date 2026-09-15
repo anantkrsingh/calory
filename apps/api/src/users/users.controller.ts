@@ -34,11 +34,13 @@ import {
   listUsersQuerySchema,
   objectIdSchema,
   registerPushTokenSchema,
+  unregisterPushTokenSchema,
   updateUserSchema,
   userSchema,
   type AdminUpdateUserInput,
   type ListUsersQueryInput,
   type RegisterPushTokenInput,
+  type UnregisterPushTokenInput,
   type UpdateUserInput,
 } from '@fitness/validation';
 
@@ -104,7 +106,7 @@ export class UsersController {
     @CurrentUser() user: AuthenticatedUser,
     @Body(zodPipe(registerPushTokenSchema)) body: RegisterPushTokenInput,
   ): Promise<void> {
-    return this.users.registerPushToken(user.id, body.token);
+    return this.users.registerPushToken(user.id, body.token, body.platform);
   }
 
   @Delete('me/push-token')
@@ -114,10 +116,10 @@ export class UsersController {
     description:
       'Called on logout so a signed-out device stops receiving pushes.',
   })
-  @ApiZodBody(registerPushTokenSchema)
+  @ApiZodBody(unregisterPushTokenSchema)
   unregisterPushToken(
     @CurrentUser() user: AuthenticatedUser,
-    @Body(zodPipe(registerPushTokenSchema)) body: RegisterPushTokenInput,
+    @Body(zodPipe(unregisterPushTokenSchema)) body: UnregisterPushTokenInput,
   ): Promise<void> {
     return this.users.unregisterPushToken(user.id, body.token);
   }

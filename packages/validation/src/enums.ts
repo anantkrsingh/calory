@@ -1,6 +1,7 @@
 import {
   ActivityLevel,
   DayOfWeek,
+  DevicePlatform,
   DietCuisine,
   DietType,
   Equipment,
@@ -15,6 +16,7 @@ import {
   ChatMessageRole,
   NotificationCampaignStatus,
   NotificationDeliveryStatus,
+  NotificationTargetPlatform,
   NotificationTargetType,
   PromptCategory,
   RoutineDayStatus,
@@ -53,10 +55,14 @@ export const routineDayStatusSchema = z.enum(RoutineDayStatus);
 export const dietTypeSchema = z.enum(DietType);
 export const dietCuisineSchema = z.enum(DietCuisine);
 export const notificationTargetTypeSchema = z.enum(NotificationTargetType);
+export const notificationTargetPlatformSchema = z.enum(
+  NotificationTargetPlatform,
+);
 export const notificationCampaignStatusSchema = z.enum(
   NotificationCampaignStatus,
 );
 export const notificationDeliveryStatusSchema = z.enum(
   NotificationDeliveryStatus,
 );
+export const devicePlatformSchema = z.enum(DevicePlatform);
 export const llmProviderSchema = z.enum(LlmProvider);

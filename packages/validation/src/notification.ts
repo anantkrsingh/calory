@@ -4,6 +4,7 @@ import { z } from 'zod';
 import {
   notificationCampaignStatusSchema,
   notificationDeliveryStatusSchema,
+  notificationTargetPlatformSchema,
   notificationTargetTypeSchema,
 } from './enums';
 import {
@@ -30,6 +31,8 @@ export const createNotificationCampaignSchema = z
       .min(LIMITS.notificationTargetUsers.min)
       .max(LIMITS.notificationTargetUsers.max)
       .optional(),
+    // Which device platforms to send to; defaults to both.
+    targetPlatform: notificationTargetPlatformSchema.default('all'),
     // Absent or omitted means "send now". Zod validates the format here;
     // the service is what rejects a timestamp already in the past, since
     // that needs a comparison against the request-time clock, not the shape.

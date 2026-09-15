@@ -5,8 +5,8 @@ import { LegalShell } from "@/components/legal-shell";
 import { APP_NAME, LEGAL_UPDATED, SUPPORT_EMAIL } from "@/lib/site";
 
 export const metadata: Metadata = {
-  title: "Privacy Policy — Calory",
-  description: "How Calory collects, uses, and protects your data.",
+  title: "Privacy Policy — Fit Crate",
+  description: "How Fit Crate collects, uses, and protects your data.",
 };
 
 export default function PrivacyPolicyPage() {
@@ -14,7 +14,7 @@ export default function PrivacyPolicyPage() {
     <LegalShell eyebrow="Legal" title="Privacy Policy" updated={LEGAL_UPDATED}>
       <p>
         This Privacy Policy explains what information {APP_NAME} (&ldquo;{APP_NAME}&rdquo;,
-        &ldquo;we&rdquo;, &ldquo;us&rdquo;) collects when you use the Calory mobile app and this
+        &ldquo;we&rdquo;, &ldquo;us&rdquo;) collects when you use the Fit Crate mobile app and this
         website, how we use it, and the choices you have — including deleting your account and
         data at any time.
       </p>
@@ -30,7 +30,7 @@ export default function PrivacyPolicyPage() {
         whether you register directly or through Google Sign-In or Facebook Login.
       </p>
       <h3>Health and fitness data</h3>
-      <p>You choose to share fitness data so Calory can build and track your plan, including:</p>
+      <p>You choose to share fitness data so Fit Crate can build and track your plan, including:</p>
       <ul>
         <li>Body metrics — weight, height, and body fat percentage</li>
         <li>Workout data — routines, exercises, sets, and your weekly workout history</li>
@@ -39,13 +39,13 @@ export default function PrivacyPolicyPage() {
       </ul>
       <h3>AI coach conversations</h3>
       <p>
-        Messages you send to Calory&apos;s AI chat coach, and the routines, quotes, and responses
+        Messages you send to Fit Crate&apos;s AI chat coach, and the routines, quotes, and responses
         it generates for you, are stored so your coach has context across sessions.
       </p>
       <h3>Usage and device data</h3>
       <p>
         We use Firebase to collect basic analytics and crash diagnostics (device type, app
-        version, and general usage events) to keep Calory reliable and improve it over time.
+        version, and general usage events) to keep Fit Crate reliable and improve it over time.
       </p>
 
       <h2>2. How We Use Your Information</h2>
@@ -59,14 +59,14 @@ export default function PrivacyPolicyPage() {
 
       <h2>3. AI Processing</h2>
       <p>
-        To generate routines, calorie targets, and chat responses, Calory sends the relevant
+        To generate routines, calorie targets, and chat responses, Fit Crate sends the relevant
         parts of your fitness data and messages to third-party AI providers (such as OpenAI or
         Google Gemini) for processing. These providers process your data solely to return a
-        response to Calory and do not use it to advertise to you.
+        response to Fit Crate and do not use it to advertise to you.
       </p>
 
       <h2>4. Third-Party Services</h2>
-      <p>Calory relies on the following third-party services, each governed by its own privacy policy:</p>
+      <p>Fit Crate relies on the following third-party services, each governed by its own privacy policy:</p>
       <ul>
         <li><strong>Firebase</strong> (Google) — authentication, analytics, and crash reporting</li>
         <li><strong>Google Sign-In</strong> and <strong>Facebook Login</strong> — optional sign-in methods</li>
@@ -77,7 +77,7 @@ export default function PrivacyPolicyPage() {
 
       <h2>5. Data Retention</h2>
       <p>
-        We keep your account and fitness data for as long as your account is active, so Calory
+        We keep your account and fitness data for as long as your account is active, so Fit Crate
         can keep building on your history. If you delete your account, we remove your personal
         data as described in our{" "}
         <Link href="/delete-account">Delete Account</Link> page, aside from anything we&apos;re
@@ -100,7 +100,7 @@ export default function PrivacyPolicyPage() {
 
       <h2>8. Children&apos;s Privacy</h2>
       <p>
-        Calory is not directed at children under 13, and we do not knowingly collect personal
+        Fit Crate is not directed at children under 13, and we do not knowingly collect personal
         information from them. If you believe a child has provided us data, contact us and
         we&apos;ll remove it.
       </p>
@@ -114,7 +114,7 @@ export default function PrivacyPolicyPage() {
 
       <h2>10. Changes to This Policy</h2>
       <p>
-        We may update this policy as Calory evolves. We&apos;ll update the &ldquo;Last
+        We may update this policy as Fit Crate evolves. We&apos;ll update the &ldquo;Last
         updated&rdquo; date above, and for material changes we&apos;ll make reasonable efforts to
         notify you in the app.
       </p>

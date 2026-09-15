@@ -28,10 +28,21 @@ function formatDateTime(value?: string): string {
   });
 }
 
+const PLATFORM_LABEL: Record<NotificationCampaign["targetPlatform"], string> = {
+  all: "",
+  ios: " · iOS only",
+  android: " · Android only",
+};
+
 function targetLabel(campaign: NotificationCampaign): string {
-  if (campaign.targetType === "all") return "All users";
-  const count = campaign.targetUserIds?.length ?? 0;
-  return `${count} hand-picked user${count === 1 ? "" : "s"}`;
+  const base =
+    campaign.targetType === "all"
+      ? "All users"
+      : (() => {
+          const count = campaign.targetUserIds?.length ?? 0;
+          return `${count} hand-picked user${count === 1 ? "" : "s"}`;
+        })();
+  return `${base}${PLATFORM_LABEL[campaign.targetPlatform]}`;
 }
 
 function buildQueryUrl(page: number, status?: string): string {
@@ -162,6 +173,7 @@ export function CampaignDetailClient({
           <thead className="border-b border-neutral-200 bg-neutral-50 text-xs font-medium uppercase tracking-wide text-neutral-500">
             <tr>
               <th className="px-4 py-3">User</th>
+              <th className="px-4 py-3">Platform</th>
               <th className="px-4 py-3">Status</th>
               <th className="px-4 py-3">Error</th>
               <th className="px-4 py-3">Updated</th>
@@ -176,6 +188,9 @@ export function CampaignDetailClient({
                 <td className="px-4 py-3">
                   <p className="font-medium text-neutral-900">{delivery.userDisplayName}</p>
                   <p className="text-xs text-neutral-500">{delivery.userEmail}</p>
+                </td>
+                <td className="px-4 py-3 text-xs uppercase text-neutral-500">
+                  {delivery.platform}
                 </td>
                 <td className="px-4 py-3">
                   <DeliveryStatusBadge status={delivery.status} />
@@ -196,7 +211,7 @@ export function CampaignDetailClient({
             ))}
             {deliveries.length === 0 ? (
               <tr>
-                <td colSpan={4} className="px-4 py-8 text-center text-neutral-500">
+                <td colSpan={5} className="px-4 py-8 text-center text-neutral-500">
                   No deliveries{status ? ` with status "${status}"` : ""} yet.
                 </td>
               </tr>

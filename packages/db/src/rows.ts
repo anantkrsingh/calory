@@ -83,6 +83,7 @@ export type DietPlanRow = Prisma.DietPlanGetPayload<{
 export type {
   AiPromptConfig as AiPromptConfigComposite,
   BodyMeasurements as BodyMeasurementsComposite,
+  PushToken as PushTokenComposite,
   RoutineExercise as RoutineExerciseComposite,
   RoutineSet as RoutineSetComposite,
   UserPreferences as UserPreferencesComposite,

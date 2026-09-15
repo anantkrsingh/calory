@@ -1,7 +1,13 @@
 import { LIMITS } from './constants';
 import { z } from 'zod';
 
-import { activityLevelSchema, fitnessGoalSchema, sexSchema, unitSystemSchema } from './enums';
+import {
+  activityLevelSchema,
+  devicePlatformSchema,
+  fitnessGoalSchema,
+  sexSchema,
+  unitSystemSchema,
+} from './enums';
 import { isoDateSchema, paginationQuerySchema } from './primitives';
 
 export const userProfileSchema = z.object({
@@ -35,6 +41,11 @@ export const updateUserSchema = z.object({
 
 export const registerPushTokenSchema = z.object({
   token: z.string().min(1, 'Push token is required'),
+  platform: devicePlatformSchema,
+});
+
+export const unregisterPushTokenSchema = z.object({
+  token: z.string().min(1, 'Push token is required'),
 });
 
 export const adminUpdateUserSchema = updateUserSchema.extend({
@@ -53,6 +64,7 @@ export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
 export type UpdatePreferencesInput = z.infer<typeof updatePreferencesSchema>;
 export type UpdateUserInput = z.infer<typeof updateUserSchema>;
 export type RegisterPushTokenInput = z.infer<typeof registerPushTokenSchema>;
+export type UnregisterPushTokenInput = z.infer<typeof unregisterPushTokenSchema>;
 export type AdminUpdateUserInput = z.infer<typeof adminUpdateUserSchema>;
 
 /** Admin-only listing: search by email/display name on top of plain pagination. */

@@ -24,6 +24,7 @@
     "db:studio": "prisma studio",
     "db:seed": "node dist/seed/run.js",
     "db:migrate:routine-days": "node dist/migrations/normalize-workout-routine-days.js",
+    "db:migrate:push-tokens": "node dist/migrations/normalize-push-tokens.js",
     "clean": "rm -rf dist .turbo *.tsbuildinfo"
   },
   "prisma": {

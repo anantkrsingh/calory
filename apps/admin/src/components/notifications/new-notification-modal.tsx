@@ -26,6 +26,13 @@ interface NewNotificationModalProps {
 
 type TargetMode = "all" | "users";
 type ScheduleMode = "now" | "later";
+type PlatformMode = "all" | "ios" | "android";
+
+const PLATFORM_OPTIONS: { value: PlatformMode; label: string }[] = [
+  { value: "all", label: "iOS & Android" },
+  { value: "ios", label: "iOS only" },
+  { value: "android", label: "Android only" },
+];
 
 export function NewNotificationModal({ isOpen, onClose }: NewNotificationModalProps) {
   const router = useRouter();
@@ -36,6 +43,7 @@ export function NewNotificationModal({ isOpen, onClose }: NewNotificationModalPr
   const [body, setBody] = useState("");
   const [targetMode, setTargetMode] = useState<TargetMode>("all");
   const [recipients, setRecipients] = useState<PickedUser[]>([]);
+  const [platformMode, setPlatformMode] = useState<PlatformMode>("all");
   const [scheduleMode, setScheduleMode] = useState<ScheduleMode>("now");
   const [scheduledAt, setScheduledAt] = useState("");
   // Lazy initializer: runs once (on mount), not on every render, so reading
@@ -51,6 +59,7 @@ export function NewNotificationModal({ isOpen, onClose }: NewNotificationModalPr
     setBody("");
     setTargetMode("all");
     setRecipients([]);
+    setPlatformMode("all");
     setScheduleMode("now");
     setScheduledAt("");
     setError(null);
@@ -80,6 +89,7 @@ export function NewNotificationModal({ isOpen, onClose }: NewNotificationModalPr
           body: body.trim(),
           targetType: targetMode,
           targetUserIds: targetMode === "users" ? recipients.map((u) => u.id) : undefined,
+          targetPlatform: platformMode,
           scheduledAt:
             scheduleMode === "later" && scheduledAt
               ? new Date(scheduledAt).toISOString()
@@ -175,6 +185,28 @@ export function NewNotificationModal({ isOpen, onClose }: NewNotificationModalPr
                 <UserPicker selected={recipients} onChange={setRecipients} />
               </div>
             ) : null}
+          </div>
+
+          <div>
+            <label className="mb-1.5 block text-xs font-medium text-neutral-600">Platform</label>
+            <div className="flex gap-4">
+              {PLATFORM_OPTIONS.map((option) => (
+                <label
+                  key={option.value}
+                  className="flex cursor-pointer items-center gap-1.5 text-sm text-neutral-700"
+                >
+                  <input
+                    type="radio"
+                    name="platform"
+                    value={option.value}
+                    checked={platformMode === option.value}
+                    onChange={() => setPlatformMode(option.value)}
+                    className="cursor-pointer accent-neutral-900"
+                  />
+                  {option.label}
+                </label>
+              ))}
+            </div>
           </div>
 
           <div>

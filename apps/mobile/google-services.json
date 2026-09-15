@@ -28,6 +28,14 @@
             "package_name": "com.fitness.calory.ai",
             "certificate_hash": "1a7393668851b4d84dd0ce8568613fcc64acf51d"
           }
+        },
+        {
+          "client_id": "670526577063-rhfvgv00eduhi05743fq9kguttadb2p6.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.fitness.calory.ai",
+            "certificate_hash": "a292cf9ee77c2d1dd749c4a13abbd7a654d86d4d"
+          }
         }
       ],
       "api_key": [

@@ -15,9 +15,9 @@ const ubuntuMono = Ubuntu_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Calory — Train hard. Track everything.",
+  title: "Fit Crate — Train hard. Track everything.",
   description:
-    "Calory is the AI fitness coach that builds your workouts, tracks your calories, and keeps you locked on the goals that actually matter.",
+    "Fit Crate is the AI fitness coach that builds your workouts, tracks your calories, and keeps you locked on the goals that actually matter.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

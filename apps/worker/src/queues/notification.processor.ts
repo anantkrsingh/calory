@@ -5,10 +5,12 @@ import {
   type OnModuleDestroy,
   type OnModuleInit,
 } from '@nestjs/common';
+import type { PushTokenComposite } from '@fitness/db';
 import {
   NOTIFICATION_QUEUE_NAME,
   type NotificationJobData,
   type NotificationJobResult,
+  type NotificationTargetPlatform,
 } from '@fitness/types';
 import { Queue, Worker, type Job } from 'bullmq';
 import Expo, {
@@ -36,7 +38,7 @@ type Recipient = {
   id: string;
   email: string;
   profile: { displayName: string };
-  pushTokens: string[];
+  pushTokens: PushTokenComposite[];
 };
 
 @Injectable()
@@ -156,8 +158,12 @@ export class NotificationProcessor implements OnModuleInit, OnModuleDestroy {
     try {
       recipientCount =
         campaign.targetType === 'users'
-          ? await this.dispatchToUsers(content, campaign.targetUserIds)
-          : await this.dispatchToAllUsers(content);
+          ? await this.dispatchToUsers(
+              content,
+              campaign.targetUserIds,
+              campaign.targetPlatform,
+            )
+          : await this.dispatchToAllUsers(content, campaign.targetPlatform);
 
       await this.prisma.notificationCampaign.update({
         where: { id: campaignId },
@@ -184,17 +190,21 @@ export class NotificationProcessor implements OnModuleInit, OnModuleDestroy {
   private async dispatchToUsers(
     campaign: CampaignContent,
     userIds: string[],
+    targetPlatform: NotificationTargetPlatform,
   ): Promise<number> {
     const users = await this.prisma.user.findMany({
       where: { id: { in: userIds }, pushTokens: { isEmpty: false } },
       select: { id: true, email: true, profile: true, pushTokens: true },
     });
-    return this.sendToRecipients(campaign, users);
+    return this.sendToRecipients(campaign, users, targetPlatform);
   }
 
   /** Cursor-pages through every user with a push token so a huge table never
    * has to be held in memory at once. */
-  private async dispatchToAllUsers(campaign: CampaignContent): Promise<number> {
+  private async dispatchToAllUsers(
+    campaign: CampaignContent,
+    targetPlatform: NotificationTargetPlatform,
+  ): Promise<number> {
     let cursor: string | undefined;
     let total = 0;
 
@@ -208,7 +218,7 @@ export class NotificationProcessor implements OnModuleInit, OnModuleDestroy {
       });
       if (page.length === 0) break;
 
-      total += await this.sendToRecipients(campaign, page);
+      total += await this.sendToRecipients(campaign, page, targetPlatform);
 
       if (page.length < RECIPIENT_PAGE_SIZE) break;
       cursor = page[page.length - 1]!.id;
@@ -225,11 +235,20 @@ export class NotificationProcessor implements OnModuleInit, OnModuleDestroy {
   private async sendToRecipients(
     campaign: CampaignContent,
     recipients: Recipient[],
+    targetPlatform: NotificationTargetPlatform,
   ): Promise<number> {
     const targets = recipients.flatMap((user) =>
       user.pushTokens
-        .filter((token) => Expo.isExpoPushToken(token))
-        .map((token) => ({ user, token })),
+        .filter(
+          (entry) =>
+            (targetPlatform === 'all' || entry.platform === targetPlatform) &&
+            Expo.isExpoPushToken(entry.token),
+        )
+        .map((entry) => ({
+          user,
+          token: entry.token,
+          platform: entry.platform,
+        })),
     );
 
     let attempted = 0;
@@ -249,6 +268,7 @@ export class NotificationProcessor implements OnModuleInit, OnModuleDestroy {
               userEmail: target.user.email,
               userDisplayName: target.user.profile.displayName,
               pushToken: target.token,
+              platform: target.platform,
               status: 'pending',
             },
           }),
@@ -406,12 +426,13 @@ export class NotificationProcessor implements OnModuleInit, OnModuleDestroy {
   private async pruneToken(userId: string, token: string): Promise<void> {
     try {
       const user = await this.prisma.user.findUnique({ where: { id: userId } });
-      if (!user || !user.pushTokens.includes(token)) return;
+      if (!user || !user.pushTokens.some((entry) => entry.token === token))
+        return;
 
       await this.prisma.user.update({
         where: { id: userId },
         data: {
-          pushTokens: user.pushTokens.filter((existing) => existing !== token),
+          pushTokens: user.pushTokens.filter((entry) => entry.token !== token),
         },
       });
     } catch (error) {

@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "Calory Fitness",
+    "name": "Fit Crate",
     "slug": "calory-fitness",
     "version": "1.0.2",
     "orientation": "portrait",
     "icon": "./assets/images/ios-icon-default.png",
-    "scheme": "calory-fitness",
+    "scheme": "fit-crate",
     "userInterfaceStyle": "automatic",
     "ios": {
       "icon": "./assets/images/ios-icon-default.png",
@@ -73,7 +73,7 @@
         {
           "appID": "1372271290911323",
           "clientToken": "019df55c3dc93333046e2f4555e68901",
-          "displayName": "Calory",
+          "displayName": "Fit Crate",
           "scheme": "fb1372271290911323",
           "advertiserIDCollectionEnabled": false,
           "autoLogAppEventsEnabled": false,

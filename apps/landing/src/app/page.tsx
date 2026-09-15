@@ -7,12 +7,12 @@ const FEATURES = [
   {
     icon: "💬",
     title: "AI coach in your pocket",
-    body: "Chat with Calory like a trainer who actually reads your history — ask for a swap, a push, or a plan for the week.",
+    body: "Chat with Fit Crate like a trainer who actually reads your history — ask for a swap, a push, or a plan for the week.",
   },
   {
     icon: "🗓️",
     title: "Routines built for you",
-    body: "Every week, Calory generates a fresh workout routine around your goals, equipment, and how last week actually went.",
+    body: "Every week, Fit Crate generates a fresh workout routine around your goals, equipment, and how last week actually went.",
   },
   {
     icon: "🔥",
@@ -32,20 +32,20 @@ const FEATURES = [
   {
     icon: "🎯",
     title: "Goals that stick",
-    body: "Set the outcome you actually want and let Calory keep every routine and target pointed at it.",
+    body: "Set the outcome you actually want and let Fit Crate keep every routine and target pointed at it.",
   },
 ];
 
 const STEPS = [
   {
     n: "01",
-    title: "Tell Calory your goal",
+    title: "Tell Fit Crate your goal",
     body: "Cut, bulk, recomp, or just move more — set your target and let the AI take it from there.",
   },
   {
     n: "02",
     title: "Get your week, built for you",
-    body: "Calory generates your routine and calorie target, then keeps adjusting as you log.",
+    body: "Fit Crate generates your routine and calorie target, then keeps adjusting as you log.",
   },
   {
     n: "03",
@@ -100,7 +100,7 @@ export default function Home() {
               <div className="overflow-hidden rounded-[32px] border-2 border-brand-ink/10 shadow-2xl shadow-brand-ink/20">
                 <Image
                   src="/hero-workout.png"
-                  alt="Calory app illustration — sneakers and a dumbbell on a gym mat"
+                  alt="Fit Crate app illustration — sneakers and a dumbbell on a gym mat"
                   width={1400}
                   height={1400}
                   className="h-full w-full object-cover"
@@ -122,7 +122,7 @@ export default function Home() {
             </h2>
             <p className="mt-4 text-lg text-text-secondary">
               Workouts, calories, diet, and an AI coach that ties it all
-              together — Calory replaces the five apps you were juggling.
+              together — Fit Crate replaces the five apps you were juggling.
             </p>
           </div>
 
@@ -207,11 +207,11 @@ export default function Home() {
           <div className="mt-12 divide-y divide-border rounded-3xl border border-border bg-surface">
             {[
               {
-                q: "Do I need a trainer to use Calory?",
-                a: "No — Calory's AI coach builds and adjusts your routine and calorie target for you, and you can chat with it any time you want a change.",
+                q: "Do I need a trainer to use Fit Crate?",
+                a: "No — Fit Crate's AI coach builds and adjusts your routine and calorie target for you, and you can chat with it any time you want a change.",
               },
               {
-                q: "Does Calory track calories and workouts together?",
+                q: "Does Fit Crate track calories and workouts together?",
                 a: "Yes. Your calorie target, meal logging, and workout routine all live in one place and inform each other.",
               },
               {
@@ -219,7 +219,7 @@ export default function Home() {
                 a: "Every week is saved to your history, so you can look back at exactly what you did and how your numbers moved.",
               },
               {
-                q: "Is Calory free to start?",
+                q: "Is Fit Crate free to start?",
                 a: "Yes — you can get started right away with no credit card required.",
               },
             ].map((item) => (
@@ -245,7 +245,7 @@ export default function Home() {
               Your next routine is one tap away
             </h2>
             <p className="mx-auto mt-4 max-w-xl text-lg font-medium text-white/90">
-              Join Calory and let your AI coach build the plan while you focus
+              Join Fit Crate and let your AI coach build the plan while you focus
               on the work.
             </p>
             <div className="mt-9 flex flex-wrap items-center justify-center gap-4">

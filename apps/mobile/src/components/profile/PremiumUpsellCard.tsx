@@ -20,7 +20,7 @@ export function PremiumUpsellCard() {
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={isPro ? 'Calory Pro is active' : 'Upgrade to Calory Pro'}
+      accessibilityLabel={isPro ? 'Fit Crate Pro is active' : 'Upgrade to Fit Crate Pro'}
       onPress={() => router.push('/premium')}
       style={({ pressed }) => [styles.card, pressed && Pressed]}>
       <LinearGradient
@@ -37,7 +37,7 @@ export function PremiumUpsellCard() {
 
           <View style={styles.textBlock}>
             <ThemedText fontWeight="700" style={styles.title}>
-              {isPro ? 'Calory Pro — Active' : 'Upgrade to Calory Pro'}
+              {isPro ? 'Fit Crate Pro — Active' : 'Upgrade to Fit Crate Pro'}
             </ThemedText>
             <ThemedText themeColor="textSecondary" style={styles.subtitle}>
               {isPro ? 'Tap to manage your subscription' : 'Unlock AI diet plans, analytics & more'}

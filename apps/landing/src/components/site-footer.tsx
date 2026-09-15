@@ -13,7 +13,7 @@ export function SiteFooter() {
       <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-6 px-6 py-10 text-sm text-text-secondary sm:flex-row">
         <Link href="/" className="flex items-center gap-2">
           <Image src="/logo.png" alt="" width={24} height={24} className="rounded-[7px]" />
-          <span className="font-bold text-text">Calory</span>
+          <span className="font-bold text-text">Fit Crate</span>
         </Link>
         <nav className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2">
           {LEGAL_LINKS.map((link) => (
@@ -22,7 +22,7 @@ export function SiteFooter() {
             </Link>
           ))}
         </nav>
-        <p>© {new Date().getFullYear()} Calory. All rights reserved.</p>
+        <p>© {new Date().getFullYear()} Fit Crate. All rights reserved.</p>
       </div>
     </footer>
   );

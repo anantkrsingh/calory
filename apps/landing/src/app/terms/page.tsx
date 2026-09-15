@@ -5,8 +5,8 @@ import { LegalShell } from "@/components/legal-shell";
 import { APP_NAME, LEGAL_UPDATED, SUPPORT_EMAIL } from "@/lib/site";
 
 export const metadata: Metadata = {
-  title: "Terms of Service — Calory",
-  description: "The terms that govern your use of the Calory app and website.",
+  title: "Terms of Service — Fit Crate",
+  description: "The terms that govern your use of the Fit Crate app and website.",
 };
 
 export default function TermsPage() {
@@ -24,7 +24,7 @@ export default function TermsPage() {
 
       <h2>1. Eligibility</h2>
       <p>
-        You must be at least 13 years old to use Calory. If you are under the age of majority in
+        You must be at least 13 years old to use Fit Crate. If you are under the age of majority in
         your jurisdiction, you confirm you have a parent or guardian&apos;s permission to use the
         Service.
       </p>
@@ -38,7 +38,7 @@ export default function TermsPage() {
 
       <h2>3. Not Medical Advice</h2>
       <p>
-        Calory&apos;s workout routines, calorie targets, and AI coach responses are generated for
+        Fit Crate&apos;s workout routines, calorie targets, and AI coach responses are generated for
         general fitness guidance only — they are not medical advice and are not a substitute for
         consultation with a qualified physician, dietitian, or trainer. Talk to a healthcare
         professional before starting any new exercise or nutrition program, especially if you

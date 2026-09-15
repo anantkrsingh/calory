@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { paginate, toSkipTake, toUser, type Prisma } from '@fitness/db';
 import type {
   AccountDeletionSchedule,
+  DevicePlatform,
   Id,
   Paginated,
   User,
@@ -88,24 +89,30 @@ export class UsersService {
     return toUser(user);
   }
 
-  /** Saves an Expo push token for this device and flips notifications on. Safe to call again with the same token. */
-  async registerPushToken(id: Id, token: string): Promise<void> {
+  /** Saves an Expo push token (and the platform it came from) for this device
+   * and flips notifications on. Safe to call again with the same token — it
+   * also refreshes the stored platform, in case the token was somehow
+   * re-issued under a different one. */
+  async registerPushToken(
+    id: Id,
+    token: string,
+    platform: DevicePlatform,
+  ): Promise<void> {
     const current = await this.prisma.user.findUnique({ where: { id } });
     if (!current) throw new NotFoundException('User not found');
 
-    if (
-      current.pushTokens.includes(token) &&
-      current.preferences.notificationsEnabled
-    ) {
+    const existing = current.pushTokens.find((entry) => entry.token === token);
+    if (existing?.platform === platform && current.preferences.notificationsEnabled) {
       return;
     }
 
     await this.prisma.user.update({
       where: { id },
       data: {
-        pushTokens: current.pushTokens.includes(token)
-          ? current.pushTokens
-          : [...current.pushTokens, token],
+        pushTokens: [
+          ...current.pushTokens.filter((entry) => entry.token !== token),
+          { token, platform },
+        ],
         preferences: { ...current.preferences, notificationsEnabled: true },
       },
     });
@@ -116,12 +123,12 @@ export class UsersService {
     const current = await this.prisma.user.findUnique({ where: { id } });
     if (!current) throw new NotFoundException('User not found');
 
-    if (!current.pushTokens.includes(token)) return;
+    if (!current.pushTokens.some((entry) => entry.token === token)) return;
 
     await this.prisma.user.update({
       where: { id },
       data: {
-        pushTokens: current.pushTokens.filter((existing) => existing !== token),
+        pushTokens: current.pushTokens.filter((entry) => entry.token !== token),
       },
     });
   }
