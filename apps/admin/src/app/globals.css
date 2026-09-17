@@ -12,11 +12,18 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/*
+ * This admin panel is a light-only UI — every component hardcodes light
+ * colors (bg-white, border-neutral-*, text-neutral-*), none of it dark-mode
+ * aware. Letting `--foreground` flip to a light grey under a dark OS/browser
+ * preference (the old `prefers-color-scheme: dark` block here) left any
+ * element relying on inherited body color — most notably plain <input>s with
+ * no explicit text-* class — rendering near-invisible light grey text on a
+ * white background. `color-scheme: light` also stops the browser from
+ * applying its own dark UA styling to form controls.
+ */
+:root {
+  color-scheme: light;
 }
 
 body {

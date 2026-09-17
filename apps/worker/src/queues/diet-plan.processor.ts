@@ -19,6 +19,7 @@ import {
   calculateBmi,
   energyProfile,
   yearsSince,
+  type Citation,
   type DayOfWeek,
   type DietCuisine,
   type DietPlanJobData,
@@ -33,11 +34,17 @@ import {
   tool,
   type LanguageModel,
   type LanguageModelUsage,
+  type ToolSet,
 } from 'ai';
 import { Worker, type Job } from 'bullmq';
 import { z } from 'zod';
 
-import { AI_MODEL_RESOLVER, type AiModelResolver } from '../ai/ai.module';
+import {
+  AI_MODEL_RESOLVER,
+  AI_SEARCH_TOOL_RESOLVER,
+  type AiModelResolver,
+  type AiSearchToolResolver,
+} from '../ai/ai.module';
 import { ENV, type Env } from '../config/env.module';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -45,10 +52,15 @@ import { PrismaService } from '../prisma/prisma.service';
 // than the routine generator's (days -> meals -> items, vs. days ->
 // exercises), so it gets a bigger budget. Too low a cap here reads as a
 // schema-validation failure (truncated JSON), not a token-limit one.
-const DIET_OBJECT_MAX_OUTPUT_TOKENS = 20000;
+// A little extra headroom over the routine generator's cap accounts for the
+// per-meal `citations` field on top of the macro fields.
+const DIET_OBJECT_MAX_OUTPUT_TOKENS = 23000;
 // Give the repair attempt even more headroom — a truncated first attempt
 // means the budget above wasn't enough.
-const DIET_OBJECT_REPAIR_MAX_OUTPUT_TOKENS = 28000;
+const DIET_OBJECT_REPAIR_MAX_OUTPUT_TOKENS = 32000;
+// Distinct sources kept from research, across every day's search results —
+// caps how many candidates the object step has to choose citations from.
+const MAX_CITATION_SOURCES = 12;
 
 const DIET_TYPE_LABEL: Record<DietType, string> = {
   veg: 'Vegetarian (no meat or fish; eggs/dairy are fine)',
@@ -112,7 +124,29 @@ type PersistedDietMeal = {
   totalFatG: number;
   totalCarbsG: number;
   items: PersistedDietItem[];
+  citations: Citation[];
 };
+
+/** Real sources (Google Search grounding) gathered across every research
+ * step, deduped by url and capped at `MAX_CITATION_SOURCES`. Only the `url`
+ * source type carries a real link — other source types `Source` also allows
+ * are skipped. */
+function dedupeSources(sources: readonly unknown[]): Citation[] {
+  const byUrl = new Map<string, Citation>();
+  for (const source of sources) {
+    if (typeof source !== 'object' || source === null) continue;
+    const { sourceType, url, title } = source as Record<string, unknown>;
+    if (sourceType !== 'url' || typeof url !== 'string' || byUrl.has(url)) {
+      continue;
+    }
+    byUrl.set(url, {
+      title: typeof title === 'string' && title.trim() ? title.trim() : url,
+      url,
+    });
+    if (byUrl.size >= MAX_CITATION_SOURCES) break;
+  }
+  return Array.from(byUrl.values());
+}
 
 type PersistedDietDay = {
   order: number;
@@ -132,6 +166,8 @@ export class DietPlanProcessor implements OnModuleInit, OnModuleDestroy {
   constructor(
     @Inject(ENV) private readonly env: Env,
     @Inject(AI_MODEL_RESOLVER) private readonly resolveModel: AiModelResolver,
+    @Inject(AI_SEARCH_TOOL_RESOLVER)
+    private readonly resolveSearchTool: AiSearchToolResolver,
     private readonly prisma: PrismaService,
   ) {}
 
@@ -265,15 +301,21 @@ export class DietPlanProcessor implements OnModuleInit, OnModuleDestroy {
     }
 
     const settings = await this.prisma.appSettings.findFirst();
-    const model = this.resolveModel(
-      resolveModelConfig(PromptCategory.DietPlan, settings?.aiPrompts),
+    const modelConfig = resolveModelConfig(
+      PromptCategory.DietPlan,
+      settings?.aiPrompts,
     );
+    const model = this.resolveModel(modelConfig);
 
     if (!model) {
       throw new Error(
         'No LLM provider configured; cannot generate a diet plan',
       );
     }
+
+    // Gemini-only (see `createWebSearchTool`) — `undefined` on OpenAI, so
+    // this plan's meals simply get no citations rather than invented ones.
+    const searchTool = this.resolveSearchTool(modelConfig);
 
     const prompt = resolvePrompt('diet_plan', settings?.aiPrompts);
     const usesAdminPrompt =
@@ -292,11 +334,28 @@ export class DietPlanProcessor implements OnModuleInit, OnModuleDestroy {
 
     // generateObject takes no tools, so gather context first, then structure it.
     this.logger.log(`${tag}: gathering context via tools`);
+    const researchInstructions = searchTool
+      ? 'Call the tools to gather what you need, then outline the week in ' +
+        'plain text. Also use webSearch 2-4 times to check nutrition facts ' +
+        'and typical dishes for this cuisine/diet (e.g. "chicken breast ' +
+        'nutrition facts", "<cuisine> <diet> meal plan macros") — you will ' +
+        'cite from these results in the next step.'
+      : 'Call the tools to gather what you need, then outline the week in plain text.';
+    // Typed explicitly as `ToolSet` — a conditional spread inline in the
+    // `tools` literal makes `generateText`'s TOOLS generic infer a union of
+    // two different shapes, which loosens types (`toolCalls`/`toolResults`
+    // entries read back as possibly `undefined`) everywhere `research` is
+    // used below.
+    const researchTools: ToolSet = {
+      getUserDetails: this.userDetailsTool(userId),
+    };
+    if (searchTool) researchTools.webSearch = searchTool;
+
     const research = await generateText({
       model,
-      prompt: `${promptWithPreferences}\n\nCall the tools to gather what you need, then outline the week in plain text.`,
-      tools: { getUserDetails: this.userDetailsTool(userId) },
-      stopWhen: stepCountIs(3),
+      prompt: `${promptWithPreferences}\n\n${researchInstructions}`,
+      tools: researchTools,
+      stopWhen: stepCountIs(searchTool ? 6 : 3),
       // This is tool-calling + a plain-text summary, not a hard reasoning
       // task — skip reasoning entirely so it can't eat its own output budget
       // on invisible reasoning tokens. Ignored by non-reasoning models.
@@ -304,16 +363,35 @@ export class DietPlanProcessor implements OnModuleInit, OnModuleDestroy {
     });
 
     const toolCalls = research.steps.flatMap((step) => step.toolCalls);
+    const sources = dedupeSources(
+      research.steps.flatMap((step) => step.sources),
+    );
     this.logger.log(
       `${tag}: research complete — ${research.steps.length} step(s), ` +
         `${toolCalls.map((c) => c.toolName).join(', ') || 'no tool calls'}, ` +
-        `${research.usage?.totalTokens ?? '?'} tokens`,
+        `${sources.length} source(s), ${research.usage?.totalTokens ?? '?'} tokens`,
     );
 
     const toolContext = research.steps
       .flatMap((step) => step.toolResults)
       .map((result) => `${result.toolName}: ${JSON.stringify(result.output)}`)
       .join('\n');
+
+    const citationsInstructions =
+      sources.length > 0
+        ? [
+            '',
+            'Sources found during research (cite ONLY from this list, by exact url):',
+            ...sources.map((s, i) => `${i + 1}. ${s.title} — ${s.url}`),
+            '',
+            'Mandatory: every meal must have a `citations` array with 1-3 of the ' +
+              'entries above that back its nutrition figures or dish choice — ' +
+              'copy title and url exactly. Pick the closest-matching source(s) ' +
+              'even if the match is general (e.g. a cuisine/diet-type source for ' +
+              'every meal of that cuisine/diet) rather than leaving a meal with ' +
+              'no citation. Never invent a source or url not listed above.',
+          ].join('\n')
+        : '';
 
     const objectPrompt = [
       promptWithPreferences,
@@ -322,6 +400,7 @@ export class DietPlanProcessor implements OnModuleInit, OnModuleDestroy {
       toolContext || '(no tool data available)',
       '',
       research.text,
+      citationsInstructions,
     ].join('\n');
 
     const { object, usage } = await this.generateWeeklyDiet(
@@ -339,6 +418,8 @@ export class DietPlanProcessor implements OnModuleInit, OnModuleDestroy {
         `${usage?.totalTokens ?? '?'} tokens`,
     );
 
+    const sourcesByUrl = new Map(sources.map((s) => [s.url, s]));
+
     const days: PersistedDietDay[] = object.days.map((day, dayIndex) => {
       const meals: PersistedDietMeal[] = day.meals.map((meal, mealIndex) => {
         const items: PersistedDietItem[] = meal.items.map(
@@ -352,6 +433,14 @@ export class DietPlanProcessor implements OnModuleInit, OnModuleDestroy {
             carbsG: item.carbsG,
           }),
         );
+
+        // Never trust the model's own title/url — only that a claimed
+        // citation's url exactly matches a real search result; the
+        // canonical title always comes from the source pool itself.
+        const citations: Citation[] = (meal.citations ?? [])
+          .map((c) => sourcesByUrl.get(c.url))
+          .filter((c): c is Citation => c !== undefined)
+          .slice(0, 3);
 
         const totals = items.reduce(
           (acc, item) => ({
@@ -371,6 +460,7 @@ export class DietPlanProcessor implements OnModuleInit, OnModuleDestroy {
           totalFatG: totals.fatG,
           totalCarbsG: totals.carbsG,
           items,
+          citations,
         };
       });
 

@@ -73,6 +73,11 @@ export const dietMealItemSchema = z.object({
   carbsG: z.number().int().min(0).max(600),
 });
 
+export const dietCitationSchema = z.object({
+  title: z.string().min(1).max(160),
+  url: z.string().url(),
+});
+
 export const dietMealSchema = z.object({
   /** e.g. "Morning Breakfast", "Post-workout Snack". */
   name: z.string().min(1).max(80),
@@ -81,6 +86,11 @@ export const dietMealSchema = z.object({
   // actually asked for bounds how large (and how truncation/parse-failure
   // prone) one generation can get.
   items: z.array(dietMealItemSchema).min(1).max(6),
+  /** 1-3 sources, copied exactly (title + url) from the research context,
+   * that most directly back this meal's numbers — the worker drops anything
+   * that doesn't match a real search result before persisting it, so this is
+   * a candidate list, not a trusted one. */
+  citations: z.array(dietCitationSchema).max(3).optional(),
 });
 
 export const dietDaySchema = z.object({
@@ -105,3 +115,4 @@ export type WeeklyDiet = z.infer<typeof weeklyDietSchema>;
 export type AiDietDay = z.infer<typeof dietDaySchema>;
 export type AiDietMeal = z.infer<typeof dietMealSchema>;
 export type AiDietMealItem = z.infer<typeof dietMealItemSchema>;
+export type AiDietCitation = z.infer<typeof dietCitationSchema>;

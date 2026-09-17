@@ -1,4 +1,4 @@
-import type { AskQuestionPayload, ChatMessage } from '@fitness/types';
+import type { AskQuestionPayload, ChatMessage, Citation } from '@fitness/types';
 import { ASK_QUESTION_MARKER, ChatMessageRole } from '@fitness/types';
 import type { UIMessage } from 'ai';
 import { isTextUIPart } from 'ai';
@@ -61,6 +61,14 @@ export function toUIMessages(messages: ChatMessage[]): UIMessage[] {
           input: question,
         } as never);
       }
+      message.citations.forEach((citation, index) => {
+        parts.push({
+          type: 'source-url',
+          sourceId: `${message.id}-source-${index}`,
+          url: citation.url,
+          title: citation.title,
+        });
+      });
 
       return { id: message.id, role: 'assistant' as const, parts };
     });
@@ -72,6 +80,15 @@ export function textFromUIMessage(message: UIMessage): string {
     .filter(isTextUIPart)
     .map((part) => part.text)
     .join('');
+}
+
+/** Real sources cited for this reply — live (`source-url` parts streamed in
+ * via Google Search grounding) or replayed from `ChatMessage.citations`
+ * (see `toUIMessages` above). */
+export function citationsFromUIMessage(message: UIMessage): Citation[] {
+  return (message.parts as { type: string; url?: string; title?: string }[])
+    .filter((part) => part.type === 'source-url' && typeof part.url === 'string')
+    .map((part) => ({ title: part.title?.trim() || part.url!, url: part.url! }));
 }
 
 export function isMessageStreaming(message: UIMessage): boolean {

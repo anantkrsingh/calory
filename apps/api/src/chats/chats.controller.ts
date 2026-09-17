@@ -43,6 +43,7 @@ import {
 } from '@fitness/validation';
 import type { Response } from 'express';
 
+import { Roles } from '../auth/roles.guard';
 import { CurrentUser } from '../common/decorators';
 import { ApiZodBody, ApiZodQuery, ApiZodResponse } from '../common/swagger';
 import { zodPipe } from '../common/zod-validation.pipe';
@@ -82,6 +83,63 @@ export class ChatsController {
     @Body(zodPipe(createChatSchema)) body: CreateChatInput,
   ): Promise<ChatConversation> {
     return this.chats.create(user.id, body);
+  }
+
+  // Admin routes (support-style "view this user's chats") — kept above the
+  // `:id` wildcard below, same shadowing precaution as `UsersController`'s
+  // `me` routes.
+  @Get('admin/users/:userId')
+  @Roles('admin')
+  @ApiOperation({ summary: "List a user's chat conversations (admin only)" })
+  @ApiZodQuery(chatQuerySchema)
+  @ApiZodResponse(chatConversationSchema, {
+    paginated: true,
+    description: 'Page of conversations',
+    name: 'ChatConversation',
+  })
+  adminList(
+    @Param('userId', zodPipe(objectIdSchema)) userId: string,
+    @Query(zodPipe(chatQuerySchema)) query: ChatQueryInput,
+  ): Promise<Paginated<ChatConversation>> {
+    return this.chats.list(userId, query);
+  }
+
+  @Get('admin/users/:userId/conversations/:id')
+  @Roles('admin')
+  @ApiOperation({
+    summary:
+      "Get one of a user's conversations with recent messages (admin only)",
+  })
+  @ApiResponse({ status: 404, description: 'Not found' })
+  @ApiZodResponse(chatConversationDetailSchema, {
+    description: 'Conversation with messages',
+    name: 'ChatConversationDetail',
+  })
+  adminGet(
+    @Param('userId', zodPipe(objectIdSchema)) userId: string,
+    @Param('id', zodPipe(objectIdSchema)) id: string,
+  ): Promise<ChatConversationDetail> {
+    return this.chats.findById(userId, id);
+  }
+
+  @Get('admin/users/:userId/conversations/:id/messages')
+  @Roles('admin')
+  @ApiOperation({
+    summary: "List messages in a user's conversation (admin only)",
+  })
+  @ApiZodQuery(chatMessageQuerySchema)
+  @ApiResponse({ status: 404, description: 'Not found' })
+  @ApiZodResponse(chatMessageSchema, {
+    paginated: true,
+    description: 'Page of messages',
+    name: 'ChatMessage',
+  })
+  adminListMessages(
+    @Param('userId', zodPipe(objectIdSchema)) userId: string,
+    @Param('id', zodPipe(objectIdSchema)) id: string,
+    @Query(zodPipe(chatMessageQuerySchema)) query: ChatMessageQueryInput,
+  ): Promise<Paginated<ChatMessage>> {
+    return this.chats.listMessages(userId, id, query);
   }
 
   @Get(':id')
@@ -184,6 +242,6 @@ export class ChatsController {
       'X-User-Message-Id, X-Conversation-Id',
     );
 
-    await result.pipeUIMessageStreamToResponse(res);
+    await result.pipeUIMessageStreamToResponse(res, { sendSources: true });
   }
 }

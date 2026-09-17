@@ -781,6 +781,14 @@ model DietMeal {
 
   items DietMealItem[]
 
+  /// Real web sources (from Google Search grounding) that back this meal's
+  /// nutrition figures/dish choice — filtered server-side against the actual
+  /// search results before being persisted, so an entry here is never a
+  /// hallucinated link. Empty when the resolved provider doesn't support
+  /// search grounding, or none of the meal's numbers were backed by a
+  /// specific source. Surfaced in the app behind an (i) button on the meal.
+  citations Citation[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -857,6 +865,16 @@ type LoggedPortion {
   fatG     Int
   carbsG   Int
   loggedAt DateTime @default(now())
+}
+
+/// A real web source a generation drew on, from Google Search grounding —
+/// see `DietMeal.citations` and `ChatMessage.citations`. Never hand-written
+/// by the model directly onto a persisted row: the app filters whatever the
+/// model claims against the actual search results it was given, so a `url`
+/// here always resolves to a page that was really found.
+type Citation {
+  title String
+  url   String
 }
 
 /// One admin-tuned MET value for an exercise category. Modelled as a list
@@ -961,6 +979,11 @@ model ChatMessage {
 
   role    ChatMessageRole
   content String
+
+  /// Real web sources (from Google Search grounding) the assistant reply
+  /// drew on — see `Citation`. Empty on user messages and on assistant
+  /// replies that didn't need one.
+  citations Citation[]
 
   /// Token usage for this turn (assistant replies only) — the whole
   /// `streamText` call's `totalUsage`, including any tool round-trips.

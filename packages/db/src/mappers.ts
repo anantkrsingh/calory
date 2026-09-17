@@ -1,6 +1,7 @@
 import type {
   AppSettings,
   CalorieConfig,
+  Citation,
   LoggedPortion,
   PortionFood,
   BodyMeasurement,
@@ -25,6 +26,7 @@ import type {
 
 import type {
   AppSettingsRow,
+  CitationComposite,
   DailyMealLogRow,
   PortionFoodRow,
   BodyMeasurementRow,
@@ -383,6 +385,14 @@ export function toLoggedPortions(
   }));
 }
 
+/** `DietMeal.citations` / `ChatMessage.citations` → the wire contract. */
+export function toCitations(
+  rows: CitationComposite[] | null | undefined,
+): Citation[] {
+  if (!rows) return [];
+  return rows.map((row) => ({ title: row.title, url: row.url }));
+}
+
 export function toAppSettings(row: AppSettingsRow): AppSettings {
   const calorieConfig = toCalorieConfig(row.calorieConfig);
 
@@ -474,6 +484,7 @@ export function toDietPlan(row: DietPlanRow): DietPlan {
         totalProteinG: meal.totalProteinG,
         totalFatG: meal.totalFatG,
         totalCarbsG: meal.totalCarbsG,
+        citations: toCitations(meal.citations),
         items: meal.items.map((item) => ({
           id: item.id,
           name: item.name,
@@ -529,6 +540,7 @@ export function toChatMessage(row: ChatMessageRow): ChatMessage {
     conversationId: row.conversationId,
     role: row.role,
     content: row.content,
+    citations: toCitations(row.citations),
     inputTokens: orUndefined(row.inputTokens),
     outputTokens: orUndefined(row.outputTokens),
     totalTokens: orUndefined(row.totalTokens),

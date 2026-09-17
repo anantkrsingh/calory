@@ -1,4 +1,4 @@
-import type { Entity, Id, IsoDateTime } from './common';
+import type { Citation, Entity, Id, IsoDateTime } from './common';
 import type { ChatMessageRole } from './enums';
 
 export interface ChatConversation extends Entity {
@@ -12,6 +12,9 @@ export interface ChatMessage extends Entity {
   conversationId: Id;
   role: ChatMessageRole;
   content: string;
+  /** Real sources (Google Search grounding) the reply drew on — empty on
+   * user messages and on replies that didn't need one. */
+  citations: Citation[];
   /** Token usage for this turn — assistant replies only. */
   inputTokens?: number;
   outputTokens?: number;

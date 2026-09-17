@@ -64,3 +64,17 @@ export function createModel(config: LlmConfig): LanguageModel {
 
   return createOpenAI({ apiKey: config.apiKey })(model);
 }
+
+/**
+ * Google Search grounding — the only provider tool wired up today that backs
+ * a generation with real, verifiable web sources (a `sources` array with
+ * genuine urls, not the model's own recollection). Gemini-only: OpenAI has
+ * no equivalent here, so callers on that provider get `undefined` and should
+ * skip citations gracefully rather than ask the model to invent sources.
+ */
+export function createWebSearchTool(config: LlmConfig) {
+  if (config.provider !== LlmProvider.Gemini) return undefined;
+
+  const google = createGoogleGenerativeAI({ apiKey: config.apiKey });
+  return google.tools.googleSearch({});
+}

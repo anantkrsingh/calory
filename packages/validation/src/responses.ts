@@ -408,6 +408,13 @@ const dietPlanStatusSchema = z.enum([
   'superseded',
 ]);
 
+/** A real web source (Google Search grounding) an AI reply or generation
+ * drew on — see `DietPlanMeal.citations` and `ChatMessage.citations`. */
+export const citationSchema = z.object({
+  title: z.string(),
+  url: z.string(),
+});
+
 export const dietPlanMealItemSchema = z.object({
   id: objectIdSchema,
   name: z.string(),
@@ -426,6 +433,7 @@ export const dietPlanMealSchema = z.object({
   totalProteinG: z.number().int(),
   totalFatG: z.number().int(),
   totalCarbsG: z.number().int(),
+  citations: z.array(citationSchema),
 });
 
 export const dietPlanDaySchema = z.object({
@@ -492,6 +500,7 @@ export const chatMessageSchema = z.object({
   conversationId: objectIdSchema,
   role: chatMessageRoleSchema,
   content: z.string(),
+  citations: z.array(citationSchema),
   inputTokens: z.number().int().min(0).optional(),
   outputTokens: z.number().int().min(0).optional(),
   totalTokens: z.number().int().min(0).optional(),

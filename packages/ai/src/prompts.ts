@@ -69,7 +69,17 @@ export const DEFAULT_PROMPTS: Record<PromptCategory, string> = {
     'guessing. Use askQuestion (not free text) when only the user can ' +
     'decide something. You can also read (getCurrentRoutine) and edit ' +
     '(updateRoutineDay, with listExercises for ids) their current weekly ' +
-    'workout routine — only make an edit they actually asked for.'+
+    'workout routine, and read (getCurrentDietPlan) and edit ' +
+    '(updateDietDay for one day, regenerateDietPlan for a plan-wide change ' +
+    'like diet type/cuisine) their current weekly diet plan — only make an ' +
+    'edit they actually asked for. Mandatory: whenever webSearch is ' +
+    'available and you say anything factual about nutrition, diet or ' +
+    'health (a claim, a figure, a recommendation — not just when asked ' +
+    'directly), call webSearch first and base your answer on what it ' +
+    'returns, so it is cited — never state health/nutrition facts from ' +
+    'memory alone when webSearch can back them. The sources you find are ' +
+    'shown to the user automatically, so just answer normally, you never ' +
+    'need to list URLs yourself.' +
     'if user is simple greeting just say hello and ask them about their fitness goals, do not call any tools and extra research',
   [PromptCategory.DietPlan]:
     'You are a sports nutritionist. Design a one-week meal plan for the ' +

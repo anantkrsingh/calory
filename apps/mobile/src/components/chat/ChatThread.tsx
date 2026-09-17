@@ -1,4 +1,5 @@
 import { useChat } from "@ai-sdk/react";
+import type { Citation } from "@fitness/types";
 import type { UIMessage } from "ai";
 import { ChevronDown, RotateCw } from "lucide-react-native";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -28,10 +29,12 @@ import { QuestionCard } from "@/components/chat/QuestionCard";
 import { SuggestedPrompts } from "@/components/chat/SuggestedPrompts";
 import { ThinkingIndicator } from "@/components/chat/ThinkingIndicator";
 import { ThemedText } from "@/components/themed-text";
+import { CitationsSheet, type CitationsSheetRef } from "@/components/ui/CitationsSheet";
 import { Brand, MaxContentWidth, Spacing } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
 import {
   askQuestionFromUIMessage,
+  citationsFromUIMessage,
   isMessageStreaming,
   pendingToolLabel,
   textFromUIMessage,
@@ -78,6 +81,10 @@ export function ChatThread({ conversationId, onNotFound }: ChatThreadProps) {
   // so the Retry button can resend exactly what failed.
   const lastSentTextRef = useRef("");
   const [failedSends, setFailedSends] = useState<Record<string, string>>({});
+  const citationsSheetRef = useRef<CitationsSheetRef>(null);
+  const showCitations = useCallback((citations: Citation[]) => {
+    citationsSheetRef.current?.present(citations);
+  }, []);
 
   const transport = useMemo(
     () => createCoachChatTransport(conversationId),
@@ -293,10 +300,21 @@ export function ChatThread({ conversationId, onNotFound }: ChatThreadProps) {
           role="assistant"
           content={text}
           streaming={isMessageStreaming(item)}
+          citations={citationsFromUIMessage(item)}
+          onShowCitations={showCitations}
         />
       );
     },
-    [answerQuestion, failedSends, lastMessageId, messages, retry, sending, status],
+    [
+      answerQuestion,
+      failedSends,
+      lastMessageId,
+      messages,
+      retry,
+      sending,
+      showCitations,
+      status,
+    ],
   );
 
   const listEmpty = useMemo(() => {
@@ -405,6 +423,8 @@ export function ChatThread({ conversationId, onNotFound }: ChatThreadProps) {
       <View style={[styles.composerBar, composerBarSpacing]}>
         {composerContent}
       </View>
+
+      <CitationsSheet ref={citationsSheetRef} />
     </KeyboardAvoidingView>
   );
 }
