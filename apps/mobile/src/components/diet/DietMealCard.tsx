@@ -1,5 +1,5 @@
 import type { DietMeal, Id } from '@fitness/types';
-import { Check } from 'lucide-react-native';
+import { Check, Info } from 'lucide-react-native';
 import { memo } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
@@ -16,6 +16,7 @@ type DietMealCardProps = {
   takenItemIds: ReadonlySet<Id>;
   onToggleItem: (mealId: Id, itemId: Id, taken: boolean) => void;
   onToggleMeal: (mealId: Id, taken: boolean) => void;
+  onShowCitations?: (meal: DietMeal) => void;
   disabled?: boolean;
 };
 
@@ -24,20 +25,40 @@ function DietMealCardComponent({
   takenItemIds,
   onToggleItem,
   onToggleMeal,
+  onShowCitations,
   disabled,
 }: DietMealCardProps) {
   const theme = useTheme();
   const allTaken =
     meal.items.length > 0 && meal.items.every((item) => takenItemIds.has(item.id));
+  const hasCitations = meal.citations.length > 0;
 
   return (
     <View
       style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
       <View style={styles.header}>
         <View style={styles.headerCopy}>
-          <ThemedText fontWeight="700" style={styles.name}>
-            {meal.name}
-          </ThemedText>
+          <View style={styles.nameRow}>
+            <ThemedText fontWeight="700" style={styles.name}>
+              {meal.name}
+            </ThemedText>
+            {hasCitations ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`View sources for ${meal.name}`}
+                hitSlop={8}
+                onPress={() => onShowCitations?.(meal)}
+                style={({ pressed }) => [
+                  styles.infoButton,
+                  {
+                    backgroundColor: theme.backgroundElement,
+                    opacity: pressed ? Pressed.opacity : 1,
+                  },
+                ]}>
+                <Info color={theme.textSecondary} size={12} strokeWidth={2.4} />
+              </Pressable>
+            ) : null}
+          </View>
           <ThemedText themeColor="textSecondary" style={styles.macros}>
             {macroLine(
               meal.totalCalories,
@@ -139,9 +160,21 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: 2,
   },
+  nameRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 6,
+  },
   name: {
     fontSize: 16,
     lineHeight: 21,
+  },
+  infoButton: {
+    alignItems: 'center',
+    borderRadius: 9,
+    height: 18,
+    justifyContent: 'center',
+    width: 18,
   },
   macros: {
     fontSize: 12,

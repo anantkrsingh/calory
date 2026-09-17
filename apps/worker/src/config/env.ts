@@ -55,6 +55,11 @@ export const envSchema = z.object({
   LLM_MODEL: z.string().optional(),
   OPENAI_API_KEY: z.string().optional(),
   GOOGLE_GENERATIVE_AI_API_KEY: z.string().optional(),
+  // Deterministic web search for diet plan citations (see
+  // `apps/worker/src/ai/tavily.ts`) — a plain REST call, not an LLM tool, so
+  // it always runs rather than depending on the model's own discretion.
+  // Leave unset to skip search entirely (plans generate with no citations).
+  TAVILY_API_KEY: z.string().optional(),
 
   QUOTE_CRON: z.string().default('0 3 * * *'),
   QUOTE_TIMEZONE: z.string().default('UTC'),

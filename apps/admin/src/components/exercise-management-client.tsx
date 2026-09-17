@@ -415,7 +415,7 @@ export function ExerciseManagementClient({
               name="search"
               defaultValue={search}
               placeholder="Search by name"
-              className="w-64 rounded-lg border border-neutral-300 px-3 py-2 text-sm outline-none focus:border-neutral-900"
+              className="w-64 rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 outline-none focus:border-neutral-900"
             />
             <button
               type="submit"

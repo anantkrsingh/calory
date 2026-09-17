@@ -1,6 +1,6 @@
 import type { LoggedPortion } from './portion';
 import type { DayOfWeek } from './enums';
-import type { Entity, Id, IsoDate, IsoDateTime } from './common';
+import type { Citation, Entity, Id, IsoDate, IsoDateTime } from './common';
 
 export const QUOTE_QUEUE_NAME = 'quote';
 export const ROUTINE_QUEUE_NAME = 'routine';
@@ -62,6 +62,11 @@ export interface RoutinePlanExercise {
   durationSec?: number;
   restSeconds?: number;
   estimatedCalories: number;
+  /** Real sources (search grounding) behind this exercise's MET/calorie
+   * estimate or training guidance — empty when the resolved provider
+   * doesn't support search grounding, or none of the numbers were backed
+   * by a specific source. Shown behind an (i) button on the exercise. */
+  citations: Citation[];
 }
 
 export interface RoutinePlanDay {
@@ -195,6 +200,11 @@ export interface DietMeal {
   totalProteinG: number;
   totalFatG: number;
   totalCarbsG: number;
+  /** Real sources (Google Search grounding) behind this meal's numbers —
+   * empty when the resolved provider doesn't support search grounding, or
+   * none of the meal's figures were backed by a specific source. Shown
+   * behind an (i) button on the meal. */
+  citations: Citation[];
 }
 
 export interface DietPlanDay {

@@ -1,3 +1,4 @@
+import type { DietMeal } from '@fitness/types';
 import { useRouter } from 'expo-router';
 import { RotateCw } from 'lucide-react-native';
 import { useCallback, useMemo, useRef, useState } from 'react';
@@ -14,6 +15,7 @@ import { DietWeekSelector } from '@/components/diet/DietWeekSelector';
 import { RoutineGeneratingCard } from '@/components/home/RoutineGeneratingCard';
 import { TabScreen } from '@/components/tab-screen';
 import { ThemedText } from '@/components/themed-text';
+import { CitationsSheet, type CitationsSheetRef } from '@/components/ui/CitationsSheet';
 import PrimaryButton from '@/components/ui/PrimaryButton';
 import { BottomTabInset, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
@@ -53,6 +55,10 @@ export default function DietsScreen() {
   const markTaken = useMarkDietItemsTaken();
   const removePortion = useRemovePortion();
   const addPortionRef = useRef<AddPortionSheetRef>(null);
+  const citationsSheetRef = useRef<CitationsSheetRef>(null);
+  const showCitations = useCallback((meal: DietMeal) => {
+    citationsSheetRef.current?.present(meal.citations, meal.name);
+  }, []);
 
   const [refreshing, setRefreshing] = useState(false);
   const onRefresh = useCallback(async () => {
@@ -140,6 +146,7 @@ export default function DietsScreen() {
               takenItemIds={takenItemIds}
               onToggleItem={toggleItem}
               onToggleMeal={toggleMeal}
+              onShowCitations={showCitations}
               disabled={markTaken.isPending}
             />
           ))}
@@ -307,6 +314,7 @@ export default function DietsScreen() {
       </ScrollView>
 
       <AddPortionSheet ref={addPortionRef} date={displayDate} />
+      <CitationsSheet ref={citationsSheetRef} />
     </TabScreen>
   );
 }

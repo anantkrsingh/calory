@@ -1,10 +1,12 @@
+import type { Citation } from '@fitness/types';
+import { Info } from 'lucide-react-native';
 import { memo, useMemo } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import Markdown from 'react-native-markdown-display';
 
 import { BotAvatar } from '@/components/chat/BotAvatar';
 import { ThemedText } from '@/components/themed-text';
-import { Brand, Spacing } from '@/constants/theme';
+import { Brand, Pressed, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 const USER_BUBBLE_BG = Brand.accent;
@@ -14,12 +16,16 @@ type MessageBubbleProps = {
   role: 'user' | 'assistant';
   content: string;
   streaming?: boolean;
+  citations?: Citation[];
+  onShowCitations?: (citations: Citation[]) => void;
 };
 
 function MessageBubbleComponent({
   role,
   content,
   streaming = false,
+  citations,
+  onShowCitations,
 }: MessageBubbleProps) {
   const theme = useTheme();
   const isUser = role === 'user';
@@ -153,12 +159,33 @@ function MessageBubbleComponent({
     );
   }
 
+  const hasCitations = !!citations && citations.length > 0;
+
   return (
     <View style={[styles.row, styles.rowAssistant]}>
       <View style={styles.assistantRow}>
         <BotAvatar active={streaming} size={22} />
         <View style={styles.assistantBody}>
           <Markdown style={markdownStyles}>{body}</Markdown>
+          {hasCitations ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="View sources for this reply"
+              onPress={() => onShowCitations?.(citations)}
+              style={({ pressed }) => [
+                styles.sourcesChip,
+                {
+                  backgroundColor: theme.backgroundElement,
+                  borderColor: theme.border,
+                  opacity: pressed ? Pressed.opacity : 1,
+                },
+              ]}>
+              <Info color={theme.textSecondary} size={12} strokeWidth={2.4} />
+              <ThemedText themeColor="textSecondary" style={styles.sourcesChipText}>
+                {citations.length === 1 ? '1 source' : `${citations.length} sources`}
+              </ThemedText>
+            </Pressable>
+          ) : null}
         </View>
       </View>
     </View>
@@ -216,6 +243,22 @@ const styles = StyleSheet.create({
   assistantBody: {
     flex: 1,
     paddingTop: 2,
+  },
+  sourcesChip: {
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    borderCurve: 'continuous',
+    borderRadius: 999,
+    borderWidth: StyleSheet.hairlineWidth || 1,
+    flexDirection: 'row',
+    gap: 5,
+    marginTop: 2,
+    paddingHorizontal: Spacing.two,
+    paddingVertical: 5,
+  },
+  sourcesChipText: {
+    fontSize: 12,
+    fontWeight: '600',
   },
   rightArrow:{
     position: 'absolute',

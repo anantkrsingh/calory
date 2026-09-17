@@ -7,6 +7,14 @@ export type IsoDateTime = string;
 /** ISO-8601 calendar date, `YYYY-MM-DD`. */
 export type IsoDate = string;
 
+/** A real web source an AI generation drew on, found via Google Search
+ * grounding — never hand-written by the model onto a persisted row (see
+ * `DietMeal.citations`, `ChatMessage.citations` in `@fitness/db`). */
+export interface Citation {
+  title: string;
+  url: string;
+}
+
 export interface Timestamps {
   createdAt: IsoDateTime;
   updatedAt: IsoDateTime;

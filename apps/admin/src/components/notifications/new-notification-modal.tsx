@@ -131,7 +131,7 @@ export function NewNotificationModal({ isOpen, onClose }: NewNotificationModalPr
               onChange={(e) => setTitle(e.target.value)}
               maxLength={TITLE_MAX}
               placeholder="New feature: Diet plans"
-              className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm outline-none focus:border-neutral-900"
+              className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 outline-none focus:border-neutral-900"
             />
             <p className="mt-1 text-right text-[11px] text-neutral-400">
               {title.length}/{TITLE_MAX}
@@ -146,7 +146,7 @@ export function NewNotificationModal({ isOpen, onClose }: NewNotificationModalPr
               maxLength={BODY_MAX}
               rows={3}
               placeholder="Tell users what's new…"
-              className="w-full resize-none rounded-lg border border-neutral-300 px-3 py-2 text-sm outline-none focus:border-neutral-900"
+              className="w-full resize-none rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 outline-none focus:border-neutral-900"
             />
             <p className="mt-1 text-right text-[11px] text-neutral-400">
               {body.length}/{BODY_MAX}
@@ -242,7 +242,7 @@ export function NewNotificationModal({ isOpen, onClose }: NewNotificationModalPr
                 value={scheduledAt}
                 min={minScheduledAt}
                 onChange={(e) => setScheduledAt(e.target.value)}
-                className="mt-3 w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm outline-none focus:border-neutral-900"
+                className="mt-3 w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 outline-none focus:border-neutral-900"
               />
             ) : null}
           </div>

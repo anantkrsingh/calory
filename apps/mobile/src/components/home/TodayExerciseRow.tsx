@@ -1,6 +1,6 @@
 import type { TodayRoutineExercise } from '@fitness/types';
 import { Image } from 'expo-image';
-import { Check, ChevronRight, Dumbbell, Flame } from 'lucide-react-native';
+import { Check, ChevronRight, Dumbbell, Flame, Info } from 'lucide-react-native';
 import { memo } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
@@ -18,12 +18,18 @@ function formatPrescription(exercise: TodayRoutineExercise): string {
 type TodayExerciseRowProps = {
   exercise: TodayRoutineExercise;
   onPress: (exercise: TodayRoutineExercise) => void;
+  onShowCitations?: (exercise: TodayRoutineExercise) => void;
 };
 
-function TodayExerciseRowComponent({ exercise, onPress }: TodayExerciseRowProps) {
+function TodayExerciseRowComponent({
+  exercise,
+  onPress,
+  onShowCitations,
+}: TodayExerciseRowProps) {
   const theme = useTheme();
   const { isCompleted, completedSets, sets, thumbnail, estimatedCalories } = exercise;
   const inProgress = !isCompleted && completedSets > 0;
+  const hasCitations = exercise.citations.length > 0;
 
   return (
     <Pressable
@@ -60,12 +66,30 @@ function TodayExerciseRowComponent({ exercise, onPress }: TodayExerciseRowProps)
       </View>
 
       <View style={styles.copy}>
-        <ThemedText
-          fontWeight="700"
-          numberOfLines={1}
-          style={[styles.name, isCompleted && { textDecorationLine: 'line-through' }]}>
-          {exercise.exerciseName}
-        </ThemedText>
+        <View style={styles.nameRow}>
+          <ThemedText
+            fontWeight="700"
+            numberOfLines={1}
+            style={[styles.name, isCompleted && { textDecorationLine: 'line-through' }]}>
+            {exercise.exerciseName}
+          </ThemedText>
+          {hasCitations ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`View sources for ${exercise.exerciseName}`}
+              hitSlop={8}
+              onPress={() => onShowCitations?.(exercise)}
+              style={({ pressed }) => [
+                styles.infoButton,
+                {
+                  backgroundColor: theme.backgroundElement,
+                  opacity: pressed ? Pressed.opacity : 1,
+                },
+              ]}>
+              <Info color={theme.textSecondary} size={12} strokeWidth={2.4} />
+            </Pressable>
+          ) : null}
+        </View>
         <ThemedText themeColor="textSecondary" numberOfLines={1} style={styles.meta}>
           {isCompleted
             ? 'Completed'
@@ -127,9 +151,23 @@ const styles = StyleSheet.create({
     gap: 2,
     minWidth: 0,
   },
+  nameRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 6,
+    minWidth: 0,
+  },
   name: {
+    flexShrink: 1,
     fontSize: 15,
     lineHeight: 20,
+  },
+  infoButton: {
+    alignItems: 'center',
+    borderRadius: 9,
+    height: 18,
+    justifyContent: 'center',
+    width: 18,
   },
   meta: {
     fontSize: 13,

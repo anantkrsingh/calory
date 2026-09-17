@@ -19,6 +19,7 @@ import {
   calculateBmi,
   energyProfile,
   yearsSince,
+  type Citation,
   type DayOfWeek,
   type DietCuisine,
   type DietPlanJobData,
@@ -38,6 +39,7 @@ import { Worker, type Job } from 'bullmq';
 import { z } from 'zod';
 
 import { AI_MODEL_RESOLVER, type AiModelResolver } from '../ai/ai.module';
+import { tavilySearchMany } from '../ai/tavily';
 import { ENV, type Env } from '../config/env.module';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -45,10 +47,12 @@ import { PrismaService } from '../prisma/prisma.service';
 // than the routine generator's (days -> meals -> items, vs. days ->
 // exercises), so it gets a bigger budget. Too low a cap here reads as a
 // schema-validation failure (truncated JSON), not a token-limit one.
-const DIET_OBJECT_MAX_OUTPUT_TOKENS = 20000;
+// A little extra headroom over the routine generator's cap accounts for the
+// per-meal `citations` field on top of the macro fields.
+const DIET_OBJECT_MAX_OUTPUT_TOKENS = 23000;
 // Give the repair attempt even more headroom — a truncated first attempt
 // means the budget above wasn't enough.
-const DIET_OBJECT_REPAIR_MAX_OUTPUT_TOKENS = 28000;
+const DIET_OBJECT_REPAIR_MAX_OUTPUT_TOKENS = 32000;
 
 const DIET_TYPE_LABEL: Record<DietType, string> = {
   veg: 'Vegetarian (no meat or fish; eggs/dairy are fine)',
@@ -112,6 +116,7 @@ type PersistedDietMeal = {
   totalFatG: number;
   totalCarbsG: number;
   items: PersistedDietItem[];
+  citations: Citation[];
 };
 
 type PersistedDietDay = {
@@ -265,9 +270,11 @@ export class DietPlanProcessor implements OnModuleInit, OnModuleDestroy {
     }
 
     const settings = await this.prisma.appSettings.findFirst();
-    const model = this.resolveModel(
-      resolveModelConfig(PromptCategory.DietPlan, settings?.aiPrompts),
+    const modelConfig = resolveModelConfig(
+      PromptCategory.DietPlan,
+      settings?.aiPrompts,
     );
+    const model = this.resolveModel(modelConfig);
 
     if (!model) {
       throw new Error(
@@ -292,7 +299,7 @@ export class DietPlanProcessor implements OnModuleInit, OnModuleDestroy {
 
     // generateObject takes no tools, so gather context first, then structure it.
     this.logger.log(`${tag}: gathering context via tools`);
-    const research = await generateText({
+    const research = generateText({
       model,
       prompt: `${promptWithPreferences}\n\nCall the tools to gather what you need, then outline the week in plain text.`,
       tools: { getUserDetails: this.userDetailsTool(userId) },
@@ -303,17 +310,69 @@ export class DietPlanProcessor implements OnModuleInit, OnModuleDestroy {
       providerOptions: { openai: { reasoningEffort: 'low' } },
     });
 
-    const toolCalls = research.steps.flatMap((step) => step.toolCalls);
+    // Citations are mandatory for a diet plan — rather than asking the model
+    // to search mid-generation (it doesn't reliably do that; neither
+    // Gemini's nor OpenAI's grounding tool can actually be forced, since
+    // both are only invokable through the model's own tool-calling), search
+    // the web ourselves first with a plain REST call, then hand the model
+    // the real results to cite from. Deterministic: it always runs, rather
+    // than depending on the model's discretion. Independent of `research`'s
+    // prompt, so it runs in parallel with it.
+    const dietLine = plan.dietTypes
+      .map((t) => DIET_TYPE_LABEL[t])
+      .join(' and ');
+    const cuisineLabel = CUISINE_LABEL[plan.cuisine];
+    const excludeSuffix =
+      plan.exclude.length > 0 ? `, no ${plan.exclude.join(', ')}` : '';
+    const search = this.env.TAVILY_API_KEY
+      ? tavilySearchMany({
+          apiKey: this.env.TAVILY_API_KEY,
+          queries: [
+            `${cuisineLabel} ${dietLine} diet nutrition facts calories protein${excludeSuffix}`,
+            `${cuisineLabel} cuisine typical dishes macros${excludeSuffix}`,
+            `${dietLine} diet meal plan macro guidelines`,
+          ],
+          log: (message) => this.logger.log(`${tag}: ${message}`),
+        })
+      : Promise.resolve<Citation[]>([]);
+
+    const [researchResult, sources] = await Promise.all([research, search]);
+
+    const toolCalls = researchResult.steps.flatMap((step) => step.toolCalls);
     this.logger.log(
-      `${tag}: research complete — ${research.steps.length} step(s), ` +
+      `${tag}: research complete — ${researchResult.steps.length} step(s), ` +
         `${toolCalls.map((c) => c.toolName).join(', ') || 'no tool calls'}, ` +
-        `${research.usage?.totalTokens ?? '?'} tokens`,
+        `${researchResult.usage?.totalTokens ?? '?'} tokens`,
     );
 
-    const toolContext = research.steps
+    const toolContext = researchResult.steps
       .flatMap((step) => step.toolResults)
       .map((result) => `${result.toolName}: ${JSON.stringify(result.output)}`)
       .join('\n');
+
+    if (this.env.TAVILY_API_KEY) {
+      this.logger.log(`${tag}: search complete — ${sources.length} source(s)`);
+    } else {
+      this.logger.warn(
+        `${tag}: TAVILY_API_KEY not configured — plan will have no citations`,
+      );
+    }
+
+    const citationsInstructions =
+      sources.length > 0
+        ? [
+            '',
+            'Sources found during research (cite ONLY from this list, by exact url):',
+            ...sources.map((s, i) => `${i + 1}. ${s.title} — ${s.url}`),
+            '',
+            'Mandatory: every meal must have a `citations` array with 1-3 of the ' +
+              'entries above that back its nutrition figures or dish choice — ' +
+              'copy title and url exactly. Pick the closest-matching source(s) ' +
+              'even if the match is general (e.g. a cuisine/diet-type source for ' +
+              'every meal of that cuisine/diet) rather than leaving a meal with ' +
+              'no citation. Never invent a source or url not listed above.',
+          ].join('\n')
+        : '';
 
     const objectPrompt = [
       promptWithPreferences,
@@ -321,7 +380,8 @@ export class DietPlanProcessor implements OnModuleInit, OnModuleDestroy {
       'Data retrieved for this user:',
       toolContext || '(no tool data available)',
       '',
-      research.text,
+      researchResult.text,
+      citationsInstructions,
     ].join('\n');
 
     const { object, usage } = await this.generateWeeklyDiet(
@@ -339,6 +399,8 @@ export class DietPlanProcessor implements OnModuleInit, OnModuleDestroy {
         `${usage?.totalTokens ?? '?'} tokens`,
     );
 
+    const sourcesByUrl = new Map(sources.map((s) => [s.url, s]));
+
     const days: PersistedDietDay[] = object.days.map((day, dayIndex) => {
       const meals: PersistedDietMeal[] = day.meals.map((meal, mealIndex) => {
         const items: PersistedDietItem[] = meal.items.map(
@@ -352,6 +414,14 @@ export class DietPlanProcessor implements OnModuleInit, OnModuleDestroy {
             carbsG: item.carbsG,
           }),
         );
+
+        // Never trust the model's own title/url — only that a claimed
+        // citation's url exactly matches a real search result; the
+        // canonical title always comes from the source pool itself.
+        const citations: Citation[] = (meal.citations ?? [])
+          .map((c) => sourcesByUrl.get(c.url))
+          .filter((c): c is Citation => c !== undefined)
+          .slice(0, 3);
 
         const totals = items.reduce(
           (acc, item) => ({
@@ -371,6 +441,7 @@ export class DietPlanProcessor implements OnModuleInit, OnModuleDestroy {
           totalFatG: totals.fatG,
           totalCarbsG: totals.carbsG,
           items,
+          citations,
         };
       });
 

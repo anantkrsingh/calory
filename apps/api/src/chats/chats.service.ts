@@ -20,6 +20,7 @@ import type {
   ChatConversation,
   ChatConversationDetail,
   ChatMessage,
+  Citation,
   Id,
   Paginated,
 } from '@fitness/types';
@@ -34,13 +35,17 @@ import {
 } from '@fitness/types';
 import {
   dayOfWeekSchema,
+  dietCuisineSchema,
+  dietTypeSchema,
   equipmentSchema,
   exerciseQuerySchema,
+  generateDietPlanSchema,
   muscleGroupSchema,
   routineDayStatusSchema,
   type ChatMessageQueryInput,
   type ChatQueryInput,
   type CreateChatInput,
+  type GenerateDietPlanInput,
   type SendChatMessageInput,
   type UpdateChatInput,
 } from '@fitness/validation';
@@ -49,19 +54,47 @@ import { z } from 'zod';
 
 import {
   AI_MODEL_RESOLVER,
+  AI_SEARCH_TOOL_RESOLVER,
   requireModel,
   type AiModelResolver,
+  type AiSearchToolResolver,
 } from '../ai/ai.module';
 import { LIMITS } from '../config/constants';
+import { DietPlansService } from '../diets/diet-plans.service';
 import { ExercisesService } from '../exercises/exercises.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { WorkoutRoutineService } from '../routines/workout-routine.service';
 
 const TITLE_MAX = LIMITS.chatTitle.max;
 const ASK_QUESTION_TOOL = 'askQuestion';
-// getUserDetails/getCurrentRoutine/listExercises, an edit, then (optionally)
+// getUserDetails/getCurrentRoutine/getCurrentDietPlan/listExercises, a
+// webSearch or two, an edit (routine or diet), then (optionally)
 // askQuestion or a final answer.
-const MAX_AGENT_STEPS = 6;
+const MAX_AGENT_STEPS = 10;
+/** Sources returned across the whole turn's steps, deduped by url and capped
+ * so a chatty research pass can't inflate the citation list forever. */
+const MAX_CITATIONS_PER_REPLY = 5;
+
+/** Real sources (Google Search grounding) gathered across every step of a
+ * turn, deduped by url and capped at `MAX_CITATIONS_PER_REPLY`. Only the
+ * `url` source type carries a real link — `document`/other source types
+ * (which `Source` also allows) are skipped. */
+function dedupeCitations(sources: readonly unknown[]): Citation[] {
+  const byUrl = new Map<string, Citation>();
+  for (const source of sources) {
+    if (typeof source !== 'object' || source === null) continue;
+    const { sourceType, url, title } = source as Record<string, unknown>;
+    if (sourceType !== 'url' || typeof url !== 'string' || byUrl.has(url)) {
+      continue;
+    }
+    byUrl.set(url, {
+      title: typeof title === 'string' && title.trim() ? title.trim() : url,
+      url,
+    });
+    if (byUrl.size >= MAX_CITATIONS_PER_REPLY) break;
+  }
+  return Array.from(byUrl.values());
+}
 
 function titleFromContent(content: string): string {
   const trimmed = content.trim().replace(/\s+/g, ' ');
@@ -99,7 +132,10 @@ export class ChatsService {
     private readonly prisma: PrismaService,
     private readonly workoutRoutines: WorkoutRoutineService,
     private readonly exercises: ExercisesService,
+    private readonly dietPlans: DietPlansService,
     @Inject(AI_MODEL_RESOLVER) private readonly resolveModel: AiModelResolver,
+    @Inject(AI_SEARCH_TOOL_RESOLVER)
+    private readonly resolveSearchTool: AiSearchToolResolver,
   ) {}
 
   async list(
@@ -351,6 +387,115 @@ export class ChatsService {
     });
   }
 
+  private getCurrentDietPlanTool(userId: Id) {
+    return tool({
+      description:
+        'This user’s current AI-generated weekly diet plan (status, diet ' +
+        'type, cuisine, excluded foods, days, meals). Call before ' +
+        'discussing or editing it.',
+      inputSchema: z.object({}),
+      execute: async () => {
+        try {
+          return await this.dietPlans.findCurrent(userId);
+        } catch {
+          return {
+            status: 'none',
+            message:
+              'This user has no diet plan yet — they can create one from ' +
+              'the app’s Diet tab, or you can call regenerateDietPlan to ' +
+              'make one now.',
+          };
+        }
+      },
+    });
+  }
+
+  private updateDietDayTool(userId: Id) {
+    return tool({
+      description:
+        'Edit one weekday of the user’s active diet plan — retarget its ' +
+        'calories/macros, or replace its meals. `meals`, if given, fully ' +
+        'replaces that day’s meal list — include every meal it should end ' +
+        'up with (with every one of its items), not just the changed one. ' +
+        'Use this for a single-day change (swap a meal, add a snack, drop ' +
+        'an item); for a plan-wide change (diet type, cuisine, excluded ' +
+        'foods, meals per day) use regenerateDietPlan instead. Ask via ' +
+        'askQuestion first if it’s ambiguous which day/meal is meant.',
+      inputSchema: z.object({
+        dayOfWeek: dayOfWeekSchema,
+        targetCalories: z.number().int().nonnegative().optional(),
+        targetProteinG: z.number().int().nonnegative().optional(),
+        targetFatG: z.number().int().nonnegative().optional(),
+        targetCarbsG: z.number().int().nonnegative().optional(),
+        meals: z
+          .array(
+            z.object({
+              name: z.string().trim().min(1).max(80),
+              items: z
+                .array(
+                  z.object({
+                    name: z.string().trim().min(1).max(120),
+                    description: z.string().trim().min(1).max(120).optional(),
+                    calories: z.number().int().nonnegative(),
+                    proteinG: z.number().int().nonnegative(),
+                    fatG: z.number().int().nonnegative(),
+                    carbsG: z.number().int().nonnegative(),
+                  }),
+                )
+                .min(1)
+                .max(6),
+            }),
+          )
+          .max(6)
+          .optional(),
+      }),
+      execute: async ({ dayOfWeek, ...patch }) =>
+        this.dietPlans.updateDay(userId, dayOfWeek, patch),
+    });
+  }
+
+  private regenerateDietPlanTool(userId: Id) {
+    return tool({
+      description:
+        'Rebuild the user’s ENTIRE weekly diet plan with new preferences ' +
+        '— diet type, cuisine, excluded foods and/or meals per day. Use ' +
+        'this for a plan-wide change ("make me vegan", "switch to Italian ' +
+        'food", "5 meals a day instead of 4") or a first-time plan, not a ' +
+        'single-day edit (use updateDietDay for that). Any field left ' +
+        'unset keeps what the user currently has, or a sensible default ' +
+        'for a first plan — call this with whatever they told you rather ' +
+        'than interrogating them field by field. Only ask first — with ' +
+        'askQuestion, one specific thing, never several bundled into one ' +
+        'message — when a field is genuinely ambiguous (e.g. "change my ' +
+        'diet" with no hint which way); otherwise just generate it and ' +
+        'mention what you assumed.',
+      inputSchema: z.object({
+        dietTypes: z.array(dietTypeSchema).min(1).max(3).optional(),
+        cuisine: dietCuisineSchema.optional(),
+        exclude: z.array(z.string().trim().min(1).max(60)).max(30).optional(),
+        mealsPerDay: z.number().int().min(2).max(6).optional(),
+      }),
+      execute: async (input) => {
+        const current = await this.dietPlans
+          .findCurrent(userId)
+          .catch(() => null);
+
+        const merged: GenerateDietPlanInput = generateDietPlanSchema.parse({
+          dietTypes: input.dietTypes ?? current?.dietTypes,
+          cuisine: input.cuisine ?? current?.cuisine,
+          exclude: input.exclude ?? current?.exclude,
+          mealsPerDay: input.mealsPerDay ?? current?.mealsPerDay,
+        });
+
+        // No request/IP available from a chat tool call — fine, since
+        // `cuisine` only falls back to IP-resolution when still unset after
+        // merging with the current plan, which only happens for a brand new
+        // plan where the model also didn't specify one.
+        return this.dietPlans.regenerate(userId, merged, undefined);
+      },
+    });
+  }
+
   async streamReply(
     userId: Id,
     conversationId: Id,
@@ -414,6 +559,7 @@ export class ChatsService {
       });
 
     const system = resolvePrompt(PromptCategory.UserChat, settings?.aiPrompts);
+    const searchTool = this.resolveSearchTool(modelConfig);
 
     const result = streamText({
       model,
@@ -424,7 +570,11 @@ export class ChatsService {
         getCurrentRoutine: this.getCurrentRoutineTool(userId),
         listExercises: this.listExercisesTool(userId),
         updateRoutineDay: this.updateRoutineDayTool(userId),
+        getCurrentDietPlan: this.getCurrentDietPlanTool(userId),
+        updateDietDay: this.updateDietDayTool(userId),
+        regenerateDietPlan: this.regenerateDietPlanTool(userId),
         [ASK_QUESTION_TOOL]: this.askQuestionTool(),
+        ...(searchTool ? { webSearch: searchTool } : {}),
       },
       stopWhen: stepCountIs(MAX_AGENT_STEPS),
       onFinish: async (event) => {
@@ -435,10 +585,14 @@ export class ChatsService {
         const outputTokens = event.totalUsage.outputTokens ?? 0;
         const totalTokens =
           event.totalUsage.totalTokens ?? inputTokens + outputTokens;
+        const citations = dedupeCitations(
+          event.steps.flatMap((step) => step.sources),
+        );
 
         this.logger.log(
           `Chat reply for user ${userId} (conversation ${conversationId}): ` +
-            `${inputTokens} input + ${outputTokens} output = ${totalTokens} tokens`,
+            `${inputTokens} input + ${outputTokens} output = ${totalTokens} tokens` +
+            `${citations.length ? `, ${citations.length} citation(s)` : ''}`,
         );
 
         await this.prisma.chatMessage.create({
@@ -446,6 +600,7 @@ export class ChatsService {
             conversationId,
             role: ChatMessageRole.Assistant,
             content,
+            citations,
             inputTokens,
             outputTokens,
             totalTokens,

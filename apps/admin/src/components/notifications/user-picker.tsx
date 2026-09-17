@@ -69,7 +69,7 @@ export function UserPicker({ selected, onChange }: UserPickerProps) {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search by email or name"
-          className="w-full rounded-lg border border-neutral-300 bg-white py-2 pl-9 pr-3 text-sm outline-none focus:border-neutral-900"
+          className="w-full rounded-lg border border-neutral-300 bg-white py-2 pl-9 pr-3 text-sm text-neutral-900 outline-none focus:border-neutral-900"
         />
       </div>
 

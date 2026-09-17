@@ -41,7 +41,7 @@ export default async function UsersPage({
             name="search"
             defaultValue={search}
             placeholder="Search by email or name"
-            className="w-64 rounded-lg border border-neutral-300 px-3 py-2 text-sm outline-none focus:border-neutral-900 bg-white"
+            className="w-64 rounded-lg border border-neutral-300 px-3 py-2 text-sm text-neutral-900 outline-none focus:border-neutral-900 bg-white"
           />
           <button
             type="submit"

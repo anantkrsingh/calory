@@ -64,3 +64,22 @@ export function createModel(config: LlmConfig): LanguageModel {
 
   return createOpenAI({ apiKey: config.apiKey })(model);
 }
+
+/**
+ * Real web search grounding — backs a generation with a `sources` array of
+ * genuine urls, not the model's own recollection. Both providers have an
+ * equivalent: Gemini's Google Search grounding, and OpenAI's `web_search`
+ * tool (only available over the Responses API — `createModel` already
+ * targets that by default for OpenAI, since `createOpenAI(...)(model)`
+ * resolves to `OpenAIResponsesLanguageModel`, not the legacy Chat
+ * Completions model).
+ */
+export function createWebSearchTool(config: LlmConfig) {
+  if (config.provider === LlmProvider.Gemini) {
+    const google = createGoogleGenerativeAI({ apiKey: config.apiKey });
+    return google.tools.googleSearch({});
+  }
+
+  const openai = createOpenAI({ apiKey: config.apiKey });
+  return openai.tools.webSearch({});
+}

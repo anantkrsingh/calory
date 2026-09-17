@@ -128,6 +128,124 @@ export class DietPlansService {
     return plan;
   }
 
+  /**
+   * Edits one weekday of the user's active plan in place — the chat coach's
+   * write path (swap a meal, add/remove an item, retarget a day's macros),
+   * as opposed to `regenerate`'s full AI rewrite of the whole week (which is
+   * still what a diet-type/cuisine/exclusion change needs, since those live
+   * on the plan itself, not per day). `meals`, when given, fully replaces
+   * that day's meal list (same delete-then-recreate convention as
+   * `DietPlanProcessor.replaceDays`, just scoped to one day); omitted fields
+   * are left as they are.
+   */
+  async updateDay(
+    userId: Id,
+    dayOfWeek: DayOfWeek,
+    patch: {
+      targetCalories?: number;
+      targetProteinG?: number;
+      targetFatG?: number;
+      targetCarbsG?: number;
+      meals?: {
+        name: string;
+        items: {
+          name: string;
+          description?: string;
+          calories: number;
+          proteinG: number;
+          fatG: number;
+          carbsG: number;
+        }[];
+      }[];
+    },
+  ): Promise<DietPlan> {
+    const planRow = await this.prisma.dietPlan.findFirst({
+      where: { userId, status: 'active' },
+      orderBy: { createdAt: 'desc' },
+    });
+    if (!planRow) throw new NotFoundException('No active diet plan to edit');
+
+    const day = await this.prisma.dietDay.findFirst({
+      where: { dietPlanId: planRow.id, dayOfWeek },
+    });
+    if (!day) {
+      throw new NotFoundException(
+        `${dayOfWeek} isn't part of the current diet plan`,
+      );
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      if (patch.meals) {
+        const existingMeals = await tx.dietMeal.findMany({
+          where: { dayId: day.id },
+          select: { id: true },
+        });
+        const mealIds = existingMeals.map((m) => m.id);
+        if (mealIds.length > 0) {
+          await tx.dietMealItem.deleteMany({
+            where: { mealId: { in: mealIds } },
+          });
+          await tx.dietMeal.deleteMany({ where: { dayId: day.id } });
+        }
+      }
+
+      await tx.dietDay.update({
+        where: { id: day.id },
+        data: {
+          ...(patch.targetCalories != null
+            ? { targetCalories: patch.targetCalories }
+            : {}),
+          ...(patch.targetProteinG != null
+            ? { targetProteinG: patch.targetProteinG }
+            : {}),
+          ...(patch.targetFatG != null ? { targetFatG: patch.targetFatG } : {}),
+          ...(patch.targetCarbsG != null
+            ? { targetCarbsG: patch.targetCarbsG }
+            : {}),
+          ...(patch.meals
+            ? {
+                meals: {
+                  create: patch.meals.map((meal, mealIndex) => {
+                    const totals = meal.items.reduce(
+                      (acc, item) => ({
+                        calories: acc.calories + item.calories,
+                        proteinG: acc.proteinG + item.proteinG,
+                        fatG: acc.fatG + item.fatG,
+                        carbsG: acc.carbsG + item.carbsG,
+                      }),
+                      { calories: 0, proteinG: 0, fatG: 0, carbsG: 0 },
+                    );
+
+                    return {
+                      order: mealIndex,
+                      name: meal.name,
+                      totalCalories: totals.calories,
+                      totalProteinG: totals.proteinG,
+                      totalFatG: totals.fatG,
+                      totalCarbsG: totals.carbsG,
+                      items: {
+                        create: meal.items.map((item, itemIndex) => ({
+                          order: itemIndex,
+                          name: item.name,
+                          description: item.description ?? null,
+                          calories: item.calories,
+                          proteinG: item.proteinG,
+                          fatG: item.fatG,
+                          carbsG: item.carbsG,
+                        })),
+                      },
+                    };
+                  }),
+                },
+              }
+            : {}),
+        },
+      });
+    });
+
+    return this.findCurrent(userId);
+  }
+
   /** The newest plan that is still generating, active or failed. */
   async findCurrent(userId: Id): Promise<DietPlan> {
     const plan = await this.prisma.dietPlan.findFirst({

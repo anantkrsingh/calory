@@ -342,6 +342,14 @@ export const dailyQuoteSchema = z.object({
   quoteOfTheDay: z.string(),
 });
 
+/** A real web source (search grounding) an AI reply or generation drew on —
+ * see `RoutinePlanExercise.citations`, `DietPlanMeal.citations` and
+ * `ChatMessage.citations`. */
+export const citationSchema = z.object({
+  title: z.string(),
+  url: z.string(),
+});
+
 export const routinePlanExerciseSchema = z.object({
   exerciseId: objectIdSchema,
   exerciseName: z.string(),
@@ -350,6 +358,7 @@ export const routinePlanExerciseSchema = z.object({
   durationSec: z.number().int().optional(),
   restSeconds: z.number().int().optional(),
   estimatedCalories: z.number().int(),
+  citations: z.array(citationSchema),
 });
 
 export const routinePlanDaySchema = z.object({
@@ -426,6 +435,7 @@ export const dietPlanMealSchema = z.object({
   totalProteinG: z.number().int(),
   totalFatG: z.number().int(),
   totalCarbsG: z.number().int(),
+  citations: z.array(citationSchema),
 });
 
 export const dietPlanDaySchema = z.object({
@@ -492,6 +502,7 @@ export const chatMessageSchema = z.object({
   conversationId: objectIdSchema,
   role: chatMessageRoleSchema,
   content: z.string(),
+  citations: z.array(citationSchema),
   inputTokens: z.number().int().min(0).optional(),
   outputTokens: z.number().int().min(0).optional(),
   totalTokens: z.number().int().min(0).optional(),

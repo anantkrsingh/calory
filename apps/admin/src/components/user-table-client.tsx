@@ -1,7 +1,8 @@
 "use client";
 
 import type { AppSettings, Paginated, Plan, User } from "@fitness/types";
-import { Edit3, Sparkles } from "lucide-react";
+import { Edit3, MessageSquare, Sparkles } from "lucide-react";
+import Link from "next/link";
 import { useState } from "react";
 
 import { EditUserModal } from "./edit-user-modal";
@@ -111,13 +112,22 @@ export function UserTableClient({
                     {formatDate(user.createdAt)}
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <button
-                      onClick={() => setSelectedUser(user)}
-                      className="cursor-pointer inline-flex items-center gap-1 rounded-lg border border-neutral-200 bg-white px-2.5 py-1 text-xs font-medium text-neutral-700 shadow-sm hover:bg-neutral-50 hover:text-neutral-900 transition"
-                    >
-                      <Edit3 size={12} />
-                      Edit User
-                    </button>
+                    <div className="inline-flex items-center gap-2">
+                      <Link
+                        href={`/users/${user.id}/chats`}
+                        className="cursor-pointer inline-flex items-center gap-1 rounded-lg border border-neutral-200 bg-white px-2.5 py-1 text-xs font-medium text-neutral-700 shadow-sm hover:bg-neutral-50 hover:text-neutral-900 transition"
+                      >
+                        <MessageSquare size={12} />
+                        Chats
+                      </Link>
+                      <button
+                        onClick={() => setSelectedUser(user)}
+                        className="cursor-pointer inline-flex items-center gap-1 rounded-lg border border-neutral-200 bg-white px-2.5 py-1 text-xs font-medium text-neutral-700 shadow-sm hover:bg-neutral-50 hover:text-neutral-900 transition"
+                      >
+                        <Edit3 size={12} />
+                        Edit User
+                      </button>
+                    </div>
                   </td>
                 </tr>
               );
