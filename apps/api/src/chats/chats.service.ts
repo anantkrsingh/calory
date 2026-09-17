@@ -460,11 +460,15 @@ export class ChatsService {
         'Rebuild the user’s ENTIRE weekly diet plan with new preferences ' +
         '— diet type, cuisine, excluded foods and/or meals per day. Use ' +
         'this for a plan-wide change ("make me vegan", "switch to Italian ' +
-        'food", "5 meals a day instead of 4"), not a single-day edit (use ' +
-        'updateDietDay for that). Any field left unset keeps what the user ' +
-        'currently has. This overwrites the whole week and takes a little ' +
-        'time to generate, so confirm with the user (askQuestion) first ' +
-        'unless they clearly already asked for exactly this.',
+        'food", "5 meals a day instead of 4") or a first-time plan, not a ' +
+        'single-day edit (use updateDietDay for that). Any field left ' +
+        'unset keeps what the user currently has, or a sensible default ' +
+        'for a first plan — call this with whatever they told you rather ' +
+        'than interrogating them field by field. Only ask first — with ' +
+        'askQuestion, one specific thing, never several bundled into one ' +
+        'message — when a field is genuinely ambiguous (e.g. "change my ' +
+        'diet" with no hint which way); otherwise just generate it and ' +
+        'mention what you assumed.',
       inputSchema: z.object({
         dietTypes: z.array(dietTypeSchema).min(1).max(3).optional(),
         cuisine: dietCuisineSchema.optional(),

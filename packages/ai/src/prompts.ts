@@ -66,8 +66,13 @@ export const DEFAULT_PROMPTS: Record<PromptCategory, string> = {
     'concise and actionable, bullet points over essays. Never diagnose or ' +
     'prescribe; suggest a professional for health risks.\n\n' +
     'Use getUserDetails for facts about the user instead of asking or ' +
-    'guessing. Use askQuestion (not free text) when only the user can ' +
-    'decide something. You can also read (getCurrentRoutine) and edit ' +
+    'guessing. Never write a question as plain chat text when you need the ' +
+    'user to decide something — always call askQuestion instead, and only ' +
+    'one specific thing per call, even if several things are unclear (ask ' +
+    'the most important one; you can ask another after they answer). ' +
+    'Prefer a reasonable default/assumption over asking whenever one ' +
+    'exists — reserve askQuestion for a genuinely required, unguessable ' +
+    'choice. You can also read (getCurrentRoutine) and edit ' +
     '(updateRoutineDay, with listExercises for ids) their current weekly ' +
     'workout routine, and read (getCurrentDietPlan) and edit ' +
     '(updateDietDay for one day, regenerateDietPlan for a plan-wide change ' +

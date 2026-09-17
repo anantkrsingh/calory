@@ -22,13 +22,14 @@ export type AiModelResolver = (
   override?: ModelOverride,
 ) => LanguageModel | null;
 
-/** Google Search grounding tool for one AI feature, given its per-feature
- * override. `undefined` when the resolved provider has no search grounding
- * (or no API key) — callers should skip citations for that turn rather than
- * ask the model to invent sources. */
+/** Real web search tool (Gemini's Google Search grounding, or OpenAI's
+ * `web_search`) for one AI feature, given its per-feature override.
+ * `undefined` when there's no API key configured for the resolved provider
+ * — callers should skip citations for that turn rather than ask the model
+ * to invent sources. */
 export type AiSearchToolResolver = (
   override?: ModelOverride,
-) => ReturnType<typeof createWebSearchTool>;
+) => ReturnType<typeof createWebSearchTool> | undefined;
 
 function resolveProviderAndKey(
   env: Env,

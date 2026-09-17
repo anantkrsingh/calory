@@ -34,7 +34,6 @@ import {
   tool,
   type LanguageModel,
   type LanguageModelUsage,
-  type ToolSet,
 } from 'ai';
 import { Worker, type Job } from 'bullmq';
 import { z } from 'zod';
@@ -334,45 +333,55 @@ export class DietPlanProcessor implements OnModuleInit, OnModuleDestroy {
 
     // generateObject takes no tools, so gather context first, then structure it.
     this.logger.log(`${tag}: gathering context via tools`);
-    const researchInstructions = searchTool
-      ? 'Call the tools to gather what you need, then outline the week in ' +
-        'plain text. Also use webSearch 2-4 times to check nutrition facts ' +
-        'and typical dishes for this cuisine/diet (e.g. "chicken breast ' +
-        'nutrition facts", "<cuisine> <diet> meal plan macros") — you will ' +
-        'cite from these results in the next step.'
-      : 'Call the tools to gather what you need, then outline the week in plain text.';
-    // Typed explicitly as `ToolSet` — a conditional spread inline in the
-    // `tools` literal makes `generateText`'s TOOLS generic infer a union of
-    // two different shapes, which loosens types (`toolCalls`/`toolResults`
-    // entries read back as possibly `undefined`) everywhere `research` is
-    // used below.
-    const researchTools: ToolSet = {
-      getUserDetails: this.userDetailsTool(userId),
-    };
-    if (searchTool) researchTools.webSearch = searchTool;
-
-    const research = await generateText({
+    const research = generateText({
       model,
-      prompt: `${promptWithPreferences}\n\n${researchInstructions}`,
-      tools: researchTools,
-      stopWhen: stepCountIs(searchTool ? 6 : 3),
+      prompt: `${promptWithPreferences}\n\nCall the tools to gather what you need, then outline the week in plain text.`,
+      tools: { getUserDetails: this.userDetailsTool(userId) },
+      stopWhen: stepCountIs(3),
       // This is tool-calling + a plain-text summary, not a hard reasoning
       // task — skip reasoning entirely so it can't eat its own output budget
       // on invisible reasoning tokens. Ignored by non-reasoning models.
       providerOptions: { openai: { reasoningEffort: 'low' } },
     });
 
-    const toolCalls = research.steps.flatMap((step) => step.toolCalls);
-    const sources = dedupeSources(
-      research.steps.flatMap((step) => step.sources),
-    );
+    // Citations are mandatory for a diet plan — but Google's API gives no
+    // way to actually FORCE Search grounding: `googleSearch` is a retrieval
+    // tool the model decides to use on its own, and `toolChoice` has no
+    // effect on it (confirmed in `@ai-sdk/google`'s `prepareTools`: a
+    // request with only provider-defined tools drops `toolConfig`/
+    // `toolChoice` entirely — it's silently ignored, not just weakly
+    // applied). So the only real lever is prompting: ask concrete,
+    // fact-seeking questions models are tuned to ground, retrying with a
+    // more insistent prompt if the first attempt comes back with nothing.
+    // Independent of `research`'s prompt, so it runs in parallel with it.
+    const dietLine = plan.dietTypes
+      .map((t) => DIET_TYPE_LABEL[t])
+      .join(' and ');
+    const searchBasePrompt = searchTool
+      ? 'Look up current nutrition facts (calories, protein, fat and carbs ' +
+        `per serving) for 3 dishes typical of a ${CUISINE_LABEL[plan.cuisine]} ` +
+        `${dietLine} diet` +
+        (plan.exclude.length > 0
+          ? `, excluding: ${plan.exclude.join(', ')}`
+          : '') +
+        '. Use webSearch for each dish — search the web for the real ' +
+        'figures, never answer from memory.'
+      : '';
+
+    const search = searchTool
+      ? this.searchWithRetry(model, searchTool, searchBasePrompt, tag)
+      : Promise.resolve<Citation[]>([]);
+
+    const [researchResult, sources] = await Promise.all([research, search]);
+
+    const toolCalls = researchResult.steps.flatMap((step) => step.toolCalls);
     this.logger.log(
-      `${tag}: research complete — ${research.steps.length} step(s), ` +
+      `${tag}: research complete — ${researchResult.steps.length} step(s), ` +
         `${toolCalls.map((c) => c.toolName).join(', ') || 'no tool calls'}, ` +
-        `${sources.length} source(s), ${research.usage?.totalTokens ?? '?'} tokens`,
+        `${researchResult.usage?.totalTokens ?? '?'} tokens`,
     );
 
-    const toolContext = research.steps
+    const toolContext = researchResult.steps
       .flatMap((step) => step.toolResults)
       .map((result) => `${result.toolName}: ${JSON.stringify(result.output)}`)
       .join('\n');
@@ -399,7 +408,7 @@ export class DietPlanProcessor implements OnModuleInit, OnModuleDestroy {
       'Data retrieved for this user:',
       toolContext || '(no tool data available)',
       '',
-      research.text,
+      researchResult.text,
       citationsInstructions,
     ].join('\n');
 
@@ -558,6 +567,48 @@ export class DietPlanProcessor implements OnModuleInit, OnModuleDestroy {
         });
       }
     });
+  }
+
+  /**
+   * Runs `webSearch` and returns whatever real sources it grounded on,
+   * retrying once with a more insistent prompt if the first attempt
+   * produced nothing — see the long comment at the call site for why this
+   * is the only lever available (no API-level way to force grounding).
+   */
+  private async searchWithRetry(
+    model: LanguageModel,
+    searchTool: NonNullable<ReturnType<AiSearchToolResolver>>,
+    basePrompt: string,
+    tag: string,
+  ): Promise<Citation[]> {
+    const maxAttempts = 2;
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      const run = await generateText({
+        model,
+        prompt:
+          attempt === 1
+            ? basePrompt
+            : `${basePrompt} Important: you must actually call webSearch ` +
+              'at least once before responding — do not answer without it.',
+        tools: { webSearch: searchTool },
+        stopWhen: stepCountIs(3),
+        providerOptions: { openai: { reasoningEffort: 'low' } },
+      });
+
+      const sources = dedupeSources(run.steps.flatMap((step) => step.sources));
+      this.logger.log(
+        `${tag}: search attempt ${attempt}/${maxAttempts} — ${run.steps.length} step(s), ` +
+          `${sources.length} source(s), ${run.usage?.totalTokens ?? '?'} tokens`,
+      );
+      if (sources.length > 0) return sources;
+    }
+
+    this.logger.warn(
+      `${tag}: search returned no groundable sources after ${maxAttempts} ` +
+        'attempts — meals will have no citations (Google Search grounding ' +
+        'is model-discretion; there is no API-level way to force it)',
+    );
+    return [];
   }
 
   private async generateWeeklyDiet(
