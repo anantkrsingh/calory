@@ -7,6 +7,17 @@ export const quoteOfTheDaySchema = z.object({
 
 export type QuoteOfTheDay = z.infer<typeof quoteOfTheDaySchema>;
 
+/** A real source, copied exactly (title + url) from the research context —
+ * shared shape for both the routine and diet generators. The worker drops
+ * anything that doesn't match a real search result before persisting it, so
+ * this is a candidate the model proposes, not a trusted one. */
+export const citationSchema = z.object({
+  title: z.string().min(1).max(160),
+  url: z.string().url(),
+});
+
+export type AiCitation = z.infer<typeof citationSchema>;
+
 export const routineExerciseSchema = z.object({
   // Nullable: a rest day sometimes comes back with one placeholder entry
   // instead of a true empty array — the app drops any exercise without a
@@ -30,6 +41,9 @@ export const routineExerciseSchema = z.object({
    * Optional/nullable so one skipped estimate doesn't fail the whole
    * generation; the app treats a missing value as 0. */
   estimatedCalories: z.number().int().min(0).max(2000).nullable().optional(),
+  /** 1-3 sources that back this exercise's MET/calorie estimate or training
+   * guidance — see `citationSchema`. */
+  citations: z.array(citationSchema).max(3).optional(),
 });
 
 export const routineDaySchema = z.object({
@@ -73,11 +87,6 @@ export const dietMealItemSchema = z.object({
   carbsG: z.number().int().min(0).max(600),
 });
 
-export const dietCitationSchema = z.object({
-  title: z.string().min(1).max(160),
-  url: z.string().url(),
-});
-
 export const dietMealSchema = z.object({
   /** e.g. "Morning Breakfast", "Post-workout Snack". */
   name: z.string().min(1).max(80),
@@ -86,11 +95,8 @@ export const dietMealSchema = z.object({
   // actually asked for bounds how large (and how truncation/parse-failure
   // prone) one generation can get.
   items: z.array(dietMealItemSchema).min(1).max(6),
-  /** 1-3 sources, copied exactly (title + url) from the research context,
-   * that most directly back this meal's numbers — the worker drops anything
-   * that doesn't match a real search result before persisting it, so this is
-   * a candidate list, not a trusted one. */
-  citations: z.array(dietCitationSchema).max(3).optional(),
+  /** 1-3 sources that back this meal's numbers — see `citationSchema`. */
+  citations: z.array(citationSchema).max(3).optional(),
 });
 
 export const dietDaySchema = z.object({
@@ -115,4 +121,3 @@ export type WeeklyDiet = z.infer<typeof weeklyDietSchema>;
 export type AiDietDay = z.infer<typeof dietDaySchema>;
 export type AiDietMeal = z.infer<typeof dietMealSchema>;
 export type AiDietMealItem = z.infer<typeof dietMealItemSchema>;
-export type AiDietCitation = z.infer<typeof dietCitationSchema>;

@@ -452,6 +452,7 @@ export function toWorkoutRoutine(row: WorkoutRoutineRow): WorkoutRoutine {
         durationSec: orUndefined(exercise.durationSec),
         restSeconds: orUndefined(exercise.restSeconds),
         estimatedCalories: exercise.estimatedCalories ?? 0,
+        citations: toCitations(exercise.citations),
       })),
     })),
     error: orUndefined(row.error),

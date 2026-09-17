@@ -8,6 +8,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { TabScreen } from "@/components/tab-screen";
 import { ThemedText } from "@/components/themed-text";
+import { CitationsSheet, type CitationsSheetRef } from "@/components/ui/CitationsSheet";
 import { CircularProgressRing } from "@/components/ui/CircularProgressRing";
 import { DaySummarySkeleton } from "@/components/home/DaySummarySkeleton";
 import {
@@ -43,6 +44,7 @@ export default function HomeScreen() {
   const user = useAuthStore(selectUser);
   const weekProgressSheetRef = useRef<WeekProgressSheetRef>(null);
   const namePromptSheetRef = useRef<NamePromptSheetRef>(null);
+  const citationsSheetRef = useRef<CitationsSheetRef>(null);
   const today = useState(todayIsoDate)[0];
   const weekDates = useState(currentWeekDates)[0];
   const [selectedDate, setSelectedDate] = useState(today);
@@ -123,6 +125,10 @@ export default function HomeScreen() {
     },
     [router],
   );
+
+  const showExerciseCitations = useCallback((exercise: TodayRoutineExercise) => {
+    citationsSheetRef.current?.present(exercise.citations, exercise.exerciseName);
+  }, []);
 
   return (
     <TabScreen contentStyle={styles.content}>
@@ -241,6 +247,7 @@ export default function HomeScreen() {
                             key={exercise.exerciseId}
                             exercise={exercise}
                             onPress={openExercise}
+                            onShowCitations={showExerciseCitations}
                           />
                         ))}
                       </View>
@@ -260,6 +267,7 @@ export default function HomeScreen() {
       />
 
       <NamePromptSheet ref={namePromptSheetRef} />
+      <CitationsSheet ref={citationsSheetRef} />
     </TabScreen>
   );
 }

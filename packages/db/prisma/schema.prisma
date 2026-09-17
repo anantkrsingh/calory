@@ -692,6 +692,7 @@ model RoutineDayExercise {
   durationSec  Int?
   restSeconds  Int?
   estimatedCalories Int?
+  citations Citation[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

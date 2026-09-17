@@ -38,12 +38,8 @@ import {
 import { Worker, type Job } from 'bullmq';
 import { z } from 'zod';
 
-import {
-  AI_MODEL_RESOLVER,
-  AI_SEARCH_TOOL_RESOLVER,
-  type AiModelResolver,
-  type AiSearchToolResolver,
-} from '../ai/ai.module';
+import { AI_MODEL_RESOLVER, type AiModelResolver } from '../ai/ai.module';
+import { tavilySearchMany } from '../ai/tavily';
 import { ENV, type Env } from '../config/env.module';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -57,9 +53,6 @@ const DIET_OBJECT_MAX_OUTPUT_TOKENS = 23000;
 // Give the repair attempt even more headroom — a truncated first attempt
 // means the budget above wasn't enough.
 const DIET_OBJECT_REPAIR_MAX_OUTPUT_TOKENS = 32000;
-// Distinct sources kept from research, across every day's search results —
-// caps how many candidates the object step has to choose citations from.
-const MAX_CITATION_SOURCES = 12;
 
 const DIET_TYPE_LABEL: Record<DietType, string> = {
   veg: 'Vegetarian (no meat or fish; eggs/dairy are fine)',
@@ -126,27 +119,6 @@ type PersistedDietMeal = {
   citations: Citation[];
 };
 
-/** Real sources (Google Search grounding) gathered across every research
- * step, deduped by url and capped at `MAX_CITATION_SOURCES`. Only the `url`
- * source type carries a real link — other source types `Source` also allows
- * are skipped. */
-function dedupeSources(sources: readonly unknown[]): Citation[] {
-  const byUrl = new Map<string, Citation>();
-  for (const source of sources) {
-    if (typeof source !== 'object' || source === null) continue;
-    const { sourceType, url, title } = source as Record<string, unknown>;
-    if (sourceType !== 'url' || typeof url !== 'string' || byUrl.has(url)) {
-      continue;
-    }
-    byUrl.set(url, {
-      title: typeof title === 'string' && title.trim() ? title.trim() : url,
-      url,
-    });
-    if (byUrl.size >= MAX_CITATION_SOURCES) break;
-  }
-  return Array.from(byUrl.values());
-}
-
 type PersistedDietDay = {
   order: number;
   dayOfWeek: DayOfWeek;
@@ -165,8 +137,6 @@ export class DietPlanProcessor implements OnModuleInit, OnModuleDestroy {
   constructor(
     @Inject(ENV) private readonly env: Env,
     @Inject(AI_MODEL_RESOLVER) private readonly resolveModel: AiModelResolver,
-    @Inject(AI_SEARCH_TOOL_RESOLVER)
-    private readonly resolveSearchTool: AiSearchToolResolver,
     private readonly prisma: PrismaService,
   ) {}
 
@@ -312,10 +282,6 @@ export class DietPlanProcessor implements OnModuleInit, OnModuleDestroy {
       );
     }
 
-    // Gemini-only (see `createWebSearchTool`) — `undefined` on OpenAI, so
-    // this plan's meals simply get no citations rather than invented ones.
-    const searchTool = this.resolveSearchTool(modelConfig);
-
     const prompt = resolvePrompt('diet_plan', settings?.aiPrompts);
     const usesAdminPrompt =
       settings?.aiPrompts?.some((p) => p.promptCategory === 'diet_plan') ??
@@ -344,32 +310,30 @@ export class DietPlanProcessor implements OnModuleInit, OnModuleDestroy {
       providerOptions: { openai: { reasoningEffort: 'low' } },
     });
 
-    // Citations are mandatory for a diet plan — but Google's API gives no
-    // way to actually FORCE Search grounding: `googleSearch` is a retrieval
-    // tool the model decides to use on its own, and `toolChoice` has no
-    // effect on it (confirmed in `@ai-sdk/google`'s `prepareTools`: a
-    // request with only provider-defined tools drops `toolConfig`/
-    // `toolChoice` entirely — it's silently ignored, not just weakly
-    // applied). So the only real lever is prompting: ask concrete,
-    // fact-seeking questions models are tuned to ground, retrying with a
-    // more insistent prompt if the first attempt comes back with nothing.
-    // Independent of `research`'s prompt, so it runs in parallel with it.
+    // Citations are mandatory for a diet plan — rather than asking the model
+    // to search mid-generation (it doesn't reliably do that; neither
+    // Gemini's nor OpenAI's grounding tool can actually be forced, since
+    // both are only invokable through the model's own tool-calling), search
+    // the web ourselves first with a plain REST call, then hand the model
+    // the real results to cite from. Deterministic: it always runs, rather
+    // than depending on the model's discretion. Independent of `research`'s
+    // prompt, so it runs in parallel with it.
     const dietLine = plan.dietTypes
       .map((t) => DIET_TYPE_LABEL[t])
       .join(' and ');
-    const searchBasePrompt = searchTool
-      ? 'Look up current nutrition facts (calories, protein, fat and carbs ' +
-        `per serving) for 3 dishes typical of a ${CUISINE_LABEL[plan.cuisine]} ` +
-        `${dietLine} diet` +
-        (plan.exclude.length > 0
-          ? `, excluding: ${plan.exclude.join(', ')}`
-          : '') +
-        '. Use webSearch for each dish — search the web for the real ' +
-        'figures, never answer from memory.'
-      : '';
-
-    const search = searchTool
-      ? this.searchWithRetry(model, searchTool, searchBasePrompt, tag)
+    const cuisineLabel = CUISINE_LABEL[plan.cuisine];
+    const excludeSuffix =
+      plan.exclude.length > 0 ? `, no ${plan.exclude.join(', ')}` : '';
+    const search = this.env.TAVILY_API_KEY
+      ? tavilySearchMany({
+          apiKey: this.env.TAVILY_API_KEY,
+          queries: [
+            `${cuisineLabel} ${dietLine} diet nutrition facts calories protein${excludeSuffix}`,
+            `${cuisineLabel} cuisine typical dishes macros${excludeSuffix}`,
+            `${dietLine} diet meal plan macro guidelines`,
+          ],
+          log: (message) => this.logger.log(`${tag}: ${message}`),
+        })
       : Promise.resolve<Citation[]>([]);
 
     const [researchResult, sources] = await Promise.all([research, search]);
@@ -385,6 +349,14 @@ export class DietPlanProcessor implements OnModuleInit, OnModuleDestroy {
       .flatMap((step) => step.toolResults)
       .map((result) => `${result.toolName}: ${JSON.stringify(result.output)}`)
       .join('\n');
+
+    if (this.env.TAVILY_API_KEY) {
+      this.logger.log(`${tag}: search complete — ${sources.length} source(s)`);
+    } else {
+      this.logger.warn(
+        `${tag}: TAVILY_API_KEY not configured — plan will have no citations`,
+      );
+    }
 
     const citationsInstructions =
       sources.length > 0
@@ -567,48 +539,6 @@ export class DietPlanProcessor implements OnModuleInit, OnModuleDestroy {
         });
       }
     });
-  }
-
-  /**
-   * Runs `webSearch` and returns whatever real sources it grounded on,
-   * retrying once with a more insistent prompt if the first attempt
-   * produced nothing — see the long comment at the call site for why this
-   * is the only lever available (no API-level way to force grounding).
-   */
-  private async searchWithRetry(
-    model: LanguageModel,
-    searchTool: NonNullable<ReturnType<AiSearchToolResolver>>,
-    basePrompt: string,
-    tag: string,
-  ): Promise<Citation[]> {
-    const maxAttempts = 2;
-    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-      const run = await generateText({
-        model,
-        prompt:
-          attempt === 1
-            ? basePrompt
-            : `${basePrompt} Important: you must actually call webSearch ` +
-              'at least once before responding — do not answer without it.',
-        tools: { webSearch: searchTool },
-        stopWhen: stepCountIs(3),
-        providerOptions: { openai: { reasoningEffort: 'low' } },
-      });
-
-      const sources = dedupeSources(run.steps.flatMap((step) => step.sources));
-      this.logger.log(
-        `${tag}: search attempt ${attempt}/${maxAttempts} — ${run.steps.length} step(s), ` +
-          `${sources.length} source(s), ${run.usage?.totalTokens ?? '?'} tokens`,
-      );
-      if (sources.length > 0) return sources;
-    }
-
-    this.logger.warn(
-      `${tag}: search returned no groundable sources after ${maxAttempts} ` +
-        'attempts — meals will have no citations (Google Search grounding ' +
-        'is model-discretion; there is no API-level way to force it)',
-    );
-    return [];
   }
 
   private async generateWeeklyDiet(

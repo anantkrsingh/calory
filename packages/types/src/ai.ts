@@ -62,6 +62,11 @@ export interface RoutinePlanExercise {
   durationSec?: number;
   restSeconds?: number;
   estimatedCalories: number;
+  /** Real sources (search grounding) behind this exercise's MET/calorie
+   * estimate or training guidance — empty when the resolved provider
+   * doesn't support search grounding, or none of the numbers were backed
+   * by a specific source. Shown behind an (i) button on the exercise. */
+  citations: Citation[];
 }
 
 export interface RoutinePlanDay {

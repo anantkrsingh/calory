@@ -20,7 +20,9 @@ import {
   calculateBmi,
   energyProfile,
   yearsSince,
+  type Citation,
   type DayOfWeek,
+  type FitnessGoal,
   type RoutineDayStatus,
   type RoutineJobData,
   type RoutineJobResult,
@@ -38,11 +40,26 @@ import {
 import { Queue, Worker, type Job } from 'bullmq';
 import { z } from 'zod';
 
-import { AI_MODEL_RESOLVER, type AiModelResolver } from '../ai/ai.module';
+import {
+  AI_MODEL_RESOLVER,
+  AI_SEARCH_TOOL_RESOLVER,
+  type AiModelResolver,
+  type AiSearchToolResolver,
+} from '../ai/ai.module';
+import { searchWithRetry } from '../ai/search-citations';
 import { ENV, type Env } from '../config/env.module';
 import { PrismaService } from '../prisma/prisma.service';
 
 const MAX_EXERCISES = 60;
+
+const FITNESS_GOAL_LABEL: Record<FitnessGoal, string> = {
+  lose_weight: 'losing weight',
+  build_muscle: 'building muscle',
+  improve_fitness: 'improving overall fitness',
+  gain_strength: 'gaining strength',
+  stay_healthy: 'staying healthy',
+  train_sport: 'training for a sport',
+};
 const RECONCILE_REPEAT_KEY = 'routine-reconcile';
 // Cap per reconciliation pass so one tick can't flood the LLM queue; the next
 // scheduled run picks up whatever is left.
@@ -79,6 +96,8 @@ export class RoutineProcessor implements OnModuleInit, OnModuleDestroy {
   constructor(
     @Inject(ENV) private readonly env: Env,
     @Inject(AI_MODEL_RESOLVER) private readonly resolveModel: AiModelResolver,
+    @Inject(AI_SEARCH_TOOL_RESOLVER)
+    private readonly resolveSearchTool: AiSearchToolResolver,
     private readonly prisma: PrismaService,
   ) {}
 
@@ -394,13 +413,20 @@ export class RoutineProcessor implements OnModuleInit, OnModuleDestroy {
     }
 
     const settings = await this.prisma.appSettings.findFirst();
-    const model = this.resolveModel(
-      resolveModelConfig(PromptCategory.WorkoutRoutine, settings?.aiPrompts),
+    const modelConfig = resolveModelConfig(
+      PromptCategory.WorkoutRoutine,
+      settings?.aiPrompts,
     );
+    const model = this.resolveModel(modelConfig);
 
     if (!model) {
       throw new Error('No LLM provider configured; cannot generate a routine');
     }
+
+    // Gemini/OpenAI-only (see `createWebSearchTool`) — `undefined` when
+    // there's no search grounding tool for the resolved provider, so this
+    // routine's exercises simply get no citations rather than invented ones.
+    const searchTool = this.resolveSearchTool(modelConfig);
 
     const prompt = resolvePrompt('workout_routine', settings?.aiPrompts);
     const usesAdminPrompt =
@@ -413,7 +439,7 @@ export class RoutineProcessor implements OnModuleInit, OnModuleDestroy {
 
     // generateObject takes no tools, so gather context first, then structure it.
     this.logger.log(`${tag}: gathering context via tools`);
-    const research = await generateText({
+    const research = generateText({
       model,
       prompt: `${prompt}\n\nCall the tools to gather what you need, then outline the week in plain text.`,
       tools: {
@@ -427,17 +453,72 @@ export class RoutineProcessor implements OnModuleInit, OnModuleDestroy {
       providerOptions: { openai: { reasoningEffort: 'low' } },
     });
 
-    const toolCalls = research.steps.flatMap((step) => step.toolCalls);
+    // Citations are mandatory for a workout routine, same as for a diet plan
+    // — `searchWithRetry` does the best-effort forcing (see its doc comment
+    // for why nothing can truly force grounding). Built from the user's own
+    // fitness goals/activity level (read directly, not through a tool call),
+    // so it's independent of `research`'s prompt and runs in parallel with it.
+    const user = searchTool
+      ? await this.prisma.user.findUnique({
+          where: { id: userId },
+          select: { profile: true },
+        })
+      : null;
+    const goals = user?.profile.fitnessGoals ?? [];
+    const goalLine =
+      goals.length > 0
+        ? goals.map((goal) => FITNESS_GOAL_LABEL[goal]).join(' and ')
+        : 'general fitness';
+    const activityLevel = user?.profile.activityLevel;
+    const searchBasePrompt = searchTool
+      ? 'Look up current MET values and calorie-burn estimates for common ' +
+        'strength and cardio exercises, and evidence-based training ' +
+        `guidance (sets, reps, rest) for someone focused on ${goalLine}` +
+        (activityLevel ? ` at a ${activityLevel} activity level` : '') +
+        '. Use webSearch for each of these — search the web for the real ' +
+        'figures, never answer from memory.'
+      : '';
+
+    const search = searchTool
+      ? searchWithRetry({
+          model,
+          searchTool,
+          basePrompt: searchBasePrompt,
+          tag,
+          log: (message) => this.logger.log(message),
+        })
+      : Promise.resolve<Citation[]>([]);
+
+    const [researchResult, sources] = await Promise.all([research, search]);
+
+    const toolCalls = researchResult.steps.flatMap((step) => step.toolCalls);
     this.logger.log(
-      `${tag}: research complete — ${research.steps.length} step(s), ` +
+      `${tag}: research complete — ${researchResult.steps.length} step(s), ` +
         `${toolCalls.map((c) => c.toolName).join(', ') || 'no tool calls'}, ` +
-        `${research.usage?.totalTokens ?? '?'} tokens`,
+        `${researchResult.usage?.totalTokens ?? '?'} tokens`,
     );
 
-    const toolContext = research.steps
+    const toolContext = researchResult.steps
       .flatMap((step) => step.toolResults)
       .map((result) => `${result.toolName}: ${JSON.stringify(result.output)}`)
       .join('\n');
+
+    const citationsInstructions =
+      sources.length > 0
+        ? [
+            '',
+            'Sources found during research (cite ONLY from this list, by exact url):',
+            ...sources.map((s, i) => `${i + 1}. ${s.title} — ${s.url}`),
+            '',
+            'Mandatory: every exercise must have a `citations` array with ' +
+              '1-3 of the entries above that back its estimatedCalories or ' +
+              'training guidance — copy title and url exactly. Pick the ' +
+              'closest-matching source(s) even if the match is general ' +
+              '(e.g. a strength-training source for every strength ' +
+              'exercise) rather than leaving an exercise with no citation. ' +
+              'Never invent a source or url not listed above.',
+          ].join('\n')
+        : '';
 
     const objectPrompt = [
       prompt,
@@ -445,7 +526,8 @@ export class RoutineProcessor implements OnModuleInit, OnModuleDestroy {
       'Data retrieved for this user:',
       toolContext || '(no tool data available)',
       '',
-      research.text,
+      researchResult.text,
+      citationsInstructions,
     ].join('\n');
 
     const { object, usage } = await this.generateWeeklyRoutine(
@@ -464,6 +546,7 @@ export class RoutineProcessor implements OnModuleInit, OnModuleDestroy {
     );
 
     const exerciseNames = await this.validExerciseNames(userId, object);
+    const sourcesByUrl = new Map(sources.map((s) => [s.url, s]));
 
     const days = object.days.map((day, dayIndex) => {
       // Drop rest-day placeholders and hallucinated ids alike — anything
@@ -506,6 +589,13 @@ export class RoutineProcessor implements OnModuleInit, OnModuleDestroy {
           durationSec: positiveOrNull(exercise.durationSec),
           restSeconds: exercise.restSeconds ?? null,
           estimatedCalories: exercise.estimatedCalories ?? null,
+          // Never trust the model's own title/url — only that a claimed
+          // citation's url exactly matches a real search result; the
+          // canonical title always comes from the source pool itself.
+          citations: (exercise.citations ?? [])
+            .map((c) => sourcesByUrl.get(c.url))
+            .filter((c): c is Citation => c !== undefined)
+            .slice(0, 3),
         })),
       };
     });
@@ -570,6 +660,7 @@ export class RoutineProcessor implements OnModuleInit, OnModuleDestroy {
         durationSec: number | null;
         restSeconds: number | null;
         estimatedCalories: number | null;
+        citations: Citation[];
       }[];
     }[],
   ): Promise<void> {
