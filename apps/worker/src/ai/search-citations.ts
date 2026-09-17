@@ -3,9 +3,7 @@ import { generateText, stepCountIs, type LanguageModel } from 'ai';
 
 import type { AiSearchToolResolver } from './ai.module';
 
-
 const MAX_CITATION_SOURCES = 12;
-
 
 export function dedupeSources(sources: readonly unknown[]): Citation[] {
   const byUrl = new Map<string, Citation>();
@@ -23,7 +21,6 @@ export function dedupeSources(sources: readonly unknown[]): Citation[] {
   }
   return Array.from(byUrl.values());
 }
-
 
 export async function searchWithRetry({
   model,
@@ -46,7 +43,7 @@ export async function searchWithRetry({
         attempt === 1
           ? basePrompt
           : `${basePrompt} Important: you must actually call webSearch at ` +
-          'least once before responding — do not answer without it.',
+            'least once before responding — do not answer without it.',
       tools: { webSearch: searchTool },
       stopWhen: stepCountIs(3),
       providerOptions: { openai: { reasoningEffort: 'low' } },
@@ -55,15 +52,15 @@ export async function searchWithRetry({
     const sources = dedupeSources(run.steps.flatMap((step) => step.sources));
     log(
       `${tag}: search attempt ${attempt}/${maxAttempts} — ${run.steps.length} step(s), ` +
-      `${sources.length} source(s), ${run.usage?.totalTokens ?? '?'} tokens`,
+        `${sources.length} source(s), ${run.usage?.totalTokens ?? '?'} tokens`,
     );
     if (sources.length > 0) return sources;
   }
 
   log(
     `${tag}: search returned no groundable sources after ${maxAttempts} ` +
-    'attempts (this will be sparse; there is no API-level way to force ' +
-    'grounding, only prompting toward it)',
+      'attempts (this will be sparse; there is no API-level way to force ' +
+      'grounding, only prompting toward it)',
   );
   return [];
 }
