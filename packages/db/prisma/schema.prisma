@@ -423,6 +423,10 @@ model Plan {
   currency       String   @default("USD")
   benefits       String[] // Array of feature bullet points
   storeProductId String?  // RevenueCat / Play Store / App Store ID
+  revenueCatEntitlementIds String[] @default([]) // RevenueCat entitlement identifiers unlocked by this plan
+  chatMessagesLimit Int?   // Maximum chat messages included in the plan cycle
+  tokensLimit       Int?   // Maximum AI tokens included in the plan cycle
+  repsHistoryDays   Int?   // Number of days of reps/history visible to the user
   isActive       Boolean  @default(true)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt

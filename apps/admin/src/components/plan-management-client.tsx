@@ -1,7 +1,7 @@
 "use client";
 
 import type { Plan } from "@fitness/types";
-import { Check, Edit, Plus, Trash2, X } from "lucide-react";
+import { Check, Edit, History, KeyRound, MessageSquare, Plus, Trash2, X, Zap } from "lucide-react";
 import { useState, useTransition } from "react";
 
 import { CustomDropdown } from "@/components/custom-dropdown";
@@ -27,6 +27,11 @@ export function PlanManagementClient({ plans }: PlanManagementClientProps) {
   const [price, setPrice] = useState<number | "">(9.99);
   const [currency, setCurrency] = useState("USD");
   const [storeProductId, setStoreProductId] = useState("");
+  const [revenueCatEntitlementIds, setRevenueCatEntitlementIds] = useState<string[]>([]);
+  const [newEntitlementInput, setNewEntitlementInput] = useState("");
+  const [chatMessagesLimit, setChatMessagesLimit] = useState<number | "">(100);
+  const [tokensLimit, setTokensLimit] = useState<number | "">(100000);
+  const [repsHistoryDays, setRepsHistoryDays] = useState<number | "">(90);
   const [isActive, setIsActive] = useState(true);
   const [benefits, setBenefits] = useState<string[]>([
     "Unlimited AI Chat Assistant",
@@ -45,6 +50,11 @@ export function PlanManagementClient({ plans }: PlanManagementClientProps) {
     setPrice(9.99);
     setCurrency("USD");
     setStoreProductId("com.fitness.pro.monthly");
+    setRevenueCatEntitlementIds(["premium"]);
+    setNewEntitlementInput("");
+    setChatMessagesLimit(100);
+    setTokensLimit(100000);
+    setRepsHistoryDays(90);
     setIsActive(true);
     setBenefits([
       "Unlimited AI Chat Assistant",
@@ -65,6 +75,11 @@ export function PlanManagementClient({ plans }: PlanManagementClientProps) {
     setPrice(plan.price);
     setCurrency(plan.currency);
     setStoreProductId(plan.storeProductId ?? "");
+    setRevenueCatEntitlementIds(plan.revenueCatEntitlementIds ?? []);
+    setNewEntitlementInput("");
+    setChatMessagesLimit(plan.chatMessagesLimit ?? "");
+    setTokensLimit(plan.tokensLimit ?? "");
+    setRepsHistoryDays(plan.repsHistoryDays ?? "");
     setIsActive(plan.isActive);
     setBenefits(plan.benefits ?? []);
     setNewBenefitInput("");
@@ -82,6 +97,17 @@ export function PlanManagementClient({ plans }: PlanManagementClientProps) {
     setBenefits(benefits.filter((_, i) => i !== index));
   };
 
+  const handleAddEntitlement = () => {
+    const entitlement = newEntitlementInput.trim();
+    if (!entitlement || revenueCatEntitlementIds.includes(entitlement)) return;
+    setRevenueCatEntitlementIds([...revenueCatEntitlementIds, entitlement]);
+    setNewEntitlementInput("");
+  };
+
+  const handleRemoveEntitlement = (index: number) => {
+    setRevenueCatEntitlementIds(revenueCatEntitlementIds.filter((_, i) => i !== index));
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -95,6 +121,13 @@ export function PlanManagementClient({ plans }: PlanManagementClientProps) {
     if (newBenefitInput.trim() && !currentBenefits.includes(newBenefitInput.trim())) {
       currentBenefits.push(newBenefitInput.trim());
     }
+    const currentEntitlements = [...revenueCatEntitlementIds];
+    if (
+      newEntitlementInput.trim() &&
+      !currentEntitlements.includes(newEntitlementInput.trim())
+    ) {
+      currentEntitlements.push(newEntitlementInput.trim());
+    }
 
     startTransition(async () => {
       try {
@@ -106,6 +139,14 @@ export function PlanManagementClient({ plans }: PlanManagementClientProps) {
           price: Number(price) || 0,
           currency: currency.trim() || "USD",
           storeProductId: storeProductId.trim() || undefined,
+          revenueCatEntitlementIds: currentEntitlements.filter(
+            (entitlement) => entitlement.trim().length > 0,
+          ),
+          chatMessagesLimit:
+            typeof chatMessagesLimit === "number" ? chatMessagesLimit : undefined,
+          tokensLimit: typeof tokensLimit === "number" ? tokensLimit : undefined,
+          repsHistoryDays:
+            typeof repsHistoryDays === "number" ? repsHistoryDays : undefined,
           isActive,
           benefits: currentBenefits.filter((b) => b.trim().length > 0),
         };
@@ -195,6 +236,55 @@ export function PlanManagementClient({ plans }: PlanManagementClientProps) {
                   {plan.storeProductId}
                 </div>
               ) : null}
+
+              <div className="mb-4 space-y-3 border-t border-neutral-100 pt-4">
+                <div>
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-neutral-700">
+                    RevenueCat Entitlements
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {plan.revenueCatEntitlementIds.length > 0 ? (
+                      plan.revenueCatEntitlementIds.map((entitlement) => (
+                        <span
+                          key={entitlement}
+                          className="inline-flex items-center gap-1 rounded-md border border-blue-100 bg-blue-50 px-2 py-1 text-[11px] font-medium text-blue-700"
+                        >
+                          <KeyRound size={12} />
+                          {entitlement}
+                        </span>
+                      ))
+                    ) : (
+                      <span className="text-xs italic text-neutral-400">
+                        No entitlement IDs
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2 text-[11px] text-neutral-600">
+                  <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-2">
+                    <MessageSquare size={14} className="mb-1 text-neutral-500" />
+                    <p className="font-semibold text-neutral-900">
+                      {plan.chatMessagesLimit ?? "—"}
+                    </p>
+                    <p>Chats</p>
+                  </div>
+                  <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-2">
+                    <Zap size={14} className="mb-1 text-neutral-500" />
+                    <p className="font-semibold text-neutral-900">
+                      {plan.tokensLimit ?? "—"}
+                    </p>
+                    <p>Tokens</p>
+                  </div>
+                  <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-2">
+                    <History size={14} className="mb-1 text-neutral-500" />
+                    <p className="font-semibold text-neutral-900">
+                      {plan.repsHistoryDays ?? "—"}
+                    </p>
+                    <p>History days</p>
+                  </div>
+                </div>
+              </div>
 
               <div className="space-y-2 border-t border-neutral-100 pt-4">
                 <p className="text-xs font-semibold text-neutral-700 uppercase tracking-wider">
@@ -378,6 +468,108 @@ export function PlanManagementClient({ plans }: PlanManagementClientProps) {
                   placeholder="com.fitness.pro.monthly"
                   className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm font-mono text-neutral-900 outline-none focus:border-neutral-900"
                 />
+              </div>
+
+              <div className="space-y-2">
+                <label className="block text-xs font-medium text-neutral-700">
+                  RevenueCat Entitlement IDs
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={newEntitlementInput}
+                    onChange={(e) => setNewEntitlementInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        handleAddEntitlement();
+                      }
+                    }}
+                    placeholder="e.g. premium, pro, unlimited_chat"
+                    className="flex-1 rounded-lg border border-neutral-300 px-3 py-2 text-sm font-mono text-neutral-900 outline-none focus:border-neutral-900"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddEntitlement}
+                    className="cursor-pointer rounded-lg bg-neutral-100 px-3 py-2 text-sm font-medium text-neutral-800 hover:bg-neutral-200"
+                  >
+                    Add
+                  </button>
+                </div>
+
+                <div className="flex flex-wrap gap-1.5 pt-1">
+                  {revenueCatEntitlementIds.map((entitlement, index) => (
+                    <span
+                      key={`${entitlement}-${index}`}
+                      className="inline-flex items-center gap-1 rounded-md border border-blue-100 bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700"
+                    >
+                      <KeyRound size={12} />
+                      {entitlement}
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveEntitlement(index)}
+                        className="cursor-pointer text-blue-400 hover:text-red-600"
+                      >
+                        <X size={12} />
+                      </button>
+                    </span>
+                  ))}
+                  {revenueCatEntitlementIds.length === 0 ? (
+                    <span className="text-xs italic text-neutral-400">
+                      Add the entitlement identifiers configured in RevenueCat.
+                    </span>
+                  ) : null}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-neutral-700 mb-1">
+                    Chat Messages Limit
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={chatMessagesLimit}
+                    onChange={(e) =>
+                      setChatMessagesLimit(e.target.value ? Number(e.target.value) : "")
+                    }
+                    placeholder="e.g. 100"
+                    className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm text-neutral-900 outline-none focus:border-neutral-900"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-neutral-700 mb-1">
+                    Tokens Limit
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={tokensLimit}
+                    onChange={(e) =>
+                      setTokensLimit(e.target.value ? Number(e.target.value) : "")
+                    }
+                    placeholder="e.g. 100000"
+                    className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm text-neutral-900 outline-none focus:border-neutral-900"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-neutral-700 mb-1">
+                    Reps History Days
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={repsHistoryDays}
+                    onChange={(e) =>
+                      setRepsHistoryDays(e.target.value ? Number(e.target.value) : "")
+                    }
+                    placeholder="e.g. 90"
+                    className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm text-neutral-900 outline-none focus:border-neutral-900"
+                  />
+                </div>
               </div>
 
               {/* Dynamic Benefits Array Input */}

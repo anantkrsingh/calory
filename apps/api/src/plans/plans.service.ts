@@ -45,6 +45,10 @@ export class PlansService {
         currency: input.currency ?? 'USD',
         benefits: input.benefits ?? [],
         storeProductId: input.storeProductId,
+        revenueCatEntitlementIds: input.revenueCatEntitlementIds ?? [],
+        chatMessagesLimit: input.chatMessagesLimit,
+        tokensLimit: input.tokensLimit,
+        repsHistoryDays: input.repsHistoryDays,
         isActive: input.isActive ?? true,
       },
     });
@@ -81,6 +85,18 @@ export class PlansService {
         ...(input.benefits ? { benefits: input.benefits } : {}),
         ...(input.storeProductId !== undefined
           ? { storeProductId: input.storeProductId }
+          : {}),
+        ...(input.revenueCatEntitlementIds
+          ? { revenueCatEntitlementIds: input.revenueCatEntitlementIds }
+          : {}),
+        ...(input.chatMessagesLimit !== undefined
+          ? { chatMessagesLimit: input.chatMessagesLimit }
+          : {}),
+        ...(input.tokensLimit !== undefined
+          ? { tokensLimit: input.tokensLimit }
+          : {}),
+        ...(input.repsHistoryDays !== undefined
+          ? { repsHistoryDays: input.repsHistoryDays }
           : {}),
         ...(typeof input.isActive === 'boolean'
           ? { isActive: input.isActive }
