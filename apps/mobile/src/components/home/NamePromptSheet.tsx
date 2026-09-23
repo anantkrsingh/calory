@@ -20,9 +20,9 @@ export type NamePromptSheetRef = {
 };
 
 /**
- * A one-field sheet for the name a social sign-in didn't share (Apple never
- * does). Presented from the home screen whenever `profile.displayName` is
- * still blank — see `index.tsx`.
+ * A one-field sheet for the name a social sign-in did not share. Presented
+ * from the home screen whenever `profile.displayName` is still blank — see
+ * `index.tsx`.
  */
 export const NamePromptSheet = forwardRef<NamePromptSheetRef>(function NamePromptSheet(
   _props,

@@ -118,6 +118,28 @@ export async function authorizeX(): Promise<SocialLoginInput> {
   return { token: code, redirectUri: uri, codeVerifier: request.codeVerifier };
 }
 
+function appleDisplayName(
+  fullName: {
+    givenName?: string | null;
+    middleName?: string | null;
+    familyName?: string | null;
+    nickname?: string | null;
+  } | null,
+): string | undefined {
+  if (!fullName) return undefined;
+
+  const parts = [
+    fullName.givenName,
+    fullName.middleName,
+    fullName.familyName,
+  ]
+    .map((part) => part?.trim())
+    .filter((part): part is string => Boolean(part));
+
+  const name = parts.join(" ").trim() || fullName.nickname?.trim();
+  return name || undefined;
+}
+
 export async function authorizeApple(): Promise<SocialLoginInput> {
   if (Platform.OS !== "ios") throw new SocialAuthUnavailableError("apple");
 
@@ -137,7 +159,11 @@ export async function authorizeApple(): Promise<SocialLoginInput> {
 
     if (!credential.identityToken) throw new SocialAuthUnavailableError("apple");
 
-    return { token: credential.identityToken };
+    return {
+      token: credential.identityToken,
+      email: credential.email ?? undefined,
+      displayName: appleDisplayName(credential.fullName),
+    };
   } catch (error) {
     if (
       error &&

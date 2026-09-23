@@ -154,6 +154,7 @@ describe('AuthService.loginSocial', () => {
 
     const created = prisma.user.create.mock.calls[0]![0].data;
     expect(created.email).toBe('ada@example.com');
+    expect(created.profile).toMatchObject({ displayName: 'Ada' });
     expect(created.linkedAccounts).toEqual([
       { provider: 'google', subject: 'google-123', email: 'ada@example.com' },
     ]);

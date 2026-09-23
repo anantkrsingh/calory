@@ -1,16 +1,25 @@
 import { z } from 'zod';
 import { objectIdSchema } from './primitives';
 
+const optionalPositiveIntSchema = z.number().int().positive().optional();
+const revenueCatEntitlementsSchema = z
+  .array(z.string().trim().min(1))
+  .default([]);
+
 export const planSchema = z.object({
   id: objectIdSchema,
   name: z.string().trim().min(1, 'Plan name is required'),
   description: z.string().trim().optional(),
   duration: z.string().trim().min(1, 'Duration is required'),
-  durationDays: z.number().int().positive().optional(),
+  durationDays: optionalPositiveIntSchema,
   price: z.number().min(0, 'Price must be non-negative').default(0),
   currency: z.string().trim().min(1).default('USD'),
   benefits: z.array(z.string().trim().min(1)).default([]),
   storeProductId: z.string().trim().optional(),
+  revenueCatEntitlementIds: revenueCatEntitlementsSchema,
+  chatMessagesLimit: optionalPositiveIntSchema,
+  tokensLimit: optionalPositiveIntSchema,
+  repsHistoryDays: optionalPositiveIntSchema,
   isActive: z.boolean().default(true),
   createdAt: z.string(),
   updatedAt: z.string(),
@@ -20,11 +29,15 @@ export const createPlanSchema = z.object({
   name: z.string().trim().min(1, 'Plan name is required'),
   description: z.string().trim().optional(),
   duration: z.string().trim().min(1, 'Duration is required'),
-  durationDays: z.number().int().positive().optional(),
+  durationDays: optionalPositiveIntSchema,
   price: z.number().min(0, 'Price must be non-negative').default(0),
   currency: z.string().trim().min(1).default('USD'),
   benefits: z.array(z.string().trim().min(1)).default([]),
   storeProductId: z.string().trim().optional(),
+  revenueCatEntitlementIds: revenueCatEntitlementsSchema,
+  chatMessagesLimit: optionalPositiveIntSchema,
+  tokensLimit: optionalPositiveIntSchema,
+  repsHistoryDays: optionalPositiveIntSchema,
   isActive: z.boolean().default(true),
 });
 

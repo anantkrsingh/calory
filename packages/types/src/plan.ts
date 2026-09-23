@@ -9,5 +9,9 @@ export interface Plan extends Entity {
   currency: string;
   benefits: string[];
   storeProductId?: string;
+  revenueCatEntitlementIds: string[];
+  chatMessagesLimit?: number;
+  tokensLimit?: number;
+  repsHistoryDays?: number;
   isActive: boolean;
 }

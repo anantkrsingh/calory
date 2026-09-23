@@ -75,6 +75,55 @@ const MAX_AGENT_STEPS = 10;
  * so a chatty research pass can't inflate the citation list forever. */
 const MAX_CITATIONS_PER_REPLY = 5;
 
+const RESEARCH_REQUIRED_TERMS = [
+  'meal plan',
+  'diet plan',
+  'weight loss',
+  'lose weight',
+  'fat loss',
+  'nutrition',
+  'macro',
+  'protein',
+  'calorie',
+  'deficit',
+  'surplus',
+  'supplement',
+  'vitamin',
+  'creatine',
+  'hydration',
+  'recovery',
+  'injury',
+  'pain',
+  'heart rate',
+  'blood pressure',
+  'diabetes',
+  'cholesterol',
+  'health',
+  'workout plan',
+  'fitness plan',
+  'training plan',
+  'exercise plan',
+] as const;
+
+const SIMPLE_GREETING_PATTERN =
+  /^(hi|hello|hey|yo|namaste|thanks|thank you|ok|okay|cool|great|good morning|good afternoon|good evening)[\s!.,]*$/i;
+
+function shouldRequireWebResearch(content: string): boolean {
+  const normalized = content.toLowerCase();
+  if (SIMPLE_GREETING_PATTERN.test(normalized.trim())) return false;
+  return RESEARCH_REQUIRED_TERMS.some((term) => normalized.includes(term));
+}
+
+function researchReminder(content: string): string {
+  return (
+    '[Internal instruction: This user message asks for fitness, meal, diet, ' +
+    'nutrition, health, or planning guidance that needs current external ' +
+    'knowledge. Before answering or editing plans, call webSearch once and ' +
+    'use the returned sources. Citations are mandatory for the final reply. ' +
+    `User message: ${content}]`
+  );
+}
+
 /** Real sources (Google Search grounding) gathered across every step of a
  * turn, deduped by url and capped at `MAX_CITATIONS_PER_REPLY`. Only the
  * `url` source type carries a real link — `document`/other source types
@@ -83,8 +132,11 @@ function dedupeCitations(sources: readonly unknown[]): Citation[] {
   const byUrl = new Map<string, Citation>();
   for (const source of sources) {
     if (typeof source !== 'object' || source === null) continue;
-    const { sourceType, url, title } = source as Record<string, unknown>;
-    if (sourceType !== 'url' || typeof url !== 'string' || byUrl.has(url)) {
+    const { sourceType, type, url, title } = source as Record<string, unknown>;
+    if (sourceType !== 'url' && type !== 'url' && typeof title !== 'string') {
+      continue;
+    }
+    if (typeof url !== 'string' || byUrl.has(url)) {
       continue;
     }
     byUrl.set(url, {
@@ -94,6 +146,32 @@ function dedupeCitations(sources: readonly unknown[]): Citation[] {
     if (byUrl.size >= MAX_CITATIONS_PER_REPLY) break;
   }
   return Array.from(byUrl.values());
+}
+
+function collectCitationCandidates(value: unknown, output: unknown[] = []) {
+  if (output.length >= MAX_CITATIONS_PER_REPLY * 4) return output;
+  if (!value || typeof value !== 'object') return output;
+
+  if (Array.isArray(value)) {
+    for (const item of value) collectCitationCandidates(item, output);
+    return output;
+  }
+
+  const record = value as Record<string, unknown>;
+  if (typeof record.url === 'string') output.push(record);
+
+  for (const key of [
+    'sources',
+    'citations',
+    'groundingMetadata',
+    'groundingChunks',
+    'providerMetadata',
+    'output',
+  ]) {
+    collectCitationCandidates(record[key], output);
+  }
+
+  return output;
 }
 
 function titleFromContent(content: string): string {
@@ -543,6 +621,7 @@ export class ChatsService {
       take: LIMITS.chatContextMessages,
     });
 
+    const requiresWebResearch = shouldRequireWebResearch(input.content);
     const messages = history
       .reverse()
       .filter((message) => message.role !== ChatMessageRole.System)
@@ -554,12 +633,21 @@ export class ChatsService {
         ).trim();
         return {
           role: message.role as 'user' | 'assistant',
-          content: lead || '(asked a clarifying question)',
+          content:
+            message.id === userMessageRow.id && requiresWebResearch
+              ? researchReminder(lead || message.content)
+              : lead || '(asked a clarifying question)',
         };
       });
 
     const system = resolvePrompt(PromptCategory.UserChat, settings?.aiPrompts);
     const searchTool = this.resolveSearchTool(modelConfig);
+    if (requiresWebResearch && !searchTool) {
+      this.logger.warn(
+        `Chat reply for user ${userId} (conversation ${conversationId}) ` +
+          'requires web research, but no search tool is configured',
+      );
+    }
 
     const result = streamText({
       model,
@@ -576,6 +664,16 @@ export class ChatsService {
         [ASK_QUESTION_TOOL]: this.askQuestionTool(),
         ...(searchTool ? { webSearch: searchTool } : {}),
       },
+      prepareStep:
+        requiresWebResearch && searchTool
+          ? ({ stepNumber }) =>
+              stepNumber === 0
+                ? {
+                    activeTools: ['webSearch'],
+                    toolChoice: 'required',
+                  }
+                : undefined
+          : undefined,
       stopWhen: stepCountIs(MAX_AGENT_STEPS),
       onFinish: async (event) => {
         const content = buildAssistantContent(event);
@@ -586,7 +684,12 @@ export class ChatsService {
         const totalTokens =
           event.totalUsage.totalTokens ?? inputTokens + outputTokens;
         const citations = dedupeCitations(
-          event.steps.flatMap((step) => step.sources),
+          event.steps.flatMap((step) => [
+            ...step.sources,
+            ...collectCitationCandidates(step.toolResults),
+            ...collectCitationCandidates(step.providerMetadata),
+            ...collectCitationCandidates(step.response.body),
+          ]),
         );
 
         this.logger.log(
