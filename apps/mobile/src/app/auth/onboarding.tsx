@@ -33,15 +33,21 @@ import { selectUser, useAuthStore } from "@/stores/auth.store";
 import { useOnboardingStore } from "@/stores/onboarding.store";
 
 const STEPS_WITH_ACCOUNT = 6; // Sex, BodyMetrics, Dob, Goals, Activity, Name — skips Email.
+const STEPS_WITH_NAMED_ACCOUNT = 5; // Provider already supplied a profile name.
 
 export default function OnboardingScreen() {
   const theme = useTheme();
   const router = useRouter();
   const currentUser = useAuthStore(selectUser);
   const isLoggedIn = currentUser !== null;
+  const hasAccountDisplayName = Boolean(currentUser?.profile.displayName?.trim());
   const currentStep = useOnboardingStore((state) => state.currentStep);
   const totalSteps = useOnboardingStore((state) => state.totalSteps);
-  const effectiveTotalSteps = isLoggedIn ? STEPS_WITH_ACCOUNT : totalSteps;
+  const effectiveTotalSteps = isLoggedIn
+    ? hasAccountDisplayName
+      ? STEPS_WITH_NAMED_ACCOUNT
+      : STEPS_WITH_ACCOUNT
+    : totalSteps;
   const userData = useOnboardingStore((state) => state.userData);
   const nextStep = useOnboardingStore((state) => state.nextStep);
   const prevStep = useOnboardingStore((state) => state.prevStep);
@@ -59,9 +65,9 @@ export default function OnboardingScreen() {
 
   const canContinue = isStepComplete(currentStep, userData);
 
-  // Social sign-in may already have a real name (Google/Facebook usually
-  // share one; Apple never does) — prefill the Name step with it instead of
-  // making the user retype what the provider already gave us.
+  // Social sign-in may already have a real name. Apple shares it only in the
+  // native credential on first authorization, so prefill it when present and
+  // skip the Name step entirely for accounts that already have one.
   useEffect(() => {
     if (isLoggedIn && currentUser.profile.displayName && !userData.displayName) {
       updateUserData({ displayName: currentUser.profile.displayName });
@@ -107,7 +113,9 @@ export default function OnboardingScreen() {
     try {
       await updateProfile.mutateAsync({
         profile: {
-          displayName: userData.displayName,
+          ...(userData.displayName.trim()
+            ? { displayName: userData.displayName.trim() }
+            : {}),
           sex: userData.sex,
           dateOfBirth: userData.dateOfBirth,
           heightCm: userData.heightCm,

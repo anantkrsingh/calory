@@ -223,8 +223,8 @@ export class AuthService {
             ? { emailVerified: true }
             : {}),
           // Backfills whatever this provider adds that the account still
-          // lacks — a later Google link can supply the name an earlier,
-          // name-less Apple sign-up left blank.
+          // lacks — e.g. Apple only shares the native full name on first
+          // authorization, while another provider may add it later.
           ...(profile.avatarUrl ||
           (profile.displayName && !existing.profile?.displayName)
             ? {
@@ -261,10 +261,8 @@ export class AuthService {
         email,
         emailVerified: profile.emailVerified,
         profile: {
-          // Left blank when the provider shares no name (Apple never does)
-          // — the client formats a stand-in from the email and onboarding
-          // asks for a real one; synthesizing one here would just get in
-          // the way of both.
+          // Left blank only when the provider genuinely shared no name; if
+          // Apple supplied one in the native credential, it is used here.
           displayName: profile.displayName ?? '',
           avatarUrl: profile.avatarUrl ?? null,
         },

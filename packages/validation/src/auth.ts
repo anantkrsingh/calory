@@ -55,6 +55,13 @@ export const socialLoginSchema = z
     token: z.string().min(1, 'Provider token is required'),
     redirectUri: z.string().min(1).optional(),
     codeVerifier: z.string().min(1).optional(),
+    email: emailSchema.optional(),
+    displayName: z
+      .string()
+      .trim()
+      .min(LIMITS.name.min)
+      .max(LIMITS.name.max)
+      .optional(),
   })
   .refine(
     (data) => !data.codeVerifier || Boolean(data.redirectUri),

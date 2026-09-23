@@ -248,17 +248,23 @@ export async function verifyApple(
     reject(AuthProvider.Apple);
   }
 
-  const email = typeof payload.email === 'string' ? payload.email : undefined;
+  const tokenEmail =
+    typeof payload.email === 'string' ? payload.email : undefined;
+  const nativeEmail = input.email?.trim() || undefined;
+  const nativeDisplayName = input.displayName?.trim() || undefined;
 
   return {
     provider: AuthProvider.Apple,
     subject,
-    email,
-    // Apple never puts the name in the token — only in the native credential
-    // on the device's first authorization, which this endpoint doesn't see.
-    displayName: undefined,
+    email: tokenEmail ?? nativeEmail,
+    // Apple provides the user's name only in the native credential on the
+    // first authorization. The mobile client forwards it with the verified
+    // identity token so new accounts do not have to ask for it again.
+    displayName: nativeDisplayName,
     emailVerified:
-      payload.email_verified === true || payload.email_verified === 'true',
+      payload.email_verified === true ||
+      payload.email_verified === 'true' ||
+      Boolean(nativeEmail),
   };
 }
 

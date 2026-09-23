@@ -68,8 +68,8 @@ export default function HomeScreen() {
 
   useRegisterPushNotifications();
 
-  // Apple sign-in never shares a name, so an account can reach the home
-  // screen with the profile's displayName still blank — ask for it here.
+  // Some social providers may not share a name for an account. If the profile
+  // is still blank after onboarding, ask for it here.
   useEffect(() => {
     if (user && !user.profile.displayName?.trim()) {
       namePromptSheetRef.current?.present();
