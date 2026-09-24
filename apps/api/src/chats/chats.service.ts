@@ -20,7 +20,6 @@ import type {
   ChatConversation,
   ChatConversationDetail,
   ChatMessage,
-  Citation,
   Id,
   Paginated,
 } from '@fitness/types';
@@ -54,10 +53,8 @@ import { z } from 'zod';
 
 import {
   AI_MODEL_RESOLVER,
-  AI_SEARCH_TOOL_RESOLVER,
   requireModel,
   type AiModelResolver,
-  type AiSearchToolResolver,
 } from '../ai/ai.module';
 import { LIMITS } from '../config/constants';
 import { DietPlansService } from '../diets/diet-plans.service';
@@ -67,111 +64,43 @@ import { WorkoutRoutineService } from '../routines/workout-routine.service';
 
 const TITLE_MAX = LIMITS.chatTitle.max;
 const ASK_QUESTION_TOOL = 'askQuestion';
-// getUserDetails/getCurrentRoutine/getCurrentDietPlan/listExercises, a
-// webSearch or two, an edit (routine or diet), then (optionally)
-// askQuestion or a final answer.
+// getUserDetails/getCurrentRoutine/getCurrentDietPlan/listExercises, an edit
+// (routine or diet), then (optionally) askQuestion or a final answer.
 const MAX_AGENT_STEPS = 10;
-/** Sources returned across the whole turn's steps, deduped by url and capped
- * so a chatty research pass can't inflate the citation list forever. */
-const MAX_CITATIONS_PER_REPLY = 5;
 
-const RESEARCH_REQUIRED_TERMS = [
-  'meal plan',
-  'diet plan',
-  'weight loss',
-  'lose weight',
-  'fat loss',
-  'nutrition',
-  'macro',
-  'protein',
-  'calorie',
-  'deficit',
-  'surplus',
-  'supplement',
-  'vitamin',
-  'creatine',
-  'hydration',
-  'recovery',
-  'injury',
-  'pain',
-  'heart rate',
-  'blood pressure',
-  'diabetes',
-  'cholesterol',
-  'health',
-  'workout plan',
-  'fitness plan',
-  'training plan',
-  'exercise plan',
-] as const;
+type ChatIntent = 'personalized' | 'info_evidence' | 'info_plain' | 'general';
 
-const SIMPLE_GREETING_PATTERN =
-  /^(hi|hello|hey|yo|namaste|thanks|thank you|ok|okay|cool|great|good morning|good afternoon|good evening)[\s!.,]*$/i;
+const PERSONALIZED_RE = /\b(my|me|for me|i want|create me|make me|plan for)\b/i;
+const PLAN_RE =
+  /\b(plan|routine|diet|meal|workout|weight loss|fat loss|goal)\b/i;
+const INFO_RE = /\b(what|why|how|when|should|is|are|explain|benefit|safe)\b/i;
+const EVIDENCE_RE =
+  /\b(nutrition|diet|meal|protein|calorie|macro|health|injury|recovery|supplement|weight loss|fat loss|workout|fitness)\b/i;
 
-function shouldRequireWebResearch(content: string): boolean {
-  const normalized = content.toLowerCase();
-  if (SIMPLE_GREETING_PATTERN.test(normalized.trim())) return false;
-  return RESEARCH_REQUIRED_TERMS.some((term) => normalized.includes(term));
+function routeChatIntent(content: string): ChatIntent {
+  if (PERSONALIZED_RE.test(content) && PLAN_RE.test(content)) {
+    return 'personalized';
+  }
+  if (INFO_RE.test(content) && EVIDENCE_RE.test(content)) {
+    return 'info_evidence';
+  }
+  if (INFO_RE.test(content)) return 'info_plain';
+  return 'general';
 }
 
-function researchReminder(content: string): string {
-  return (
-    '[Internal instruction: This user message asks for fitness, meal, diet, ' +
-    'nutrition, health, or planning guidance that needs current external ' +
-    'knowledge. Before answering or editing plans, call webSearch once and ' +
-    'use the returned sources. Citations are mandatory for the final reply. ' +
-    `User message: ${content}]`
-  );
-}
+function workflowInstruction(intent: ChatIntent, content: string): string {
+  const routes: Record<ChatIntent, string> = {
+    personalized:
+      'Route: personalized. Validate profile with getUserDetails, ask only for missing required choices, use plan tools only when editing or generating plans. Evidence source: Fit Crate KB pending. Citations: none.',
+    info_evidence:
+      'Route: information/evidence. Fit Crate KB evidence retrieval is pending, so answer from app-safe coaching guidance only. Citations: none.',
+    info_plain:
+      'Route: information/plain. Answer directly and briefly. Citations: none.',
+    general:
+      'Route: general. Stay in fitness-app scope; greet or clarify briefly. Citations: none.',
+  };
 
-/** Real sources (Google Search grounding) gathered across every step of a
- * turn, deduped by url and capped at `MAX_CITATIONS_PER_REPLY`. Only the
- * `url` source type carries a real link — `document`/other source types
- * (which `Source` also allows) are skipped. */
-function dedupeCitations(sources: readonly unknown[]): Citation[] {
-  const byUrl = new Map<string, Citation>();
-  for (const source of sources) {
-    if (typeof source !== 'object' || source === null) continue;
-    const { sourceType, type, url, title } = source as Record<string, unknown>;
-    if (sourceType !== 'url' && type !== 'url' && typeof title !== 'string') {
-      continue;
-    }
-    if (typeof url !== 'string' || byUrl.has(url)) {
-      continue;
-    }
-    byUrl.set(url, {
-      title: typeof title === 'string' && title.trim() ? title.trim() : url,
-      url,
-    });
-    if (byUrl.size >= MAX_CITATIONS_PER_REPLY) break;
-  }
-  return Array.from(byUrl.values());
-}
-
-function collectCitationCandidates(value: unknown, output: unknown[] = []) {
-  if (output.length >= MAX_CITATIONS_PER_REPLY * 4) return output;
-  if (!value || typeof value !== 'object') return output;
-
-  if (Array.isArray(value)) {
-    for (const item of value) collectCitationCandidates(item, output);
-    return output;
-  }
-
-  const record = value as Record<string, unknown>;
-  if (typeof record.url === 'string') output.push(record);
-
-  for (const key of [
-    'sources',
-    'citations',
-    'groundingMetadata',
-    'groundingChunks',
-    'providerMetadata',
-    'output',
-  ]) {
-    collectCitationCandidates(record[key], output);
-  }
-
-  return output;
+  return `[${routes[intent]}]\n${content}`;
 }
 
 function titleFromContent(content: string): string {
@@ -212,8 +141,6 @@ export class ChatsService {
     private readonly exercises: ExercisesService,
     private readonly dietPlans: DietPlansService,
     @Inject(AI_MODEL_RESOLVER) private readonly resolveModel: AiModelResolver,
-    @Inject(AI_SEARCH_TOOL_RESOLVER)
-    private readonly resolveSearchTool: AiSearchToolResolver,
   ) {}
 
   async list(
@@ -621,7 +548,7 @@ export class ChatsService {
       take: LIMITS.chatContextMessages,
     });
 
-    const requiresWebResearch = shouldRequireWebResearch(input.content);
+    const intent = routeChatIntent(input.content);
     const messages = history
       .reverse()
       .filter((message) => message.role !== ChatMessageRole.System)
@@ -634,20 +561,13 @@ export class ChatsService {
         return {
           role: message.role as 'user' | 'assistant',
           content:
-            message.id === userMessageRow.id && requiresWebResearch
-              ? researchReminder(lead || message.content)
+            message.id === userMessageRow.id
+              ? workflowInstruction(intent, lead || message.content)
               : lead || '(asked a clarifying question)',
         };
       });
 
     const system = resolvePrompt(PromptCategory.UserChat, settings?.aiPrompts);
-    const searchTool = this.resolveSearchTool(modelConfig);
-    if (requiresWebResearch && !searchTool) {
-      this.logger.warn(
-        `Chat reply for user ${userId} (conversation ${conversationId}) ` +
-          'requires web research, but no search tool is configured',
-      );
-    }
 
     const result = streamText({
       model,
@@ -662,18 +582,7 @@ export class ChatsService {
         updateDietDay: this.updateDietDayTool(userId),
         regenerateDietPlan: this.regenerateDietPlanTool(userId),
         [ASK_QUESTION_TOOL]: this.askQuestionTool(),
-        ...(searchTool ? { webSearch: searchTool } : {}),
       },
-      prepareStep:
-        requiresWebResearch && searchTool
-          ? ({ stepNumber }) =>
-              stepNumber === 0
-                ? {
-                    activeTools: ['webSearch'],
-                    toolChoice: 'required',
-                  }
-                : undefined
-          : undefined,
       stopWhen: stepCountIs(MAX_AGENT_STEPS),
       onFinish: async (event) => {
         const content = buildAssistantContent(event);
@@ -683,19 +592,12 @@ export class ChatsService {
         const outputTokens = event.totalUsage.outputTokens ?? 0;
         const totalTokens =
           event.totalUsage.totalTokens ?? inputTokens + outputTokens;
-        const citations = dedupeCitations(
-          event.steps.flatMap((step) => [
-            ...step.sources,
-            ...collectCitationCandidates(step.toolResults),
-            ...collectCitationCandidates(step.providerMetadata),
-            ...collectCitationCandidates(step.response.body),
-          ]),
-        );
+        const citations: [] = [];
 
         this.logger.log(
           `Chat reply for user ${userId} (conversation ${conversationId}): ` +
-            `${inputTokens} input + ${outputTokens} output = ${totalTokens} tokens` +
-            `${citations.length ? `, ${citations.length} citation(s)` : ''}`,
+            `${inputTokens} input + ${outputTokens} output = ${totalTokens} tokens, ` +
+            `route=${intent}`,
         );
 
         await this.prisma.chatMessage.create({
