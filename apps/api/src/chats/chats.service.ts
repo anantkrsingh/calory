@@ -48,7 +48,13 @@ import {
   type SendChatMessageInput,
   type UpdateChatInput,
 } from '@fitness/validation';
-import { stepCountIs, streamText, tool } from 'ai';
+import {
+  generateObject,
+  stepCountIs,
+  streamText,
+  tool,
+  type LanguageModel,
+} from 'ai';
 import { z } from 'zod';
 
 import {
@@ -61,47 +67,21 @@ import { DietPlansService } from '../diets/diet-plans.service';
 import { ExercisesService } from '../exercises/exercises.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { WorkoutRoutineService } from '../routines/workout-routine.service';
+import {
+  buildChatWorkflow,
+  buildFinalWorkflowInstruction,
+  buildWorkflowPlannerPrompt,
+  chatWorkflowPlanSchema,
+  type ChatProfileSnapshot,
+  type ChatWorkflow,
+  type ChatWorkflowPlan,
+} from './chat-workflow';
 
 const TITLE_MAX = LIMITS.chatTitle.max;
 const ASK_QUESTION_TOOL = 'askQuestion';
 // getUserDetails/getCurrentRoutine/getCurrentDietPlan/listExercises, an edit
 // (routine or diet), then (optionally) askQuestion or a final answer.
 const MAX_AGENT_STEPS = 10;
-
-type ChatIntent = 'personalized' | 'info_evidence' | 'info_plain' | 'general';
-
-const PERSONALIZED_RE = /\b(my|me|for me|i want|create me|make me|plan for)\b/i;
-const PLAN_RE =
-  /\b(plan|routine|diet|meal|workout|weight loss|fat loss|goal)\b/i;
-const INFO_RE = /\b(what|why|how|when|should|is|are|explain|benefit|safe)\b/i;
-const EVIDENCE_RE =
-  /\b(nutrition|diet|meal|protein|calorie|macro|health|injury|recovery|supplement|weight loss|fat loss|workout|fitness)\b/i;
-
-function routeChatIntent(content: string): ChatIntent {
-  if (PERSONALIZED_RE.test(content) && PLAN_RE.test(content)) {
-    return 'personalized';
-  }
-  if (INFO_RE.test(content) && EVIDENCE_RE.test(content)) {
-    return 'info_evidence';
-  }
-  if (INFO_RE.test(content)) return 'info_plain';
-  return 'general';
-}
-
-function workflowInstruction(intent: ChatIntent, content: string): string {
-  const routes: Record<ChatIntent, string> = {
-    personalized:
-      'Route: personalized. Validate profile with getUserDetails, ask only for missing required choices, use plan tools only when editing or generating plans. Evidence source: Fit Crate KB pending. Citations: none.',
-    info_evidence:
-      'Route: information/evidence. Fit Crate KB evidence retrieval is pending, so answer from app-safe coaching guidance only. Citations: none.',
-    info_plain:
-      'Route: information/plain. Answer directly and briefly. Citations: none.',
-    general:
-      'Route: general. Stay in fitness-app scope; greet or clarify briefly. Citations: none.',
-  };
-
-  return `[${routes[intent]}]\n${content}`;
-}
 
 function titleFromContent(content: string): string {
   const trimmed = content.trim().replace(/\s+/g, ' ');
@@ -501,6 +481,76 @@ export class ChatsService {
     });
   }
 
+  private async profileSnapshot(userId: Id): Promise<ChatProfileSnapshot> {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new NotFoundException('User not found');
+
+    const latest = await this.prisma.bodyMeasurement.findFirst({
+      where: { userId },
+      orderBy: { recordedAt: 'desc' },
+    });
+
+    return {
+      ageYears: user.profile.dateOfBirth
+        ? yearsSince(user.profile.dateOfBirth)
+        : null,
+      sex: user.profile.sex ?? null,
+      heightCm: user.profile.heightCm ?? null,
+      weightKg: latest?.weightKg ?? null,
+      activityLevel: user.profile.activityLevel ?? null,
+      fitnessGoals: user.profile.fitnessGoals,
+    };
+  }
+
+  private deterministicPlan(workflow: ChatWorkflow): ChatWorkflowPlan {
+    const responseMode =
+      workflow.state === 'needs_profile_input'
+        ? 'ask_profile_question'
+        : workflow.intent === 'personalized_plan' ||
+            workflow.intent === 'personalized_edit'
+          ? 'edit_or_generate'
+          : 'answer';
+
+    return {
+      workflowState: workflow.state,
+      responseMode,
+      requiredToolNames:
+        workflow.state === 'ready_for_personalized_answer'
+          ? ['getUserDetails']
+          : [],
+      assumptions: [],
+      answerOutline:
+        workflow.state === 'needs_profile_input'
+          ? [`Ask for ${workflow.missingProfileFields[0]}.`]
+          : ['Answer briefly within Fit Crate scope.'],
+    };
+  }
+
+  private async planWorkflow(
+    model: LanguageModel,
+    content: string,
+    workflow: ChatWorkflow,
+  ): Promise<ChatWorkflowPlan> {
+    try {
+      const result = await generateObject({
+        model,
+        schema: chatWorkflowPlanSchema,
+        system:
+          'Create a compact execution plan for a fitness chat reply. ' +
+          'Respect the provided workflow exactly.',
+        prompt: buildWorkflowPlannerPrompt(content, workflow),
+      });
+      return result.object;
+    } catch (error) {
+      this.logger.warn(
+        `Chat workflow planner failed; using deterministic fallback: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+      return this.deterministicPlan(workflow);
+    }
+  }
+
   async streamReply(
     userId: Id,
     conversationId: Id,
@@ -542,13 +592,22 @@ export class ChatsService {
       },
     });
 
-    const history = await this.prisma.chatMessage.findMany({
-      where: { conversationId },
-      orderBy: { createdAt: 'desc' },
-      take: LIMITS.chatContextMessages,
-    });
+    const [history, profile] = await Promise.all([
+      this.prisma.chatMessage.findMany({
+        where: { conversationId },
+        orderBy: { createdAt: 'desc' },
+        take: LIMITS.chatContextMessages,
+      }),
+      this.profileSnapshot(userId),
+    ]);
 
-    const intent = routeChatIntent(input.content);
+    const workflow = buildChatWorkflow(input.content, profile);
+    const workflowPlan = await this.planWorkflow(
+      model,
+      input.content,
+      workflow,
+    );
+
     const messages = history
       .reverse()
       .filter((message) => message.role !== ChatMessageRole.System)
@@ -562,7 +621,11 @@ export class ChatsService {
           role: message.role as 'user' | 'assistant',
           content:
             message.id === userMessageRow.id
-              ? workflowInstruction(intent, lead || message.content)
+              ? buildFinalWorkflowInstruction(
+                  workflow,
+                  workflowPlan,
+                  lead || message.content,
+                )
               : lead || '(asked a clarifying question)',
         };
       });
@@ -592,12 +655,12 @@ export class ChatsService {
         const outputTokens = event.totalUsage.outputTokens ?? 0;
         const totalTokens =
           event.totalUsage.totalTokens ?? inputTokens + outputTokens;
-        const citations: [] = [];
+        const citations = workflow.citations;
 
         this.logger.log(
           `Chat reply for user ${userId} (conversation ${conversationId}): ` +
             `${inputTokens} input + ${outputTokens} output = ${totalTokens} tokens, ` +
-            `route=${intent}`,
+            `intent=${workflow.intent}, state=${workflow.state}`,
         );
 
         await this.prisma.chatMessage.create({
