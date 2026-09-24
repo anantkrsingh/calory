@@ -47,11 +47,7 @@ export default function AndroidTabLayout() {
             tabBar={(props) => <TabBarPropsSync {...props} />}
             screenOptions={{
               headerShown: false,
-              animation: 'fade',
-              transitionSpec: {
-                animation: 'timing',
-                config: { duration: 150 },
-              },
+              animation: 'none',
             }}>
             <Tabs.Screen
               name="index"
@@ -91,7 +87,9 @@ export default function AndroidTabLayout() {
           </Tabs>
         </BlurTargetView>
 
-        {tabBarProps ? <AndroidTabbar {...tabBarProps} blurTarget={blurTargetRef} /> : null}
+        {tabBarProps ? (
+          <AndroidTabbar {...tabBarProps} blurTarget={blurTargetRef} />
+        ) : null}
       </View>
     </TabBarPropsProvider>
   );

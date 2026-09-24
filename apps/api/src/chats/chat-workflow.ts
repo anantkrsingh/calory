@@ -3,6 +3,7 @@ import { z } from 'zod';
 
 export type ChatIntent =
   | 'personalized_plan'
+  | 'personalized_info'
   | 'personalized_edit'
   | 'information_evidence'
   | 'information_plain'
@@ -46,11 +47,18 @@ const EDIT_RE = /\b(change|edit|replace|swap|update|remove|add|regenerate)\b/i;
 const PERSONAL_RE = /\b(my|me|for me|i want|create me|make me|plan for)\b/i;
 const INFO_RE = /\b(what|why|how|when|should|is|are|explain|benefit|safe)\b/i;
 const EVIDENCE_RE =
-  /\b(nutrition|diet|meal|protein|calorie|macro|health|injury|recovery|supplement|weight loss|fat loss|workout|fitness)\b/i;
+  /\b(nutrition|diet|meal|protein|calorie|macro|health|injury|recovery|supplement|weight|bmi|body fat|weight loss|fat loss|workout|fitness)\b/i;
 
 export function routeChatIntent(content: string): ChatIntent {
   if (PERSONAL_RE.test(content) && PLAN_RE.test(content)) {
     return EDIT_RE.test(content) ? 'personalized_edit' : 'personalized_plan';
+  }
+  if (
+    PERSONAL_RE.test(content) &&
+    INFO_RE.test(content) &&
+    EVIDENCE_RE.test(content)
+  ) {
+    return 'personalized_info';
   }
   if (INFO_RE.test(content) && EVIDENCE_RE.test(content)) {
     return 'information_evidence';
@@ -63,6 +71,10 @@ export function validateProfileForIntent(
   intent: ChatIntent,
   profile: ChatProfileSnapshot,
 ): string[] {
+  if (intent === 'personalized_info') {
+    return profile.heightCm ? [] : ['height'];
+  }
+
   if (intent !== 'personalized_plan' && intent !== 'personalized_edit') {
     return [];
   }
@@ -103,7 +115,9 @@ export function buildChatWorkflow(
   const state: ChatWorkflowState =
     missingProfileFields.length > 0
       ? 'needs_profile_input'
-      : intent === 'personalized_plan' || intent === 'personalized_edit'
+      : intent === 'personalized_plan' ||
+          intent === 'personalized_edit' ||
+          intent === 'personalized_info'
         ? 'ready_for_personalized_answer'
         : intent === 'information_evidence'
           ? evidence.length > 0
@@ -156,6 +170,11 @@ export function buildFinalWorkflowInstruction(
     workflow,
     plan,
     citationsAllowed: workflow.citations.length,
+    rules: [
+      'Answer only fitness, nutrition, recovery, healthy habit, and app-data parts.',
+      'Briefly decline unrelated parts such as programming or school/work tasks.',
+      'Use getUserDetails before answering personal weight, BMI, calorie, diet, or routine questions.',
+    ],
     userMessage: content,
   });
 }

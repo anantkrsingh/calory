@@ -18,6 +18,14 @@ import { dietPlansService } from '@/services/diet-plans.service';
 import { CaloriesQueries } from './calories.queries';
 import { selectIsAuthenticated, useAuthStore } from '@/stores/auth.store';
 
+function shouldPollGeneratingPlan(query: {
+  state: {
+    data?: TodayDiet;
+  };
+}) {
+  return query.state.data?.planStatus === 'generating' ? 4000 : false;
+}
+
 export class DietPlansQueries {
   static readonly root = ['diet-plans'] as const;
 
@@ -44,8 +52,10 @@ export class DietPlansQueries {
       staleTime: 30 * 1000,
       // Poll while the plan is still generating, so the loading state clears
       // on its own once it's ready instead of waiting for the next reopen.
-      refetchInterval: (query) =>
-        query.state.data?.planStatus === 'generating' ? 4000 : false,
+      // This only runs after a successful response says `generating`; failed
+      // server-down responses do not retry below.
+      retry: false,
+      refetchInterval: shouldPollGeneratingPlan,
     });
   }
 }
@@ -87,6 +97,30 @@ type MarkDietItemsTakenVariables = {
   input: MarkDietItemsTakenInput;
 };
 
+type MarkDietItemsTakenContext = {
+  previous?: TodayDiet;
+};
+
+function optimisticTakenItemIds(
+  current: TodayDiet,
+  input: MarkDietItemsTakenInput,
+): string[] {
+  const ids = new Set(current.takenItemIds);
+  const meal = current.day?.meals.find(
+    (candidate) => candidate.id === input.mealId,
+  );
+  const targetIds = input.itemId
+    ? [input.itemId]
+    : (meal?.items.map((item) => item.id) ?? []);
+
+  for (const id of targetIds) {
+    if (input.taken) ids.add(id);
+    else ids.delete(id);
+  }
+
+  return Array.from(ids);
+}
+
 export function useMarkDietItemsTaken(): UseMutationResult<
   TodayDiet,
   Error,
@@ -97,6 +131,28 @@ export function useMarkDietItemsTaken(): UseMutationResult<
   return useMutation({
     mutationFn: ({ date, input }: MarkDietItemsTakenVariables) =>
       dietPlansService.markTaken(date, input),
+    onMutate: async ({ date, input }) => {
+      const queryKey = DietPlansQueries.keys.today(date);
+      await queryClient.cancelQueries({ queryKey });
+
+      const previous = queryClient.getQueryData<TodayDiet>(queryKey);
+      if (previous) {
+        queryClient.setQueryData<TodayDiet>(queryKey, {
+          ...previous,
+          takenItemIds: optimisticTakenItemIds(previous, input),
+        });
+      }
+
+      return { previous } satisfies MarkDietItemsTakenContext;
+    },
+    onError: (_error, { date }, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(
+          DietPlansQueries.keys.today(date),
+          context.previous,
+        );
+      }
+    },
     onSuccess: (data, { date }) => {
       queryClient.setQueryData(DietPlansQueries.keys.today(date), data);
       // Intake changed, so the day's balance did too.

@@ -1,8 +1,15 @@
 import type { DietMeal } from '@fitness/types';
 import { useRouter } from 'expo-router';
 import { RotateCw } from 'lucide-react-native';
-import { useCallback, useMemo, useRef, useState } from 'react';
-import { Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  ActivityIndicator,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AddPortionSheet, type AddPortionSheetRef } from '@/components/diet/AddPortionSheet';
@@ -17,7 +24,7 @@ import { TabScreen } from '@/components/tab-screen';
 import { ThemedText } from '@/components/themed-text';
 import { CitationsSheet, type CitationsSheetRef } from '@/components/ui/CitationsSheet';
 import PrimaryButton from '@/components/ui/PrimaryButton';
-import { BottomTabInset, Spacing } from '@/constants/theme';
+import { BottomTabInset, Brand, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { currentWeekDates, todayIsoDate, weekdayName } from '@/lib/date';
 import { useCalorieBalance } from '@/queries/calories.queries';
@@ -26,6 +33,9 @@ import {
   useRemovePortion,
   useTodayDiet,
 } from '@/queries/diet-plans.queries';
+
+const RECONCILE_REFETCH_DELAY_MS = 5000;
+const MAX_RECONCILE_REFETCHES = 4;
 
 export default function DietsScreen() {
   const theme = useTheme();
@@ -52,10 +62,14 @@ export default function DietsScreen() {
   const dayQuery = useTodayDiet(displayDate);
   const { data } = dayQuery;
   const caloriesQuery = useCalorieBalance(displayDate);
+  const refetchStatusDiet = statusQuery.refetch;
+  const refetchDayDiet = dayQuery.refetch;
+  const refetchDietCalories = caloriesQuery.refetch;
   const markTaken = useMarkDietItemsTaken();
   const removePortion = useRemovePortion();
   const addPortionRef = useRef<AddPortionSheetRef>(null);
   const citationsSheetRef = useRef<CitationsSheetRef>(null);
+  const dietReconcileAttemptsRef = useRef(0);
   const showCitations = useCallback((meal: DietMeal) => {
     citationsSheetRef.current?.present(meal.citations, meal.name);
   }, []);
@@ -85,17 +99,47 @@ export default function DietsScreen() {
     () => new Set(data?.takenItemIds ?? []),
     [data?.takenItemIds],
   );
+  const isDietReconciling =
+    statusQuery.data?.planStatus === 'active' &&
+    data?.planStatus === 'active' &&
+    (!data.day || data.day.meals.length === 0);
+
+  useEffect(() => {
+    if (!isDietReconciling) {
+      dietReconcileAttemptsRef.current = 0;
+      return;
+    }
+    if (dietReconcileAttemptsRef.current >= MAX_RECONCILE_REFETCHES) return;
+
+    const timeout = setTimeout(() => {
+      dietReconcileAttemptsRef.current += 1;
+      void refetchStatusDiet();
+      void refetchDayDiet();
+      void refetchDietCalories();
+    }, RECONCILE_REFETCH_DELAY_MS);
+
+    return () => clearTimeout(timeout);
+  }, [
+    isDietReconciling,
+    refetchDayDiet,
+    refetchDietCalories,
+    refetchStatusDiet,
+  ]);
 
   const toggleItem = useCallback(
     (mealId: string, itemId: string, taken: boolean) => {
-      void markTaken.mutateAsync({ date: displayDate, input: { mealId, itemId, taken } });
+      void markTaken
+        .mutateAsync({ date: displayDate, input: { mealId, itemId, taken } })
+        .catch(() => undefined);
     },
     [markTaken, displayDate],
   );
 
   const toggleMeal = useCallback(
     (mealId: string, taken: boolean) => {
-      void markTaken.mutateAsync({ date: displayDate, input: { mealId, taken } });
+      void markTaken
+        .mutateAsync({ date: displayDate, input: { mealId, taken } })
+        .catch(() => undefined);
     },
     [markTaken, displayDate],
   );
@@ -250,6 +294,17 @@ export default function DietsScreen() {
     // Plan is active — the day currently on screen may still be loading
     // (e.g. a day not visited yet this session); scope the shimmer to just
     // that content instead of the chrome above.
+    if (isDietReconciling) {
+      return (
+        <View style={styles.reconcilePanel}>
+          <ActivityIndicator color={Brand.accent} />
+          <ThemedText themeColor="textSecondary">
+            Preparing your meals…
+          </ThemedText>
+        </View>
+      );
+    }
+
     if (activeMode === 'metrics') {
       return data ? renderMetrics() : <DietMetricsSkeleton />;
     }
@@ -353,6 +408,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingTop: Spacing.six,
     paddingHorizontal: Spacing.two,
+  },
+  reconcilePanel: {
+    alignItems: 'center',
+    gap: Spacing.three,
+    justifyContent: 'center',
+    minHeight: 220,
   },
   emptyTitle: {
     fontSize: 20,

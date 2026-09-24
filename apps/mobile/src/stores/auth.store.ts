@@ -2,6 +2,7 @@ import type { AuthSession, AuthTokens, User } from '@fitness/types';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
+import { queryClient } from '@/api/query-client';
 import { mmkvStorage } from '@/lib/storage';
 import { useChatSessionStore } from '@/stores/chat-session.store';
 
@@ -34,8 +35,10 @@ export const useAuthStore = create<AuthStore>()(
       tokens: null,
       hydrated: false,
 
-      setSession: (session) =>
-        set({ user: session.user, tokens: session.tokens }),
+      setSession: (session) => {
+        queryClient.clear();
+        set({ user: session.user, tokens: session.tokens });
+      },
 
       setTokens: (tokens) => set({ tokens }),
 
@@ -44,6 +47,7 @@ export const useAuthStore = create<AuthStore>()(
       setHydrated: () => set({ hydrated: true }),
 
       clear: () => {
+        queryClient.clear();
         set({ user: null, tokens: null });
         // The chat tab remembers the last-open conversation by id (see
         // chat-session.store) — it's device-persisted, not user-scoped, so

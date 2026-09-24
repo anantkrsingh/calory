@@ -36,6 +36,11 @@ export default function ChatScreen() {
   const { data: chats, isLoading: listing } = useChats();
   const createChat = useCreateChat();
   const ensuringRef = useRef(false);
+  const autoStartFailedRef = useRef(false);
+  const startupError =
+    !activeId && createChat.error
+      ? getErrorMessage(createChat.error, 'Something went wrong. Try again.')
+      : null;
 
   // Ensure there is always an active conversation for the tab.
   useEffect(() => {
@@ -45,21 +50,22 @@ export default function ChatScreen() {
     if (activeId) return;
     if (listing && items === undefined) return;
 
+    const latest = items?.[0];
+    if (latest) {
+      setActiveId(latest.id);
+      return;
+    }
+    if (autoStartFailedRef.current) return;
+
     ensuringRef.current = true;
     void (async () => {
       try {
-        const latest = items?.[0];
-        if (latest) {
-          setActiveId(latest.id);
-          return;
-        }
         const created = await createChat.mutateAsync({});
         setActiveId(created.id);
       } catch (err) {
-        Alert.alert(
-          'Couldn’t start chat',
-          getErrorMessage(err, 'Something went wrong. Try again.'),
-        );
+        const message = getErrorMessage(err, 'Something went wrong. Try again.');
+        autoStartFailedRef.current = true;
+        Alert.alert('Couldn’t start chat', message);
       } finally {
         ensuringRef.current = false;
       }
@@ -91,13 +97,14 @@ export default function ChatScreen() {
 
   const startNewChat = useCallback(async () => {
     try {
+      autoStartFailedRef.current = false;
+      createChat.reset();
       const created = await createChat.mutateAsync({});
       setActiveId(created.id);
     } catch (err) {
-      Alert.alert(
-        'Couldn’t start chat',
-        getErrorMessage(err, 'Something went wrong. Try again.'),
-      );
+      const message = getErrorMessage(err, 'Something went wrong. Try again.');
+      autoStartFailedRef.current = true;
+      Alert.alert('Couldn’t start chat', message);
     }
   }, [createChat, setActiveId]);
 
@@ -144,8 +151,35 @@ export default function ChatScreen() {
 
       {!activeId ? (
         <View style={styles.centered}>
-          <ActivityIndicator color={Brand.accent} />
-          <ThemedText themeColor="textSecondary">Opening coach…</ThemedText>
+          {startupError ? (
+            <>
+              <ThemedText type="subtitle">Couldn’t start chat</ThemedText>
+              <ThemedText style={styles.errorText} themeColor="textSecondary">
+                {startupError}
+              </ThemedText>
+              <Pressable
+                accessibilityRole="button"
+                disabled={createChat.isPending}
+                onPress={() => {
+                  void startNewChat();
+                }}
+                style={[
+                  styles.retryButton,
+                  { backgroundColor: Brand.accent },
+                ]}>
+                {createChat.isPending ? (
+                  <ActivityIndicator color="#FFFFFF" />
+                ) : (
+                  <ThemedText style={styles.retryText}>Try again</ThemedText>
+                )}
+              </Pressable>
+            </>
+          ) : (
+            <>
+              <ActivityIndicator color={Brand.accent} />
+              <ThemedText themeColor="textSecondary">Opening coach…</ThemedText>
+            </>
+          )}
         </View>
       ) : (
         <ChatThread
@@ -185,5 +219,21 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: Spacing.three,
     justifyContent: 'center',
+    paddingHorizontal: Spacing.four,
+  },
+  errorText: {
+    textAlign: 'center',
+  },
+  retryButton: {
+    alignItems: 'center',
+    borderRadius: 18,
+    justifyContent: 'center',
+    minHeight: 44,
+    minWidth: 120,
+    paddingHorizontal: Spacing.four,
+  },
+  retryText: {
+    color: '#FFFFFF',
+    fontFamily: 'Ubuntu_700Bold',
   },
 });

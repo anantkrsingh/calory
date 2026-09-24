@@ -2,6 +2,8 @@ import { QueryClient } from '@tanstack/react-query';
 
 import { isApiError } from './errors';
 
+const MAX_QUERY_RETRIES = 1;
+
 /**
  * Retrying a 4xx just repeats a request the server already rejected, so only
  * network/5xx failures get a second chance.
@@ -13,7 +15,7 @@ export function createQueryClient(): QueryClient {
         staleTime: 30 * 1000,
         retry: (failureCount, error) => {
           if (isApiError(error) && error.status < 500) return false;
-          return failureCount < 2;
+          return failureCount < MAX_QUERY_RETRIES;
         },
       },
       mutations: {

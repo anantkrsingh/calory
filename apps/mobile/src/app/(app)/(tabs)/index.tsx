@@ -3,7 +3,7 @@ import type { TodayRoutineExercise } from "@fitness/types";
 import { useRouter } from "expo-router";
 import { Flame, Footprints } from "lucide-react-native";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { RefreshControl, ScrollView, StyleSheet, View } from "react-native";
+import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { TabScreen } from "@/components/tab-screen";
@@ -36,6 +36,8 @@ import { selectUser, useAuthStore } from "@/stores/auth.store";
 const RING_SIZE = 96;
 const RING_STROKE = 12;
 const RING_ICON_SIZE = 26;
+const RECONCILE_REFETCH_DELAY_MS = 5000;
+const MAX_RECONCILE_REFETCHES = 4;
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -65,6 +67,7 @@ export default function HomeScreen() {
     refetch: refetchWeekCalories,
   } = useWeekCalories(weekDates[0], weekDates[6]);
   const { steps: liveSteps } = useStepsTracker();
+  const routineReconcileAttemptsRef = useRef(0);
 
   useRegisterPushNotifications();
 
@@ -106,6 +109,26 @@ export default function HomeScreen() {
       ),
     [routine?.exercises],
   );
+  const isRoutineReconciling =
+    routine?.routineStatus === "active" &&
+    (!routine.day ||
+      (routine.day.status !== "rest" && routine.exercises.length === 0));
+
+  useEffect(() => {
+    if (!isRoutineReconciling) {
+      routineReconcileAttemptsRef.current = 0;
+      return;
+    }
+    if (routineReconcileAttemptsRef.current >= MAX_RECONCILE_REFETCHES) return;
+
+    const timeout = setTimeout(() => {
+      routineReconcileAttemptsRef.current += 1;
+      void refetchRoutine();
+      void refetchWeekCalories();
+    }, RECONCILE_REFETCH_DELAY_MS);
+
+    return () => clearTimeout(timeout);
+  }, [isRoutineReconciling, refetchRoutine, refetchWeekCalories]);
 
   // Treated as one data unit on screen — surface a single error/retry rather
   // than one per query, even though the two queries are independent.
@@ -181,6 +204,13 @@ export default function HomeScreen() {
             <View style={styles.dayContent}>
               {isRoutineLoading ? (
                 <DaySummarySkeleton />
+              ) : isRoutineReconciling ? (
+                <View style={styles.reconcilePanel}>
+                  <ActivityIndicator color={Brand.accent} />
+                  <ThemedText themeColor="textSecondary">
+                    Preparing today’s routine…
+                  </ThemedText>
+                </View>
               ) : (
                 <>
                   <View style={styles.ringsRow}>
@@ -333,5 +363,11 @@ const styles = StyleSheet.create({
   },
   list: {
     gap: Spacing.two,
+  },
+  reconcilePanel: {
+    alignItems: "center",
+    gap: Spacing.three,
+    justifyContent: "center",
+    minHeight: 220,
   },
 });

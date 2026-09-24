@@ -16,6 +16,14 @@ import {
 import { workoutRoutinesService } from '@/services/workout-routines.service';
 import { selectIsAuthenticated, useAuthStore } from '@/stores/auth.store';
 
+function shouldPollGeneratingRoutine(query: {
+  state: {
+    data?: TodayRoutine;
+  };
+}) {
+  return query.state.data?.routineStatus === 'generating' ? 4000 : false;
+}
+
 export class WorkoutRoutinesQueries {
   static readonly root = ['workout-routines'] as const;
 
@@ -46,8 +54,10 @@ export class WorkoutRoutinesQueries {
       staleTime: 60 * 1000,
       // Poll while the plan is still generating, so the loading state clears
       // on its own once it's ready instead of waiting for the next reopen.
-      refetchInterval: (query) =>
-        query.state.data?.routineStatus === 'generating' ? 4000 : false,
+      // This only runs after a successful response says `generating`; failed
+      // server-down responses do not retry below.
+      retry: false,
+      refetchInterval: shouldPollGeneratingRoutine,
     });
   }
 
