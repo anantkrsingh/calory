@@ -82,6 +82,9 @@ const ASK_QUESTION_TOOL = 'askQuestion';
 // getUserDetails/getCurrentRoutine/getCurrentDietPlan/listExercises, an edit
 // (routine or diet), then (optionally) askQuestion or a final answer.
 const MAX_AGENT_STEPS = 10;
+const DIET_SAVE_CONFIRM_RE =
+  /\b(yes|yeah|yep|ok|okay|confirm|confirmed|do it|go ahead|looks good|save it|save this|update it)\b/i;
+const DIET_SAVE_DECLINE_RE = /\b(no|nope|don't|dont|cancel|stop|not now)\b/i;
 
 function titleFromContent(content: string): string {
   const trimmed = content.trim().replace(/\s+/g, ' ');
@@ -109,6 +112,12 @@ function buildAssistantContent(event: {
   return lead
     ? `${lead}\n${ASK_QUESTION_MARKER}${json}`
     : `${ASK_QUESTION_MARKER}${json}`;
+}
+
+function confirmsDietSave(content: string): boolean {
+  return (
+    DIET_SAVE_CONFIRM_RE.test(content) && !DIET_SAVE_DECLINE_RE.test(content)
+  );
 }
 
 @Injectable()
@@ -439,7 +448,7 @@ export class ChatsService {
     });
   }
 
-  private regenerateDietPlanTool(userId: Id) {
+  private regenerateDietPlanTool(userId: Id, latestUserContent: string) {
     return tool({
       description:
         'Rebuild the user’s ENTIRE weekly diet plan with new preferences ' +
@@ -452,8 +461,10 @@ export class ChatsService {
         'than interrogating them field by field. Only ask first — with ' +
         'askQuestion, one specific thing, never several bundled into one ' +
         'message — when a field is genuinely ambiguous (e.g. "change my ' +
-        'diet" with no hint which way); otherwise just generate it and ' +
-        'mention what you assumed.',
+        'diet" with no hint which way). Before calling this tool, the ' +
+        'latest user reply must clearly confirm saving the 7-day plan to ' +
+        'their Diets list after you ask "Should I update this in your ' +
+        'Diets list?". If not confirmed yet, use askQuestion first.',
       inputSchema: z.object({
         dietTypes: z.array(dietTypeSchema).min(1).max(3).optional(),
         cuisine: dietCuisineSchema.optional(),
@@ -461,6 +472,14 @@ export class ChatsService {
         mealsPerDay: z.number().int().min(2).max(6).optional(),
       }),
       execute: async (input) => {
+        if (!confirmsDietSave(latestUserContent)) {
+          return {
+            status: 'needs_confirmation',
+            message:
+              'Ask the user to confirm before saving: "Should I update this in your Diets list?"',
+          };
+        }
+
         const current = await this.dietPlans
           .findCurrent(userId)
           .catch(() => null);
@@ -489,6 +508,16 @@ export class ChatsService {
       where: { userId },
       orderBy: { recordedAt: 'desc' },
     });
+    const currentDietPlan = await this.prisma.dietPlan.findFirst({
+      where: { userId, status: { in: ['active', 'generating'] } },
+      orderBy: { createdAt: 'desc' },
+      select: {
+        dietTypes: true,
+        cuisine: true,
+        exclude: true,
+        mealsPerDay: true,
+      },
+    });
 
     return {
       ageYears: user.profile.dateOfBirth
@@ -499,6 +528,10 @@ export class ChatsService {
       weightKg: latest?.weightKg ?? null,
       activityLevel: user.profile.activityLevel ?? null,
       fitnessGoals: user.profile.fitnessGoals,
+      dietTypes: currentDietPlan?.dietTypes ?? [],
+      dietCuisine: currentDietPlan?.cuisine ?? null,
+      dietExclusions: currentDietPlan?.exclude ?? [],
+      mealsPerDay: currentDietPlan?.mealsPerDay ?? null,
     };
   }
 
@@ -516,7 +549,9 @@ export class ChatsService {
       responseMode,
       requiredToolNames:
         workflow.state === 'ready_for_personalized_answer'
-          ? ['getUserDetails']
+          ? workflow.requiresDietPreferences
+            ? ['getUserDetails', 'getCurrentDietPlan']
+            : ['getUserDetails']
           : [],
       assumptions: [],
       answerOutline:
@@ -643,7 +678,7 @@ export class ChatsService {
         updateRoutineDay: this.updateRoutineDayTool(userId),
         getCurrentDietPlan: this.getCurrentDietPlanTool(userId),
         updateDietDay: this.updateDietDayTool(userId),
-        regenerateDietPlan: this.regenerateDietPlanTool(userId),
+        regenerateDietPlan: this.regenerateDietPlanTool(userId, input.content),
         [ASK_QUESTION_TOOL]: this.askQuestionTool(),
       },
       stopWhen: stepCountIs(MAX_AGENT_STEPS),

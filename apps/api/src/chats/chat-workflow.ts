@@ -23,6 +23,10 @@ export interface ChatProfileSnapshot {
   weightKg: number | null;
   activityLevel: string | null;
   fitnessGoals: string[];
+  dietTypes: string[];
+  dietCuisine: string | null;
+  dietExclusions: string[];
+  mealsPerDay: number | null;
 }
 
 export interface FitCrateEvidence {
@@ -36,6 +40,7 @@ export interface FitCrateEvidence {
 export interface ChatWorkflow {
   intent: ChatIntent;
   state: ChatWorkflowState;
+  requiresDietPreferences: boolean;
   missingProfileFields: string[];
   evidence: FitCrateEvidence[];
   citations: Citation[];
@@ -43,11 +48,15 @@ export interface ChatWorkflow {
 
 const PLAN_RE =
   /\b(plan|routine|diet|meal|workout|weight loss|fat loss|goal|program)\b/i;
+const DIET_PLAN_RE =
+  /\b(diet|meal|meals|food|nutrition|calorie|calories|macro|macros|weight loss|fat loss)\b/i;
 const EDIT_RE = /\b(change|edit|replace|swap|update|remove|add|regenerate)\b/i;
 const PERSONAL_RE = /\b(my|me|for me|i want|create me|make me|plan for)\b/i;
 const INFO_RE = /\b(what|why|how|when|should|is|are|explain|benefit|safe)\b/i;
 const EVIDENCE_RE =
   /\b(nutrition|diet|meal|protein|calorie|macro|health|injury|recovery|supplement|weight|bmi|body fat|weight loss|fat loss|workout|fitness)\b/i;
+const DIET_TYPE_RE = /\b(vegan|vegetarian|veg|non[-\s]?veg|nonvegetarian)\b/i;
+const MEALS_PER_DAY_RE = /\b[2-6]\s*(meals?|times?)\b/i;
 
 export function routeChatIntent(content: string): ChatIntent {
   if (PERSONAL_RE.test(content) && PLAN_RE.test(content)) {
@@ -70,6 +79,7 @@ export function routeChatIntent(content: string): ChatIntent {
 export function validateProfileForIntent(
   intent: ChatIntent,
   profile: ChatProfileSnapshot,
+  content: string,
 ): string[] {
   if (intent === 'personalized_info') {
     return profile.heightCm ? [] : ['height'];
@@ -86,7 +96,19 @@ export function validateProfileForIntent(
   if (!profile.weightKg) missing.push('weight');
   if (!profile.activityLevel) missing.push('activityLevel');
   if (profile.fitnessGoals.length === 0) missing.push('fitnessGoals');
+  if (requiresDietPreferences(content)) {
+    if (profile.dietTypes.length === 0 && !DIET_TYPE_RE.test(content)) {
+      missing.push('dietTypes');
+    }
+    if (!profile.mealsPerDay && !MEALS_PER_DAY_RE.test(content)) {
+      missing.push('mealsPerDay');
+    }
+  }
   return missing;
+}
+
+export function requiresDietPreferences(content: string): boolean {
+  return DIET_PLAN_RE.test(content);
 }
 
 export function retrieveFitCrateEvidence(
@@ -108,7 +130,14 @@ export function buildChatWorkflow(
   profile: ChatProfileSnapshot,
 ): ChatWorkflow {
   const intent = routeChatIntent(content);
-  const missingProfileFields = validateProfileForIntent(intent, profile);
+  const needsDietPreferences =
+    (intent === 'personalized_plan' || intent === 'personalized_edit') &&
+    requiresDietPreferences(content);
+  const missingProfileFields = validateProfileForIntent(
+    intent,
+    profile,
+    content,
+  );
   const evidence = retrieveFitCrateEvidence(intent);
   const citations = mapVerifiedCitations(evidence);
 
@@ -127,7 +156,14 @@ export function buildChatWorkflow(
             ? 'ready_for_plain_answer'
             : 'general_reply';
 
-  return { intent, state, missingProfileFields, evidence, citations };
+  return {
+    intent,
+    state,
+    requiresDietPreferences: needsDietPreferences,
+    missingProfileFields,
+    evidence,
+    citations,
+  };
 }
 
 export const chatWorkflowPlanSchema = z.object({
@@ -156,6 +192,8 @@ export function buildWorkflowPlannerPrompt(
     rules: [
       'Do not add citations or urls.',
       'If state is needs_profile_input, ask for one missing field only.',
+      'For missing dietTypes ask veg, non-veg, vegan, or mixed veg/non-veg.',
+      'For missing mealsPerDay ask how many meals per day, 2 to 6.',
       'Prefer short answers and low tool use.',
     ],
   });
@@ -174,6 +212,9 @@ export function buildFinalWorkflowInstruction(
       'Answer only fitness, nutrition, recovery, healthy habit, and app-data parts.',
       'Briefly decline unrelated parts such as programming or school/work tasks.',
       'Use getUserDetails before answering personal weight, BMI, calorie, diet, or routine questions.',
+      'For diet-plan generation, make sure BMI inputs and diet preferences are known before using regenerateDietPlan.',
+      'For diet-plan generation, ask for confirmation before saving: "Should I update this in your Diets list?"',
+      'Only call regenerateDietPlan when the latest user reply clearly confirms saving the plan.',
     ],
     userMessage: content,
   });
