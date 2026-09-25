@@ -136,6 +136,7 @@ enum PromptCategory {
   quote_of_the_day
   workout_routine
   user_chat
+  chat_categorization
   diet_plan
 }
 

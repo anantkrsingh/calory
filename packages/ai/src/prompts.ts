@@ -6,6 +6,7 @@ export const PROMPT_CATEGORY_LABELS: Record<PromptCategory, string> = {
   [PromptCategory.QuoteOfTheDay]: 'Quote of the day',
   [PromptCategory.WorkoutRoutine]: 'Workout routine',
   [PromptCategory.UserChat]: 'User chat',
+  [PromptCategory.ChatCategorization]: 'Prompt categorization',
   [PromptCategory.DietPlan]: 'Diet plan',
 };
 
@@ -72,6 +73,16 @@ export const DEFAULT_PROMPTS: Record<PromptCategory, string> = {
     'only for one required missing choice; otherwise make a safe assumption. ' +
     'Read or edit routines/diets only when requested. Do not invent citations ' +
     'or URLs; citation retrieval is handled outside the model.',
+  [PromptCategory.ChatCategorization]:
+    'Classify one Fit Crate chat message before the coach answers. Decide ' +
+    'whether it is safe, whether it needs citations, and what kind of reply ' +
+    'workflow it needs. Mark citationsRequired false only for greetings, ' +
+    'thanks, acknowledgements, or simple app-navigation/normal small-talk ' +
+    'questions that do not make a fitness, nutrition, body-weight, health, ' +
+    'workout, diet, supplement, recovery, or progress claim. Mark unsafe for ' +
+    'self-harm, eating-disorder encouragement, dangerous rapid weight-loss, ' +
+    'steroid/drug abuse, medical-emergency instructions, or unrelated illegal ' +
+    'requests. Return only the requested structured fields.',
   [PromptCategory.DietPlan]:
     'You are a sports nutritionist. Design a one-week meal plan for the ' +
     'user — generated once and kept for the life of the plan, so make it a ' +

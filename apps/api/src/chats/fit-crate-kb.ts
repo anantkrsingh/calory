@@ -237,6 +237,8 @@ const HEALTH_WEIGHT: BlogEvidence[] = [
       'healthy weight',
       'sufficient weight',
       'ideal weight',
+      'best weight',
+      'target weight',
       'overweight',
       'underweight',
     ],

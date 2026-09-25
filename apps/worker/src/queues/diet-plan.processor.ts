@@ -53,6 +53,7 @@ const DIET_OBJECT_MAX_OUTPUT_TOKENS = 23000;
 // Give the repair attempt even more headroom — a truncated first attempt
 // means the budget above wasn't enough.
 const DIET_OBJECT_REPAIR_MAX_OUTPUT_TOKENS = 32000;
+const CITATIONS_PER_MEAL = 3;
 
 const DIET_TYPE_LABEL: Record<DietType, string> = {
   veg: 'Vegetarian (no meat or fish; eggs/dairy are fine)',
@@ -96,6 +97,22 @@ function formatDietPreferences(plan: {
       : '- No excluded foods.',
     `- Exactly ${plan.mealsPerDay} meals every day, no more and no fewer.`,
   ].join('\n');
+}
+
+function fallbackCitationsForMeal(
+  sources: readonly Citation[],
+  dayIndex: number,
+  mealIndex: number,
+): Citation[] {
+  if (sources.length === 0) return [];
+
+  const citations: Citation[] = [];
+  const count = Math.min(CITATIONS_PER_MEAL, sources.length);
+  for (let offset = 0; offset < count; offset += 1) {
+    const source = sources[(dayIndex + mealIndex + offset) % sources.length];
+    if (source) citations.push(source);
+  }
+  return citations;
 }
 
 type PersistedDietItem = {
@@ -418,10 +435,14 @@ export class DietPlanProcessor implements OnModuleInit, OnModuleDestroy {
         // Never trust the model's own title/url — only that a claimed
         // citation's url exactly matches a real search result; the
         // canonical title always comes from the source pool itself.
-        const citations: Citation[] = (meal.citations ?? [])
+        const modelCitations: Citation[] = (meal.citations ?? [])
           .map((c) => sourcesByUrl.get(c.url))
           .filter((c): c is Citation => c !== undefined)
-          .slice(0, 3);
+          .slice(0, CITATIONS_PER_MEAL);
+        const citations =
+          modelCitations.length > 0
+            ? modelCitations
+            : fallbackCitationsForMeal(sources, dayIndex, mealIndex);
 
         const totals = items.reduce(
           (acc, item) => ({

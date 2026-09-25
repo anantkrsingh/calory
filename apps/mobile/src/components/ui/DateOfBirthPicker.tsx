@@ -1,16 +1,24 @@
-import { TrueSheet } from '@lodev09/react-native-true-sheet';
+import { BlurView } from 'expo-blur';
 import { ChevronLeft, ChevronRight } from 'lucide-react-native';
 import {
+  useCallback,
   forwardRef,
   useImperativeHandle,
   useMemo,
-  useRef,
   useState,
 } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import Animated, {
+  Easing,
+  runOnJS,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
 
 import { ThemedText } from '@/components/themed-text';
 import { Brand, Spacing } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useTheme } from '@/hooks/use-theme';
 
 export type DateOfBirthPickerRef = {
@@ -43,6 +51,11 @@ const GRID_COLUMNS = 4;
 const GRID_GAP = 8;
 const YEAR_GRID_MAX_HEIGHT = 280;
 const HANDLE_COLOR = 'rgba(120, 120, 128, 0.3)';
+const BACKDROP_IN_MS = 180;
+const BACKDROP_OUT_MS = 140;
+const CARD_IN_MS = 220;
+const CARD_OUT_MS = 200;
+const CARD_HIDDEN_TRANSLATE_Y = 520;
 
 function pad2(value: number): string {
   return String(value).padStart(2, '0');
@@ -92,7 +105,11 @@ export default forwardRef<DateOfBirthPickerRef, DateOfBirthPickerProps>(function
   ref,
 ) {
   const theme = useTheme();
-  const sheetRef = useRef<TrueSheet>(null);
+  const scheme = useColorScheme();
+  const [visible, setVisible] = useState(false);
+  const backdropOpacity = useSharedValue(0);
+  const cardTranslateY = useSharedValue(CARD_HIDDEN_TRANSLATE_Y);
+  const hiddenTranslateY = useSharedValue(CARD_HIDDEN_TRANSLATE_Y);
 
   const today = useMemo(() => {
     const now = new Date();
@@ -106,14 +123,65 @@ export default forwardRef<DateOfBirthPickerRef, DateOfBirthPickerProps>(function
   const [viewYear, setViewYear] = useState(selected?.year ?? today.year - DEFAULT_ANCHOR_AGE_YEARS);
   const [viewMonth, setViewMonth] = useState(selected?.month ?? today.month);
 
+  const present = useCallback(() => {
+    // Reanimated shared values are intentionally mutated through `.value`.
+    // eslint-disable-next-line react-hooks/immutability
+    backdropOpacity.value = 0;
+    // eslint-disable-next-line react-hooks/immutability
+    cardTranslateY.value = hiddenTranslateY.value;
+    setVisible(true);
+
+    requestAnimationFrame(() => {
+      backdropOpacity.value = withTiming(1, {
+        duration: BACKDROP_IN_MS,
+        easing: Easing.out(Easing.cubic),
+      }, (finished) => {
+        if (finished) {
+          cardTranslateY.value = withTiming(0, {
+            duration: CARD_IN_MS,
+            easing: Easing.inOut(Easing.cubic),
+          });
+        }
+      });
+    });
+  }, [backdropOpacity, cardTranslateY, hiddenTranslateY]);
+
+  const dismiss = useCallback(() => {
+    // Reanimated shared values are intentionally mutated through `.value`.
+    // eslint-disable-next-line react-hooks/immutability
+    cardTranslateY.value = withTiming(hiddenTranslateY.value, {
+      duration: CARD_OUT_MS,
+      easing: Easing.inOut(Easing.cubic),
+    }, (finished) => {
+      if (finished) {
+        backdropOpacity.value = withTiming(0, {
+          duration: BACKDROP_OUT_MS,
+          easing: Easing.in(Easing.cubic),
+        }, (didFadeOut) => {
+          if (didFadeOut) {
+            runOnJS(setVisible)(false);
+          }
+        });
+      }
+    });
+  }, [backdropOpacity, cardTranslateY, hiddenTranslateY]);
+
+  const backdropStyle = useAnimatedStyle(() => ({
+    opacity: backdropOpacity.value,
+  }));
+
+  const cardStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: cardTranslateY.value }],
+  }));
+
   useImperativeHandle(ref, () => ({
     present: () => {
       setMode('day');
       setViewYear(selected?.year ?? today.year - DEFAULT_ANCHOR_AGE_YEARS);
       setViewMonth(selected?.month ?? today.month);
-      sheetRef.current?.present();
+      present();
     },
-  }));
+  }), [present, selected?.month, selected?.year, today.month, today.year]);
 
   const isAfterToday = (year: number, month: number, day: number): boolean => {
     if (year !== today.year) return year > today.year;
@@ -124,7 +192,7 @@ export default forwardRef<DateOfBirthPickerRef, DateOfBirthPickerProps>(function
   const handleSelectDay = (day: number) => {
     if (isAfterToday(viewYear, viewMonth, day)) return;
     onChange(toISODate(viewYear, viewMonth, day));
-    sheetRef.current?.dismiss();
+    dismiss();
   };
 
   const handleSelectMonth = (month: number) => {
@@ -191,16 +259,46 @@ export default forwardRef<DateOfBirthPickerRef, DateOfBirthPickerProps>(function
   const yearRows = useMemo(() => chunkWithPadding(years, GRID_COLUMNS), [years]);
 
   return (
-    <TrueSheet
-      ref={sheetRef}
-      detents={['auto']}
-      dimmed
-      dimmedDetentIndex={0}
-      backgroundColor="transparent"
-      cornerRadius={0}
-      grabber={false}>
-      <View style={styles.sheetPadding}>
-        <View style={[styles.card, { backgroundColor: theme.background }]}>
+    <Modal
+      visible={visible}
+      transparent
+      animationType="none"
+      statusBarTranslucent
+      onRequestClose={dismiss}>
+      <View style={styles.modalRoot}>
+        <Animated.View
+          pointerEvents="none"
+          style={[StyleSheet.absoluteFill, backdropStyle]}>
+          <BlurView
+            intensity={42}
+            tint={scheme === 'dark' ? 'dark' : 'light'}
+            style={StyleSheet.absoluteFill}
+          />
+          <View style={styles.backdropTint} />
+        </Animated.View>
+
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Close date picker"
+          style={StyleSheet.absoluteFill}
+          onPress={dismiss}
+        />
+
+        <Animated.View
+          onLayout={({ nativeEvent }) => {
+            // Reanimated shared values are intentionally mutated through `.value`.
+            // eslint-disable-next-line react-hooks/immutability
+            hiddenTranslateY.value = nativeEvent.layout.height;
+            if (!visible || cardTranslateY.value !== 0) {
+              // eslint-disable-next-line react-hooks/immutability
+              cardTranslateY.value = nativeEvent.layout.height;
+            }
+          }}
+          style={[
+            styles.sheetPadding,
+            cardStyle,
+          ]}>
+          <View style={[styles.card, { backgroundColor: theme.background }]}>
           <View style={styles.handle} />
 
           {mode === 'day' && (
@@ -376,9 +474,10 @@ export default forwardRef<DateOfBirthPickerRef, DateOfBirthPickerProps>(function
               </ScrollView>
             </>
           )}
-        </View>
+          </View>
+        </Animated.View>
       </View>
-    </TrueSheet>
+    </Modal>
   );
 });
 
@@ -409,9 +508,25 @@ function HeaderChevron({
 }
 
 const styles = StyleSheet.create({
+  modalRoot: {
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
+  backdropTint: {
+    backgroundColor: 'rgba(0, 0, 0, 0.18)',
+    bottom: 0,
+    left: 0,
+    position: 'absolute',
+    right: 0,
+    top: 0,
+  },
   sheetPadding: {
+    bottom: 0,
+    left: 0,
     paddingHorizontal: Spacing.four,
     paddingBottom: Spacing.four,
+    position: 'absolute',
+    right: 0,
   },
   card: {
     borderRadius: 24,

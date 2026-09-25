@@ -20,13 +20,16 @@ import type {
   ChatConversation,
   ChatConversationDetail,
   ChatMessage,
+  Citation,
   Id,
   Paginated,
 } from '@fitness/types';
 import {
   ASK_QUESTION_MARKER,
   ChatMessageRole,
+  LlmProvider,
   PromptCategory,
+  WorkoutStatus,
   bmiCategory,
   calculateBmi,
   energyProfile,
@@ -50,6 +53,7 @@ import {
 } from '@fitness/validation';
 import {
   generateObject,
+  generateText,
   stepCountIs,
   streamText,
   tool,
@@ -59,8 +63,10 @@ import { z } from 'zod';
 
 import {
   AI_MODEL_RESOLVER,
+  AI_SEARCH_TOOL_RESOLVER,
   requireModel,
   type AiModelResolver,
+  type AiSearchToolResolver,
 } from '../ai/ai.module';
 import { LIMITS } from '../config/constants';
 import { DietPlansService } from '../diets/diet-plans.service';
@@ -69,9 +75,13 @@ import { PrismaService } from '../prisma/prisma.service';
 import { WorkoutRoutineService } from '../routines/workout-routine.service';
 import {
   buildChatWorkflow,
+  buildChatCategorizationPrompt,
   buildFinalWorkflowInstruction,
   buildWorkflowPlannerPrompt,
+  chatCategorizationSchema,
   chatWorkflowPlanSchema,
+  deterministicChatCategorization,
+  type ChatCategorization,
   type ChatProfileSnapshot,
   type ChatWorkflow,
   type ChatWorkflowPlan,
@@ -85,6 +95,10 @@ const MAX_AGENT_STEPS = 10;
 const DIET_SAVE_CONFIRM_RE =
   /\b(yes|yeah|yep|ok|okay|confirm|confirmed|do it|go ahead|looks good|save it|save this|update it)\b/i;
 const DIET_SAVE_DECLINE_RE = /\b(no|nope|don't|dont|cancel|stop|not now)\b/i;
+const MAX_CHAT_CITATIONS = 4;
+const DEFAULT_WORKOUT_HISTORY_LIMIT = 8;
+const MAX_WORKOUT_HISTORY_LIMIT = 15;
+const DEFAULT_WORKOUT_HISTORY_DAYS = 90;
 
 function titleFromContent(content: string): string {
   const trimmed = content.trim().replace(/\s+/g, ' ');
@@ -120,6 +134,36 @@ function confirmsDietSave(content: string): boolean {
   );
 }
 
+function dedupeSearchSources(sources: readonly unknown[]): Citation[] {
+  const byUrl = new Map<string, Citation>();
+  for (const source of sources) {
+    if (typeof source !== 'object' || source === null) continue;
+    const { sourceType, url, title } = source as Record<string, unknown>;
+    if (sourceType !== 'url' || typeof url !== 'string' || byUrl.has(url)) {
+      continue;
+    }
+    byUrl.set(url, {
+      title: typeof title === 'string' && title.trim() ? title.trim() : url,
+      url,
+    });
+    if (byUrl.size >= MAX_CHAT_CITATIONS) break;
+  }
+  return Array.from(byUrl.values());
+}
+
+function mergeCitations(
+  primary: readonly Citation[],
+  secondary: readonly Citation[],
+): Citation[] {
+  const byUrl = new Map<string, Citation>();
+  for (const citation of [...primary, ...secondary]) {
+    if (byUrl.has(citation.url)) continue;
+    byUrl.set(citation.url, citation);
+    if (byUrl.size >= MAX_CHAT_CITATIONS) break;
+  }
+  return Array.from(byUrl.values());
+}
+
 @Injectable()
 export class ChatsService {
   private readonly logger = new Logger(ChatsService.name);
@@ -130,6 +174,8 @@ export class ChatsService {
     private readonly exercises: ExercisesService,
     private readonly dietPlans: DietPlansService,
     @Inject(AI_MODEL_RESOLVER) private readonly resolveModel: AiModelResolver,
+    @Inject(AI_SEARCH_TOOL_RESOLVER)
+    private readonly resolveSearchTool: AiSearchToolResolver,
   ) {}
 
   async list(
@@ -345,6 +391,186 @@ export class ChatsService {
           primaryMuscles: exercise.primaryMuscles,
           equipment: exercise.equipment,
         }));
+      },
+    });
+  }
+
+  private getWorkoutHistoryTool(userId: Id) {
+    return tool({
+      description:
+        'Recent completed workout history with exercises, completed sets, reps, ' +
+        'weights, volume, and recent set history. Call for questions like ' +
+        '"my exercise history", "reps history", progress, personal training ' +
+        'history, or how to build a muscle based on what the user has done.',
+      inputSchema: z.object({
+        exerciseName: z
+          .string()
+          .trim()
+          .min(1)
+          .max(80)
+          .optional()
+          .describe(
+            'Optional exercise or muscle text to filter by, e.g. shoulder, bench, squat.',
+          ),
+        days: z.number().int().min(7).max(365).optional(),
+        limit: z
+          .number()
+          .int()
+          .min(1)
+          .max(MAX_WORKOUT_HISTORY_LIMIT)
+          .optional(),
+      }),
+      execute: async ({ exerciseName, days, limit }) => {
+        const since = new Date();
+        since.setDate(since.getDate() - (days ?? DEFAULT_WORKOUT_HISTORY_DAYS));
+        const normalizedSearch = exerciseName?.trim().toLowerCase();
+        const take = limit ?? DEFAULT_WORKOUT_HISTORY_LIMIT;
+
+        const workouts = await this.prisma.workout.findMany({
+          where: {
+            userId,
+            status: WorkoutStatus.Completed,
+            startedAt: { gte: since },
+          },
+          orderBy: { startedAt: 'desc' },
+          take: Math.min(MAX_WORKOUT_HISTORY_LIMIT, Math.max(take, 1)),
+        });
+
+        const exerciseMap = new Map<
+          string,
+          {
+            exerciseId: string;
+            exerciseName: string;
+            workouts: number;
+            completedSets: number;
+            totalReps: number;
+            totalVolumeKg: number;
+            bestReps?: number;
+            bestWeightKg?: number;
+            latestAt?: string;
+            recentSets: {
+              date: string;
+              reps?: number;
+              weightKg?: number;
+              durationSec?: number;
+              distanceM?: number;
+              rpe?: number;
+            }[];
+          }
+        >();
+
+        const recentWorkouts = workouts.map((workout) => {
+          const exercises = workout.exercises
+            .filter((exercise) => {
+              if (!normalizedSearch) return true;
+              return exercise.exerciseName
+                .toLowerCase()
+                .includes(normalizedSearch);
+            })
+            .map((exercise) => {
+              const completedSets = exercise.sets.filter(
+                (set) => set.completed,
+              );
+              const totalReps = completedSets.reduce(
+                (sum, set) => sum + (set.reps ?? 0),
+                0,
+              );
+              const totalVolumeKg = completedSets.reduce(
+                (sum, set) =>
+                  sum +
+                  (set.weightKg != null && set.reps != null
+                    ? set.weightKg * set.reps
+                    : 0),
+                0,
+              );
+
+              const entry = exerciseMap.get(exercise.exerciseId) ?? {
+                exerciseId: exercise.exerciseId,
+                exerciseName: exercise.exerciseName,
+                workouts: 0,
+                completedSets: 0,
+                totalReps: 0,
+                totalVolumeKg: 0,
+                recentSets: [],
+              };
+              entry.workouts += 1;
+              entry.completedSets += completedSets.length;
+              entry.totalReps += totalReps;
+              entry.totalVolumeKg += totalVolumeKg;
+              entry.latestAt ??= workout.startedAt.toISOString();
+
+              for (const set of completedSets) {
+                if (set.reps != null) {
+                  entry.bestReps = Math.max(entry.bestReps ?? 0, set.reps);
+                }
+                if (set.weightKg != null) {
+                  entry.bestWeightKg = Math.max(
+                    entry.bestWeightKg ?? 0,
+                    set.weightKg,
+                  );
+                }
+                if (entry.recentSets.length < 8) {
+                  entry.recentSets.push({
+                    date: workout.startedAt.toISOString(),
+                    ...(set.reps != null ? { reps: set.reps } : {}),
+                    ...(set.weightKg != null ? { weightKg: set.weightKg } : {}),
+                    ...(set.durationSec != null
+                      ? { durationSec: set.durationSec }
+                      : {}),
+                    ...(set.distanceM != null
+                      ? { distanceM: set.distanceM }
+                      : {}),
+                    ...(set.rpe != null ? { rpe: set.rpe } : {}),
+                  });
+                }
+              }
+              exerciseMap.set(exercise.exerciseId, entry);
+
+              return {
+                exerciseId: exercise.exerciseId,
+                exerciseName: exercise.exerciseName,
+                completedSets: completedSets.length,
+                totalReps,
+                totalVolumeKg,
+                sets: completedSets.map((set) => ({
+                  order: set.order,
+                  ...(set.reps != null ? { reps: set.reps } : {}),
+                  ...(set.weightKg != null ? { weightKg: set.weightKg } : {}),
+                  ...(set.durationSec != null
+                    ? { durationSec: set.durationSec }
+                    : {}),
+                  ...(set.distanceM != null
+                    ? { distanceM: set.distanceM }
+                    : {}),
+                  ...(set.rpe != null ? { rpe: set.rpe } : {}),
+                })),
+              };
+            });
+
+          return {
+            workoutId: workout.id,
+            name: workout.name,
+            startedAt: workout.startedAt.toISOString(),
+            completedAt: workout.completedAt?.toISOString(),
+            durationSec: workout.durationSec,
+            stats: workout.stats,
+            exercises,
+          };
+        });
+
+        const filteredWorkouts = recentWorkouts.filter(
+          (workout) => workout.exercises.length > 0,
+        );
+
+        return {
+          rangeDays: days ?? DEFAULT_WORKOUT_HISTORY_DAYS,
+          filter: exerciseName ?? null,
+          workoutCount: filteredWorkouts.length,
+          recentWorkouts: filteredWorkouts,
+          exerciseHistory: Array.from(exerciseMap.values()).sort(
+            (a, b) => b.completedSets - a.completedSets,
+          ),
+        };
       },
     });
   }
@@ -565,6 +791,7 @@ export class ChatsService {
     model: LanguageModel,
     content: string,
     workflow: ChatWorkflow,
+    categorization: ChatCategorization,
   ): Promise<ChatWorkflowPlan> {
     try {
       const result = await generateObject({
@@ -573,7 +800,7 @@ export class ChatsService {
         system:
           'Create a compact execution plan for a fitness chat reply. ' +
           'Respect the provided workflow exactly.',
-        prompt: buildWorkflowPlannerPrompt(content, workflow),
+        prompt: buildWorkflowPlannerPrompt(content, workflow, categorization),
       });
       return result.object;
     } catch (error) {
@@ -583,6 +810,95 @@ export class ChatsService {
         }`,
       );
       return this.deterministicPlan(workflow);
+    }
+  }
+
+  private async categorizeChat(
+    fallbackModel: LanguageModel,
+    content: string,
+    workflow: ChatWorkflow,
+    prompts:
+      | {
+          promptCategory: string;
+          prompt: string;
+          provider?: LlmProvider | null;
+          model?: string | null;
+        }[]
+      | undefined,
+  ): Promise<ChatCategorization> {
+    const fallback = deterministicChatCategorization(content, workflow);
+    const modelConfig = resolveModelConfig(
+      PromptCategory.ChatCategorization,
+      prompts,
+    );
+    const model = this.resolveModel(modelConfig) ?? fallbackModel;
+
+    try {
+      const result = await generateObject({
+        model,
+        schema: chatCategorizationSchema,
+        system: resolvePrompt(PromptCategory.ChatCategorization, prompts),
+        prompt: buildChatCategorizationPrompt(content, workflow),
+        providerOptions: { openai: { reasoningEffort: 'low' } },
+      });
+
+      if (result.object.safe === false) {
+        return { ...result.object, citationsRequired: false };
+      }
+
+      if (fallback.citationsRequired && !result.object.citationsRequired) {
+        return {
+          ...result.object,
+          citationsRequired: true,
+          reason:
+            result.object.reason ??
+            'Deterministic fallback requires citations for this topic.',
+        };
+      }
+
+      return result.object;
+    } catch (error) {
+      this.logger.warn(
+        `Chat categorization failed; using deterministic fallback: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+      return fallback;
+    }
+  }
+
+  private async searchChatCitations(
+    model: LanguageModel,
+    modelConfig: Parameters<AiSearchToolResolver>[0],
+    content: string,
+    categorization: ChatCategorization,
+  ): Promise<Citation[]> {
+    if (!categorization.safe || !categorization.citationsRequired) return [];
+
+    const searchTool = this.resolveSearchTool(modelConfig);
+    if (!searchTool) return [];
+
+    try {
+      const result = await generateText({
+        model,
+        prompt:
+          'Use web search to find 2-4 reliable sources for this fitness, ' +
+          'nutrition, healthy weight, calorie, or diet-plan question. ' +
+          'Prefer medical, nutrition, government, university, or other ' +
+          `reputable sources. User question: ${content}`,
+        tools: { webSearch: searchTool },
+        stopWhen: stepCountIs(3),
+        providerOptions: { openai: { reasoningEffort: 'low' } },
+      });
+
+      return dedupeSearchSources(result.steps.flatMap((step) => step.sources));
+    } catch (error) {
+      this.logger.warn(
+        `Chat citation search failed: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+      return [];
     }
   }
 
@@ -637,10 +953,28 @@ export class ChatsService {
     ]);
 
     const workflow = buildChatWorkflow(input.content, profile);
-    const workflowPlan = await this.planWorkflow(
+    const categorization = await this.categorizeChat(
       model,
       input.content,
       workflow,
+      settings?.aiPrompts,
+    );
+    const searchCitations = await this.searchChatCitations(
+      model,
+      modelConfig,
+      input.content,
+      categorization,
+    );
+    const citations =
+      categorization.safe && categorization.citationsRequired
+        ? mergeCitations(workflow.citations, searchCitations)
+        : [];
+    const responseWorkflow: ChatWorkflow = { ...workflow, citations };
+    const workflowPlan = await this.planWorkflow(
+      model,
+      input.content,
+      responseWorkflow,
+      categorization,
     );
 
     const messages = history
@@ -657,7 +991,8 @@ export class ChatsService {
           content:
             message.id === userMessageRow.id
               ? buildFinalWorkflowInstruction(
-                  workflow,
+                  responseWorkflow,
+                  categorization,
                   workflowPlan,
                   lead || message.content,
                 )
@@ -675,6 +1010,7 @@ export class ChatsService {
         getUserDetails: this.userDetailsTool(userId),
         getCurrentRoutine: this.getCurrentRoutineTool(userId),
         listExercises: this.listExercisesTool(userId),
+        getWorkoutHistory: this.getWorkoutHistoryTool(userId),
         updateRoutineDay: this.updateRoutineDayTool(userId),
         getCurrentDietPlan: this.getCurrentDietPlanTool(userId),
         updateDietDay: this.updateDietDayTool(userId),
@@ -690,12 +1026,12 @@ export class ChatsService {
         const outputTokens = event.totalUsage.outputTokens ?? 0;
         const totalTokens =
           event.totalUsage.totalTokens ?? inputTokens + outputTokens;
-        const citations = workflow.citations;
-
         this.logger.log(
           `Chat reply for user ${userId} (conversation ${conversationId}): ` +
             `${inputTokens} input + ${outputTokens} output = ${totalTokens} tokens, ` +
-            `intent=${workflow.intent}, state=${workflow.state}`,
+            `intent=${workflow.intent}, state=${workflow.state}, ` +
+            `safe=${categorization.safe}, citationsRequired=${categorization.citationsRequired}, ` +
+            `citations=${citations.length}`,
         );
 
         await this.prisma.chatMessage.create({

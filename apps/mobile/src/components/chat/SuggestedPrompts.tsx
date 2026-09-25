@@ -11,20 +11,20 @@ export type SuggestedPrompt = {
 
 export const DEFAULT_SUGGESTED_PROMPTS: SuggestedPrompt[] = [
   {
-    label: 'Create a weight loss diet',
-    prompt: 'Can you create a weight loss diet plan for me?',
+    label: 'Am i overweight?',
+    prompt: 'Am i overweight?',
   },
   {
-    label: 'Check your health',
-    prompt: 'Can you check my health based on my recent activity?',
+    label: 'Should i need to loose weight ?',
+    prompt: 'Should i need to loose weight ?',
   },
   {
-    label: 'Plan my workout',
-    prompt: 'Can you plan a workout routine for me?',
+    label: 'Tell My Exercise History ?',
+    prompt: 'Tell My Exercise History ?',
   },
   {
-    label: 'Suggest a new goal',
-    prompt: 'Based on my progress, what goal should I set next?',
+    label: 'How to buld shoulder',
+    prompt: 'How to buld shoulder',
   },
 ];
 

@@ -143,6 +143,7 @@ export const PromptCategory = {
   QuoteOfTheDay: 'quote_of_the_day',
   WorkoutRoutine: 'workout_routine',
   UserChat: 'user_chat',
+  ChatCategorization: 'chat_categorization',
   DietPlan: 'diet_plan',
 } as const;
 export type PromptCategory =

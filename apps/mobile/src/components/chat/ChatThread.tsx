@@ -76,7 +76,7 @@ export function ChatThread({ conversationId, onNotFound }: ChatThreadProps) {
   const [draft, setDraft] = useState("");
   const [isAtBottom, setIsAtBottom] = useState(true);
   const listRef = useRef<FlatList<UIMessage>>(null);
-  const seededRef = useRef<string | null>(null);
+  const syncedMessagesRef = useRef<string | null>(null);
   // The text behind each synthetic error bubble (keyed by its message id),
   // so the Retry button can resend exactly what failed.
   const lastSentTextRef = useRef("");
@@ -117,14 +117,28 @@ export function ChatThread({ conversationId, onNotFound }: ChatThreadProps) {
     },
   });
 
-  useEffect(() => {
-    if (!data) return;
-    if (seededRef.current === conversationId) return;
-    if (status !== "ready") return;
+  const persistedMessagesSignature = useMemo(() => {
+    if (!data) return null;
+    return [
+      conversationId,
+      ...data.messages.map((message) =>
+        [
+          message.id,
+          message.content.length,
+          message.citations.map((citation) => citation.url).join(","),
+        ].join(":"),
+      ),
+    ].join("|");
+  }, [conversationId, data]);
 
-    seededRef.current = conversationId;
+  useEffect(() => {
+    if (!data || !persistedMessagesSignature) return;
+    if (status !== "ready") return;
+    if (syncedMessagesRef.current === persistedMessagesSignature) return;
+
+    syncedMessagesRef.current = persistedMessagesSignature;
     setMessages(toUIMessages(data.messages) as never);
-  }, [conversationId, data, setMessages, status]);
+  }, [data, persistedMessagesSignature, setMessages, status]);
 
   const sending = status === "submitted" || status === "streaming";
 
