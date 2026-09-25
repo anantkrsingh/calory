@@ -77,6 +77,7 @@
     "web": "expo start --web",
     "build": "expo export --platform web",
     "lint": "expo lint",
+    "lint:fix": "expo lint --fix",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf .expo dist .turbo *.tsbuildinfo"
   }

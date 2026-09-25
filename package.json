@@ -25,6 +25,7 @@
     "dev:mobile": "turbo run start --filter=@fitness/mobile",
     "dev:all": "turbo run dev",
     "lint": "turbo run lint",
+    "lint:fix": "turbo run lint:fix",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
     "db:generate": "turbo run db:generate --filter=@fitness/db",
