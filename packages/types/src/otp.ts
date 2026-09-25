@@ -5,7 +5,7 @@ export interface OtpJobData {
   to: string;
   otp: string;
   userId?: string;
-  purpose: 'registration' | 'login' | 'password_reset';
+  purpose: 'registration' | 'login' | 'password_reset' | 'email_change';
 }
 
 export interface OtpJobResult {

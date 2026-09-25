@@ -20,6 +20,7 @@ import {
   loginSchema,
   refreshTokenSchema,
   registerSchema,
+  requestEmailChangeSchema,
   resetPasswordSchema,
   socialLoginSchema,
   authSessionSchema,
@@ -27,14 +28,17 @@ import {
   pendingVerificationSchema,
   userSchema,
   authTokensSchema,
+  verifyEmailChangeSchema,
   verifyRegistrationSchema,
   type ChangePasswordInput,
   type ForgotPasswordInput,
   type LoginInput,
+  type RequestEmailChangeInput,
   type RefreshTokenInput,
   type RegisterInput,
   type ResetPasswordInput,
   type SocialLoginInput,
+  type VerifyEmailChangeInput,
   type VerifyRegistrationInput,
 } from '@fitness/validation';
 
@@ -252,6 +256,42 @@ export class AuthController {
   })
   me(@CurrentUser() user: AuthenticatedUser): Promise<User> {
     return this.auth.me(user.id);
+  }
+
+  @Post('email-change')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Send a verification code for changing the current user email',
+  })
+  @ApiZodBody(requestEmailChangeSchema)
+  @ApiZodResponse(otpSendResponseSchema, {
+    status: 200,
+    name: 'OtpSendResult',
+    description: 'Code queued',
+  })
+  requestEmailChange(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body(zodPipe(requestEmailChangeSchema)) body: RequestEmailChangeInput,
+  ): Promise<{ success: boolean; message?: string }> {
+    return this.auth.requestEmailChange(user.id, body.email);
+  }
+
+  @Post('email-change/verify')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Verify a code and set the current user email address',
+  })
+  @ApiZodBody(verifyEmailChangeSchema)
+  @ApiZodResponse(userSchema, {
+    status: 200,
+    name: 'User',
+    description: 'Updated user',
+  })
+  verifyEmailChange(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body(zodPipe(verifyEmailChangeSchema)) body: VerifyEmailChangeInput,
+  ): Promise<User> {
+    return this.auth.verifyEmailChange(user.id, body);
   }
 
   @Public()

@@ -4,6 +4,10 @@ import { useEffect, useRef, useState } from 'react';
 import { AppState, Platform } from 'react-native';
 
 import { todayIsoDate } from '@/lib/date';
+import {
+  getPermissionChoice,
+  setPermissionChoice,
+} from '@/lib/permission-preferences';
 import { readStepsCache, writeStepsCache } from '@/lib/steps-cache';
 import { useDailySteps, useUpsertSteps } from '@/queries/steps.queries';
 
@@ -28,6 +32,17 @@ export type StepsTrackerState = {
   /** True once `steps` is a live on-device reading, not just the last sync. */
   isLive: boolean;
   permissionDenied: boolean;
+  permissionPrompt: {
+    visible: boolean;
+    allow: () => void;
+    deny: () => void;
+    close: () => void;
+  };
+  deniedConfirmation: {
+    visible: boolean;
+    close: () => void;
+    allow: () => void;
+  };
 };
 
 /**
@@ -47,6 +62,9 @@ export function useStepsTracker(): StepsTrackerState {
     () => readStepsCache(date)?.steps ?? null,
   );
   const [permissionDenied, setPermissionDenied] = useState(false);
+  const [permissionPromptVisible, setPermissionPromptVisible] = useState(false);
+  const [deniedConfirmationVisible, setDeniedConfirmationVisible] = useState(false);
+  const [permissionAttempt, setPermissionAttempt] = useState(0);
 
   const lastSyncedRef = useRef<number | null>(readStepsCache(date)?.steps ?? null);
 
@@ -97,12 +115,37 @@ export function useStepsTracker(): StepsTrackerState {
       const available = await Pedometer.isAvailableAsync().catch(() => false);
       if (cancelled || !available) return;
 
-      const permission = await Pedometer.requestPermissionsAsync();
+      const existingPermission = await Pedometer.getPermissionsAsync().catch(() => null);
+      if (cancelled) return;
+
+      const activityChoice = getPermissionChoice('activity');
+      if (!existingPermission?.granted) {
+        if (existingPermission?.status === 'denied') {
+          setPermissionDenied(true);
+          return;
+        }
+
+        if (activityChoice !== 'allowed') {
+          if (activityChoice === 'denied') {
+            setPermissionDenied(true);
+            return;
+          }
+          setPermissionPromptVisible(true);
+          return;
+        }
+      }
+
+      const permission = existingPermission?.granted
+        ? existingPermission
+        : await Pedometer.requestPermissionsAsync();
       if (cancelled) return;
       if (!permission.granted) {
         setPermissionDenied(true);
+        setDeniedConfirmationVisible(true);
         return;
       }
+
+      setPermissionDenied(false);
 
       if (Platform.OS === 'ios') {
         const readToday = async () => {
@@ -141,12 +184,37 @@ export function useStepsTracker(): StepsTrackerState {
       if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- baseline is read once per mount, not reactive
-  }, [server.isSuccess]);
+  }, [server.isSuccess, permissionAttempt]);
+
+  const allowActivityTracking = () => {
+    setPermissionChoice('activity', 'allowed');
+    setPermissionPromptVisible(false);
+    setDeniedConfirmationVisible(false);
+    setPermissionAttempt((value) => value + 1);
+  };
+
+  const denyActivityTracking = () => {
+    setPermissionChoice('activity', 'denied');
+    setPermissionPromptVisible(false);
+    setPermissionDenied(true);
+    setDeniedConfirmationVisible(true);
+  };
 
   return {
     steps: liveSteps ?? server.data?.steps ?? 0,
     goal: server.data?.goal ?? DEFAULT_DAILY_STEPS_GOAL,
     isLive: liveSteps !== null,
     permissionDenied,
+    permissionPrompt: {
+      visible: permissionPromptVisible,
+      allow: allowActivityTracking,
+      deny: denyActivityTracking,
+      close: denyActivityTracking,
+    },
+    deniedConfirmation: {
+      visible: deniedConfirmationVisible,
+      close: () => setDeniedConfirmationVisible(false),
+      allow: allowActivityTracking,
+    },
   };
 }

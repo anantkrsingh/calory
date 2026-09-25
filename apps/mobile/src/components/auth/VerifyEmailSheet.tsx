@@ -16,11 +16,17 @@ import PrimaryButton from '@/components/ui/PrimaryButton';
 import { getErrorMessage } from '@/api';
 import { Brand, Pressed, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { useResendOtp, useVerifyRegistration } from '@/queries';
+import { useRequestEmailChange, useResendOtp, useVerifyEmailChange, useVerifyRegistration } from '@/queries';
 import { useOnboardingStore } from '@/stores/onboarding.store';
 
 export type VerifyEmailSheetRef = {
   present: () => void;
+};
+
+type VerifyEmailSheetProps = {
+  mode?: 'registration' | 'emailChange';
+  email?: string;
+  onVerified?: () => void;
 };
 
 const HANDLE_COLOR = 'rgba(120, 120, 128, 0.3)';
@@ -33,14 +39,20 @@ const formatSeconds = (total: number): string => {
   return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
 };
 
-export default forwardRef<VerifyEmailSheetRef>(function VerifyEmailSheet(_props, ref) {
+export default forwardRef<VerifyEmailSheetRef, VerifyEmailSheetProps>(function VerifyEmailSheet(
+  { mode = 'registration', email: providedEmail, onVerified },
+  ref,
+) {
   const theme = useTheme();
   const router = useRouter();
   const sheetRef = useRef<TrueSheet>(null);
-  const email = useOnboardingStore((state) => state.userData.email);
+  const onboardingEmail = useOnboardingStore((state) => state.userData.email);
+  const email = providedEmail ?? onboardingEmail;
   const resetOnboarding = useOnboardingStore((state) => state.resetOnboarding);
   const resendOtp = useResendOtp();
+  const requestEmailChange = useRequestEmailChange();
   const verifyRegistration = useVerifyRegistration();
+  const verifyEmailChange = useVerifyEmailChange();
 
   const [otpDigits, setOtpDigits] = useState<string[]>(Array(OTP_LENGTH).fill(''));
   const [resendTimer, setResendTimer] = useState(RESEND_SECONDS);
@@ -49,16 +61,22 @@ export default forwardRef<VerifyEmailSheetRef>(function VerifyEmailSheet(_props,
 
   const otp = otpDigits.join('');
   const canResend = resendTimer === 0;
+  const isVerifying =
+    verifyRegistration.isPending || verifyEmailChange.isPending;
 
   const sendVerificationCode = useCallback(async () => {
     setResendTimer(RESEND_SECONDS);
 
     try {
-      await resendOtp.mutateAsync({ email });
+      if (mode === 'emailChange') {
+        await requestEmailChange.mutateAsync({ email });
+      } else {
+        await resendOtp.mutateAsync({ email });
+      }
     } catch (cause) {
       setError(getErrorMessage(cause, 'Failed to send verification code'));
     }
-  }, [email, resendOtp]);
+  }, [email, mode, requestEmailChange, resendOtp]);
 
   useEffect(() => {
     if (resendTimer === 0) return;
@@ -117,10 +135,17 @@ export default forwardRef<VerifyEmailSheetRef>(function VerifyEmailSheet(_props,
     setError(null);
 
     try {
-      await verifyRegistration.mutateAsync({ email, code: otp });
+      if (mode === 'emailChange') {
+        await verifyEmailChange.mutateAsync({ email, code: otp });
+      } else {
+        await verifyRegistration.mutateAsync({ email, code: otp });
+      }
       await sheetRef.current?.dismiss();
-      resetOnboarding();
-      router.replace('/');
+      onVerified?.();
+      if (mode === 'registration') {
+        resetOnboarding();
+        router.replace('/');
+      }
     } catch (cause) {
       setError(getErrorMessage(cause, 'Verification failed. Please try again.'));
     }
@@ -193,9 +218,9 @@ export default forwardRef<VerifyEmailSheetRef>(function VerifyEmailSheet(_props,
               ) : null}
 
               <PrimaryButton
-                label={verifyRegistration.isPending ? 'Verifying...' : 'Verify'}
+                label={isVerifying ? 'Verifying...' : 'Verify'}
                 onPress={handleVerify}
-                disabled={otp.length !== OTP_LENGTH || verifyRegistration.isPending}
+                disabled={otp.length !== OTP_LENGTH || isVerifying}
                 style={styles.verifyButton}
               />
 

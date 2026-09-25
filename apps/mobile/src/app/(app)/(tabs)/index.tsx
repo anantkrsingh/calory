@@ -1,7 +1,7 @@
 import { DEFAULT_DAILY_STEPS_GOAL } from "@/constants/app";
 import type { TodayRoutineExercise } from "@fitness/types";
 import { useRouter } from "expo-router";
-import { Flame, Footprints } from "lucide-react-native";
+import { Bell, Flame, Footprints } from "lucide-react-native";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -23,6 +23,7 @@ import {
   type WeekProgressSheetRef,
 } from "@/components/home/WeekProgressSheet";
 import { ErrorState } from "@/components/ui/ErrorState";
+import { PermissionRationaleModal } from "@/components/ui/PermissionRationaleModal";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { Brand, BottomTabInset, Spacing } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
@@ -66,15 +67,20 @@ export default function HomeScreen() {
     isLoading: isWeekCaloriesLoading,
     refetch: refetchWeekCalories,
   } = useWeekCalories(weekDates[0], weekDates[6]);
-  const { steps: liveSteps } = useStepsTracker();
+  const {
+    steps: liveSteps,
+    permissionPrompt: activityPermissionPrompt,
+    deniedConfirmation: activityDeniedConfirmation,
+  } = useStepsTracker();
   const routineReconcileAttemptsRef = useRef(0);
 
-  useRegisterPushNotifications();
+  const notificationPermissionPrompt = useRegisterPushNotifications();
 
   // Some social providers may not share a name for an account. If the profile
   // is still blank after onboarding, ask for it here.
   useEffect(() => {
-    if (user && !user.profile.displayName?.trim()) {
+    const isAppleAccount = user?.authProviders?.includes("apple") ?? false;
+    if (user && !isAppleAccount && !user.profile.displayName?.trim()) {
       namePromptSheetRef.current?.present();
     }
   }, [user]);
@@ -298,6 +304,40 @@ export default function HomeScreen() {
 
       <NamePromptSheet ref={namePromptSheetRef} />
       <CitationsSheet ref={citationsSheetRef} />
+      <PermissionRationaleModal
+        visible={activityPermissionPrompt.visible}
+        icon={Footprints}
+        title="Allow activity tracking?"
+        body="Fit Crate uses your device step count to log daily footsteps, update your step ring, and keep calorie progress accurate. We only read steps for your fitness progress."
+        allowLabel="Allow"
+        denyLabel="Deny"
+        onAllow={activityPermissionPrompt.allow}
+        onDeny={activityPermissionPrompt.deny}
+        onRequestClose={activityPermissionPrompt.close}
+      />
+      <PermissionRationaleModal
+        visible={activityDeniedConfirmation.visible}
+        icon={Footprints}
+        title="Activity tracking is off"
+        body="You will not be able to log your daily footsteps automatically while activity tracking is denied. You can allow it later from Profile > Notifications & permissions."
+        allowLabel="Allow now"
+        denyLabel="Got it"
+        onAllow={activityDeniedConfirmation.allow}
+        onDeny={activityDeniedConfirmation.close}
+        onRequestClose={activityDeniedConfirmation.close}
+      />
+      <PermissionRationaleModal
+        visible={notificationPermissionPrompt.visible}
+        icon={Bell}
+        title="Allow notifications?"
+        body="Fit Crate uses notifications for workout reminders, progress updates, and important plan alerts. You can turn them off later in settings."
+        allowLabel="Allow"
+        denyLabel="Deny"
+        loading={notificationPermissionPrompt.loading}
+        onAllow={notificationPermissionPrompt.allow}
+        onDeny={notificationPermissionPrompt.deny}
+        onRequestClose={notificationPermissionPrompt.close}
+      />
     </TabScreen>
   );
 }

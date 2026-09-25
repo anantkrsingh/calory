@@ -13,6 +13,8 @@ import type {
   ResetPasswordInput,
   SocialLoginInput,
   VerifyRegistrationInput,
+  VerifyEmailChangeInput,
+  RequestEmailChangeInput,
 } from '@fitness/validation';
 
 import type { AxiosInstance } from 'axios';
@@ -125,6 +127,25 @@ export class AuthService extends BaseService {
 
   async me(): Promise<User> {
     const { data } = await this.client.get<User>(this.url('me'));
+    return data;
+  }
+
+  async requestEmailChange(
+    input: RequestEmailChangeInput,
+  ): Promise<{ success: boolean; message?: string }> {
+    const { data } = await this.client.post<{ success: boolean; message?: string }>(
+      this.url('email-change'),
+      input,
+    );
+    return data;
+  }
+
+  async verifyEmailChange(input: VerifyEmailChangeInput): Promise<User> {
+    const { data } = await this.client.post<User>(
+      this.url('email-change', 'verify'),
+      input,
+    );
+    authState.setUser(data);
     return data;
   }
 

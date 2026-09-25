@@ -6,6 +6,8 @@ import type {
   RegisterInput,
   ResetPasswordInput,
   SocialLoginInput,
+  RequestEmailChangeInput,
+  VerifyEmailChangeInput,
   VerifyRegistrationInput,
 } from '@fitness/validation';
 import {
@@ -113,6 +115,33 @@ export function useVerifyRegistration(): UseMutationResult<
       authService.verifyRegistration(input),
     onSuccess: (session) => {
       queryClient.setQueryData(AuthQueries.keys.me(), session.user);
+    },
+  });
+}
+
+export function useRequestEmailChange(): UseMutationResult<
+  { success: boolean; message?: string },
+  Error,
+  RequestEmailChangeInput
+> {
+  return useMutation({
+    mutationFn: (input: RequestEmailChangeInput) =>
+      authService.requestEmailChange(input),
+  });
+}
+
+export function useVerifyEmailChange(): UseMutationResult<
+  User,
+  Error,
+  VerifyEmailChangeInput
+> {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: VerifyEmailChangeInput) =>
+      authService.verifyEmailChange(input),
+    onSuccess: (user) => {
+      queryClient.setQueryData(AuthQueries.keys.me(), user);
     },
   });
 }

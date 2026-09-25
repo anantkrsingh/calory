@@ -6,7 +6,9 @@ export {
   useLogout,
   useMe,
   useRegister,
+  useRequestEmailChange,
   useResetPassword,
+  useVerifyEmailChange,
   useVerifyRegistration,
 } from './auth.queries';
 export {

@@ -4,6 +4,8 @@ import { ENV, type Env } from '../config/env.module';
 import { PrismaService } from '../prisma/prisma.service';
 import { OtpQueue, type OtpJobData } from './otp.queue';
 
+type OtpPurpose = 'registration' | 'login' | 'password_reset' | 'email_change';
+
 /**
  * OTP storage for verification (in-memory, replace with Redis in production)
  */
@@ -37,10 +39,10 @@ export class OtpService {
   async sendOtp(
     type: 'email',
     contact: string,
-    purpose: 'registration' | 'login' | 'password_reset',
+    purpose: OtpPurpose,
     userId?: string,
   ): Promise<{ success: boolean; message?: string }> {
-    if (purpose === 'registration') {
+    if (purpose === 'registration' || purpose === 'email_change') {
       const existing = await this.prisma.user.findUnique({
         where: { email: contact.toLowerCase() },
         select: { emailVerified: true },
@@ -95,7 +97,7 @@ export class OtpService {
     type: 'email',
     contact: string,
     code: string,
-    purpose: 'registration' | 'login' | 'password_reset',
+    purpose: OtpPurpose,
   ): Promise<{ success: boolean; message?: string; userId?: string }> {
     const otpKey = this.getOtpKey(type, contact, purpose);
     const storedOtp = this.otpStore.get(otpKey);
@@ -164,7 +166,7 @@ export class OtpService {
   async resendOtp(
     type: 'email',
     contact: string,
-    purpose: 'registration' | 'login' | 'password_reset',
+    purpose: OtpPurpose,
     userId?: string,
   ): Promise<{ success: boolean; message?: string }> {
     // Invalidate any existing OTP for this contact/purpose

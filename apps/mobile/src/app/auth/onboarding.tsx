@@ -13,6 +13,9 @@ import Animated, {
 
 import CircleArrowButton from "@/components/ui/CircleArrowButton";
 import CloseButton from "@/components/ui/CloseButton";
+import VerifyEmailSheet, {
+  type VerifyEmailSheetRef,
+} from "@/components/auth/VerifyEmailSheet";
 import DateOfBirthPicker, {
   type DateOfBirthPickerRef,
 } from "@/components/ui/DateOfBirthPicker";
@@ -28,23 +31,27 @@ import {
 } from "@/components/onboarding";
 import { Brand, Pressed, Spacing } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
-import { useCreateMeasurement, useUpdateProfile } from "@/queries";
+import { useCreateMeasurement, useRequestEmailChange, useUpdateProfile } from "@/queries";
 import { selectUser, useAuthStore } from "@/stores/auth.store";
 import { useOnboardingStore } from "@/stores/onboarding.store";
 
 const STEPS_WITH_ACCOUNT = 6; // Sex, BodyMetrics, Dob, Goals, Activity, Name — skips Email.
 const STEPS_WITH_NAMED_ACCOUNT = 5; // Provider already supplied a profile name.
+const STEPS_WITH_APPLE_ACCOUNT = 7; // Apple can optionally add name and verified email.
 
 export default function OnboardingScreen() {
   const theme = useTheme();
   const router = useRouter();
   const currentUser = useAuthStore(selectUser);
   const isLoggedIn = currentUser !== null;
+  const isAppleAccount = Boolean(currentUser?.authProviders?.includes("apple"));
   const hasAccountDisplayName = Boolean(currentUser?.profile.displayName?.trim());
   const currentStep = useOnboardingStore((state) => state.currentStep);
   const totalSteps = useOnboardingStore((state) => state.totalSteps);
   const effectiveTotalSteps = isLoggedIn
-    ? hasAccountDisplayName
+    ? isAppleAccount
+      ? STEPS_WITH_APPLE_ACCOUNT
+      : hasAccountDisplayName
       ? STEPS_WITH_NAMED_ACCOUNT
       : STEPS_WITH_ACCOUNT
     : totalSteps;
@@ -58,12 +65,14 @@ export default function OnboardingScreen() {
   // step frame below has real height to scroll — see stepViewport/stepContent.
   const [stepHeight, setStepHeight] = useState<number | undefined>(undefined);
   const dobPickerRef = useRef<DateOfBirthPickerRef>(null);
+  const verifyEmailSheetRef = useRef<VerifyEmailSheetRef>(null);
   const updateProfile = useUpdateProfile();
   const createMeasurement = useCreateMeasurement();
+  const requestEmailChange = useRequestEmailChange();
   const isSavingProfile =
-    updateProfile.isPending || createMeasurement.isPending;
+    updateProfile.isPending || createMeasurement.isPending || requestEmailChange.isPending;
 
-  const canContinue = isStepComplete(currentStep, userData);
+  const canContinue = isStepComplete(currentStep, userData, isAppleAccount);
 
   // Social sign-in may already have a real name. Apple shares it only in the
   // native credential on first authorization, so prefill it when present and
@@ -99,6 +108,16 @@ export default function OnboardingScreen() {
 
     if (isLoggedIn) {
       if (isSavingProfile) return;
+
+      if (
+        isAppleAccount &&
+        currentStep === effectiveTotalSteps &&
+        userData.email.trim()
+      ) {
+        void requestAppleEmailVerification();
+        return;
+      }
+
       void finishForLoggedInUser();
       return;
     }
@@ -137,6 +156,18 @@ export default function OnboardingScreen() {
     } catch (cause) {
       Alert.alert(
         "Could not save your profile",
+        cause instanceof Error ? cause.message : "Please try again.",
+      );
+    }
+  };
+
+  const requestAppleEmailVerification = async () => {
+    try {
+      await requestEmailChange.mutateAsync({ email: userData.email });
+      verifyEmailSheetRef.current?.present();
+    } catch (cause) {
+      Alert.alert(
+        "Could not send verification code",
         cause instanceof Error ? cause.message : "Please try again.",
       );
     }
@@ -191,10 +222,17 @@ export default function OnboardingScreen() {
           <NameStep
             displayName={userData.displayName}
             onChange={updateUserData}
+            optional={isAppleAccount}
           />
         );
       case 7:
-        return <EmailStep email={userData.email} onChange={updateUserData} />;
+        return (
+          <EmailStep
+            email={userData.email}
+            onChange={updateUserData}
+            optional={isAppleAccount}
+          />
+        );
       default:
         return null;
     }
@@ -296,6 +334,14 @@ export default function OnboardingScreen() {
         value={userData.dateOfBirth}
         onChange={(isoDate) => updateUserData({ dateOfBirth: isoDate })}
       />
+      <VerifyEmailSheet
+        ref={verifyEmailSheetRef}
+        mode="emailChange"
+        email={userData.email}
+        onVerified={() => {
+          void finishForLoggedInUser();
+        }}
+      />
     </SafeAreaView>
   );
 }
@@ -304,7 +350,11 @@ type OnboardingUserData = ReturnType<
   typeof useOnboardingStore.getState
 >["userData"];
 
-function isStepComplete(step: number, userData: OnboardingUserData): boolean {
+function isStepComplete(
+  step: number,
+  userData: OnboardingUserData,
+  isAppleAccount: boolean,
+): boolean {
   switch (step) {
     case 1:
       return userData.sex !== undefined;
@@ -317,9 +367,9 @@ function isStepComplete(step: number, userData: OnboardingUserData): boolean {
     case 5:
       return userData.activityLevel !== undefined;
     case 6:
-      return userData.displayName.trim() !== "";
+      return isAppleAccount || userData.displayName.trim() !== "";
     case 7:
-      return userData.email.trim() !== "";
+      return isAppleAccount || userData.email.trim() !== "";
     default:
       return false;
   }

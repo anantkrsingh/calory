@@ -35,6 +35,19 @@ async function ensureAndroidChannel(): Promise<void> {
  * ever run on — both bail out to `null` before this point on web. */
 export type MobilePlatform = 'ios' | 'android';
 
+export async function getNotificationPermissionStatusAsync(): Promise<
+  Notifications.PermissionStatus | null
+> {
+  if (Platform.OS === 'web' || !Device.isDevice) return null;
+
+  try {
+    const { status } = await Notifications.getPermissionsAsync();
+    return status;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Asks for notification permission if it hasn't been decided yet, then
  * resolves to the device's Expo push token plus the platform it came from —

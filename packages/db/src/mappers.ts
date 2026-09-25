@@ -76,6 +76,9 @@ export function toUser(row: UserRow): User {
     email: row.email,
     emailVerified: row.emailVerified,
     role: row.role,
+    authProviders: row.linkedAccounts?.length
+      ? Array.from(new Set(row.linkedAccounts.map((account) => account.provider)))
+      : undefined,
     profile: compact({
       displayName: row.profile.displayName,
       avatarUrl: orUndefined(row.profile.avatarUrl),

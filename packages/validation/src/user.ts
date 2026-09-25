@@ -39,6 +39,14 @@ export const updateUserSchema = z.object({
   preferences: updatePreferencesSchema.optional(),
 });
 
+export const requestEmailChangeSchema = z.object({
+  email: z.email().trim().toLowerCase(),
+});
+
+export const verifyEmailChangeSchema = requestEmailChangeSchema.extend({
+  code: z.string().min(1, 'OTP code is required'),
+});
+
 export const registerPushTokenSchema = z.object({
   token: z.string().min(1, 'Push token is required'),
   platform: devicePlatformSchema,
@@ -63,6 +71,8 @@ export type UserPreferencesInput = z.infer<typeof userPreferencesSchema>;
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
 export type UpdatePreferencesInput = z.infer<typeof updatePreferencesSchema>;
 export type UpdateUserInput = z.infer<typeof updateUserSchema>;
+export type RequestEmailChangeInput = z.infer<typeof requestEmailChangeSchema>;
+export type VerifyEmailChangeInput = z.infer<typeof verifyEmailChangeSchema>;
 export type RegisterPushTokenInput = z.infer<typeof registerPushTokenSchema>;
 export type UnregisterPushTokenInput = z.infer<typeof unregisterPushTokenSchema>;
 export type AdminUpdateUserInput = z.infer<typeof adminUpdateUserSchema>;
@@ -73,4 +83,3 @@ export const listUsersQuerySchema = paginationQuerySchema.extend({
 });
 
 export type ListUsersQueryInput = z.infer<typeof listUsersQuerySchema>;
-

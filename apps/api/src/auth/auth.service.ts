@@ -35,6 +35,12 @@ import { SOCIAL_VERIFIERS } from './social-providers';
 
 const BCRYPT_ROUNDS = 12;
 const REFRESH_TOKEN_TTL: JwtSignOptions['expiresIn'] = '30d';
+const APPLE_PRIVATE_EMAIL_DOMAIN = 'apple.private.fitcrate.app';
+
+function privateAppleEmail(subject: string): string {
+  const safeSubject = subject.toLowerCase().replace(/[^a-z0-9]/g, '');
+  return `apple-${safeSubject}@${APPLE_PRIVATE_EMAIL_DOMAIN}`;
+}
 
 @Injectable()
 export class AuthService {
@@ -245,14 +251,14 @@ export class AuthService {
       return this.startSession(user.id, toUser(user));
     }
 
-    if (!profile.email) {
+    if (!profile.email && provider !== 'apple') {
       throw new ConflictException({
         message: `Your ${provider} account did not share an email address`,
         details: { email: ['Required to create an account'] },
       });
     }
 
-    const email = profile.email;
+    const email = profile.email ?? privateAppleEmail(profile.subject);
     const appSettings = await this.prisma.appSettings.findFirst();
     const defaultCredits = appSettings?.freeChatsLimit ?? 5;
 
@@ -327,6 +333,39 @@ export class AuthService {
   async me(userId: Id): Promise<User> {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new UnauthorizedException('Account no longer exists');
+    return toUser(user);
+  }
+
+  async requestEmailChange(
+    userId: Id,
+    email: string,
+  ): Promise<{ success: boolean; message?: string }> {
+    return this.otp.sendOtp('email', email, 'email_change', userId);
+  }
+
+  async verifyEmailChange(
+    userId: Id,
+    input: VerifyRegistrationInput,
+  ): Promise<User> {
+    const result = await this.otp.verifyOtp(
+      'email',
+      input.email,
+      input.code,
+      'email_change',
+    );
+
+    if (!result.success) {
+      throw new UnauthorizedException({
+        message: result.message ?? 'Invalid OTP code',
+        details: { code: [result.message ?? 'Invalid OTP code'] },
+      });
+    }
+
+    const user = await this.prisma.user.update({
+      where: { id: userId },
+      data: { email: input.email, emailVerified: true },
+    });
+
     return toUser(user);
   }
 

@@ -9,9 +9,14 @@ import { useTheme } from '@/hooks/use-theme';
 interface NameStepProps {
   displayName: string;
   onChange: (data: { displayName: string }) => void;
+  optional?: boolean;
 }
 
-export default function NameStep({ displayName, onChange }: NameStepProps) {
+export default function NameStep({
+  displayName,
+  onChange,
+  optional = false,
+}: NameStepProps) {
   const theme = useTheme();
   const [input, setInput] = useState(displayName);
   const [error, setError] = useState<string | null>(null);
@@ -29,7 +34,7 @@ export default function NameStep({ displayName, onChange }: NameStepProps) {
 
   const handleBlur = () => {
     if (input.trim() === '') {
-      setError('Name is required');
+      setError(optional ? null : 'Name is required');
     } else if (input.trim().length < 2) {
       setError('Name must be at least 2 characters');
     } else if (input.trim().length > 50) {
@@ -40,10 +45,12 @@ export default function NameStep({ displayName, onChange }: NameStepProps) {
   return (
     <ThemedView style={styles.container}>
       <ThemedText type="subtitle" style={styles.title}>
-        What should we call you?
+        {optional ? 'Add your name?' : 'What should we call you?'}
       </ThemedText>
       <ThemedText type="small" style={[styles.subtitle, { color: theme.textSecondary }]}>
-        This name will be displayed on your profile
+        {optional
+          ? 'Apple may not share your name. You can add it now or skip it.'
+          : 'This name will be displayed on your profile'}
       </ThemedText>
 
       <View style={styles.inputContainer}>
@@ -70,7 +77,9 @@ export default function NameStep({ displayName, onChange }: NameStepProps) {
       </View>
 
       <ThemedText type="small" style={[styles.hint, { color: theme.textSecondary }]}>
-        You can change this later in your profile settings
+        {optional
+          ? 'You can add this later in profile settings.'
+          : 'You can change this later in your profile settings'}
       </ThemedText>
     </ThemedView>
   );

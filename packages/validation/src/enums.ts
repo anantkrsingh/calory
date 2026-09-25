@@ -1,5 +1,6 @@
 import {
   ActivityLevel,
+  AuthProvider,
   DayOfWeek,
   DevicePlatform,
   DietCuisine,
@@ -36,6 +37,7 @@ export const unitSystemSchema = z.enum(UnitSystem);
 export const sexSchema = z.enum(Sex);
 export const activityLevelSchema = z.enum(ActivityLevel);
 export const fitnessGoalSchema = z.enum(FitnessGoal);
+export const authProviderSchema = z.enum(AuthProvider);
 export const userRoleSchema = z.enum(UserRole);
 export const muscleGroupSchema = z.enum(MuscleGroup);
 export const equipmentSchema = z.enum(Equipment);

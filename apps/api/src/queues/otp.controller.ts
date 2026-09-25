@@ -17,7 +17,7 @@ const sendOtpSchema = z.object({
   type: z.literal('email').default('email'),
   contact: z.string().min(1, 'Contact is required'),
   purpose: z
-    .enum(['registration', 'login', 'password_reset'])
+    .enum(['registration', 'login', 'password_reset', 'email_change'])
     .default('registration'),
   userId: z.string().optional(),
 });
@@ -27,7 +27,7 @@ const verifyOtpSchema = z.object({
   contact: z.string().min(1, 'Contact is required'),
   code: z.string().min(1, 'OTP code is required'),
   purpose: z
-    .enum(['registration', 'login', 'password_reset'])
+    .enum(['registration', 'login', 'password_reset', 'email_change'])
     .default('registration'),
 });
 
@@ -35,7 +35,7 @@ const resendOtpSchema = z.object({
   type: z.literal('email').default('email'),
   contact: z.string().min(1, 'Contact is required'),
   purpose: z
-    .enum(['registration', 'login', 'password_reset'])
+    .enum(['registration', 'login', 'password_reset', 'email_change'])
     .default('registration'),
   userId: z.string().optional(),
 });

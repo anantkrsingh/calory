@@ -1,5 +1,12 @@
 import type { Entity, Id, IsoDate, IsoDateTime } from './common';
-import type { ActivityLevel, FitnessGoal, Sex, UnitSystem, UserRole } from './enums';
+import type {
+  ActivityLevel,
+  AuthProvider,
+  FitnessGoal,
+  Sex,
+  UnitSystem,
+  UserRole,
+} from './enums';
 
 export interface UserProfile {
   displayName: string;
@@ -21,6 +28,7 @@ export interface User extends Entity {
   email: string;
   emailVerified: boolean;
   role: UserRole;
+  authProviders?: AuthProvider[];
   profile: UserProfile;
   preferences: UserPreferences;
   totalCredits?: number;

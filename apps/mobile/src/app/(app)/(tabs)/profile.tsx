@@ -71,7 +71,7 @@ export default function ProfileScreen() {
     { icon: Target, label: "Goals", onPress: () => router.push("/goals") },
     {
       icon: Bell,
-      label: "Notifications",
+      label: "Notifications & permissions",
       onPress: () => router.push("/notifications"),
     },
     {

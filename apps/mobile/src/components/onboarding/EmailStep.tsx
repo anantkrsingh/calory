@@ -9,11 +9,17 @@ import { useTheme } from '@/hooks/use-theme';
 interface EmailStepProps {
   email: string;
   onChange: (data: { email: string }) => void;
+  optional?: boolean;
   /** Server-side error (e.g. failed to send the verification code), shown alongside field validation. */
   submitError?: string | null;
 }
 
-export default function EmailStep({ email, onChange, submitError }: EmailStepProps) {
+export default function EmailStep({
+  email,
+  onChange,
+  optional = false,
+  submitError,
+}: EmailStepProps) {
   const theme = useTheme();
   const [input, setInput] = useState(email);
   const [error, setError] = useState<string | null>(null);
@@ -27,7 +33,7 @@ export default function EmailStep({ email, onChange, submitError }: EmailStepPro
 
   const handleBlur = () => {
     if (input.trim() === '') {
-      setError('Email is required');
+      setError(optional ? null : 'Email is required');
     } else if (!isValidEmail(input)) {
       setError('Please enter a valid email address');
     }
@@ -41,10 +47,12 @@ export default function EmailStep({ email, onChange, submitError }: EmailStepPro
   return (
     <ThemedView style={styles.container}>
       <ThemedText type="subtitle" style={styles.title}>
-        What&apos;s your email?
+        {optional ? 'Add an email?' : 'What&apos;s your email?'}
       </ThemedText>
       <ThemedText type="small" style={[styles.subtitle, { color: theme.textSecondary }]}>
-        We&apos;ll use this to verify your account and send important updates
+        {optional
+          ? 'You can add a verified email to your Apple account, or skip this for now.'
+          : 'We&apos;ll use this to verify your account and send important updates'}
       </ThemedText>
 
       <View style={styles.inputContainer}>
@@ -72,7 +80,9 @@ export default function EmailStep({ email, onChange, submitError }: EmailStepPro
       </View>
 
       <ThemedText type="small" style={[styles.hint, { color: theme.textSecondary }]}>
-        We&apos;ll send a verification code to this email
+        {optional
+          ? 'If you add one, we&apos;ll send a verification code before saving it.'
+          : 'We&apos;ll send a verification code to this email'}
       </ThemedText>
     </ThemedView>
   );
