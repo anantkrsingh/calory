@@ -50,6 +50,31 @@ export const UserRole = {
 } as const;
 export type UserRole = (typeof UserRole)[keyof typeof UserRole];
 
+export const TicketStatus = {
+  Open: 'open',
+  InReview: 'in_review',
+  Resolved: 'resolved',
+  Closed: 'closed',
+} as const;
+export type TicketStatus = (typeof TicketStatus)[keyof typeof TicketStatus];
+
+export const TicketTimelineEventType = {
+  Created: 'created',
+  Comment: 'comment',
+  StatusChange: 'status_change',
+  Reopened: 'reopened',
+} as const;
+export type TicketTimelineEventType =
+  (typeof TicketTimelineEventType)[keyof typeof TicketTimelineEventType];
+
+export const TicketTimelineActorRole = {
+  User: 'user',
+  Admin: 'admin',
+  System: 'system',
+} as const;
+export type TicketTimelineActorRole =
+  (typeof TicketTimelineActorRole)[keyof typeof TicketTimelineActorRole];
+
 export const MuscleGroup = {
   Chest: 'chest',
   Back: 'back',

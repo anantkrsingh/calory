@@ -15,9 +15,11 @@ export const ALLOWED_MIME_TYPES = new Set([
   'image/png',
   'image/webp',
   'image/gif',
+  'image/heic',
+  'image/heif',
 ]);
 
-/** JPEG/PNG are re-encoded to WebP on upload; WebP/GIF are stored as-is. */
+/** JPEG/PNG are re-encoded to WebP on upload; WebP/GIF/HEIC/HEIF are stored as-is. */
 const CONVERT_TO_WEBP = new Set(['image/jpeg', 'image/jpg', 'image/png']);
 
 export const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
@@ -110,7 +112,7 @@ export class UploadsService {
 
     if (!ALLOWED_MIME_TYPES.has(file.mimetype)) {
       throw new BadRequestException(
-        'Unsupported image type. Use JPEG, PNG, WebP, or GIF.',
+        'Unsupported image type. Use JPEG, PNG, WebP, GIF, HEIC, or HEIF.',
       );
     }
 

@@ -15,6 +15,7 @@ import type {
   Routine,
   RoutineDay,
   RoutineDayExercise,
+  SupportTicket,
   User,
   Workout,
   DailyQuote,
@@ -44,6 +45,7 @@ export type DailyMealLogRow = DailyMealLog;
 export type NotificationCampaignRow = NotificationCampaign;
 export type NotificationDeliveryRow = NotificationDelivery;
 export type PortionFoodRow = PortionFood;
+export type SupportTicketRow = SupportTicket;
 
 /**
  * `days`/`exercises` are normalized into their own collections now (see the
@@ -78,6 +80,14 @@ export const DIET_PLAN_INCLUDE = {
 
 export type DietPlanRow = Prisma.DietPlanGetPayload<{
   include: typeof DIET_PLAN_INCLUDE;
+}>;
+
+export const SUPPORT_TICKET_ADMIN_INCLUDE = {
+  user: { select: { email: true, profile: true } },
+} satisfies Prisma.SupportTicketInclude;
+
+export type SupportTicketAdminRow = Prisma.SupportTicketGetPayload<{
+  include: typeof SUPPORT_TICKET_ADMIN_INCLUDE;
 }>;
 
 export type {

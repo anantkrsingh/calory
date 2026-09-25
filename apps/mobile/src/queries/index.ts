@@ -53,6 +53,14 @@ export {
   useUploadAvatar,
 } from './users.queries';
 export {
+  TicketsQueries,
+  useAddTicketComment,
+  useCreateTicket,
+  useReopenTicket,
+  useTickets,
+  useUploadTicketAttachment,
+} from './tickets.queries';
+export {
   WorkoutRoutinesQueries,
   useRegenerateRoutine,
   useTodayRoutine,

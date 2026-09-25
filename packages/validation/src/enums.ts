@@ -23,6 +23,9 @@ import {
   RoutineDayStatus,
   SetType,
   Sex,
+  TicketStatus,
+  TicketTimelineActorRole,
+  TicketTimelineEventType,
   UnitSystem,
   UserRole,
   WorkoutStatus,
@@ -39,6 +42,9 @@ export const activityLevelSchema = z.enum(ActivityLevel);
 export const fitnessGoalSchema = z.enum(FitnessGoal);
 export const authProviderSchema = z.enum(AuthProvider);
 export const userRoleSchema = z.enum(UserRole);
+export const ticketStatusSchema = z.enum(TicketStatus);
+export const ticketTimelineEventTypeSchema = z.enum(TicketTimelineEventType);
+export const ticketTimelineActorRoleSchema = z.enum(TicketTimelineActorRole);
 export const muscleGroupSchema = z.enum(MuscleGroup);
 export const equipmentSchema = z.enum(Equipment);
 export const exerciseCategorySchema = z.enum(ExerciseCategory);

@@ -19,3 +19,4 @@ export * from './diet-plan';
 export * from './calories';
 export * from './notification';
 export * from './portion';
+export * from './ticket';

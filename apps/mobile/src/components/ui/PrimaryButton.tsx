@@ -1,4 +1,11 @@
-import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import {
+  Pressable,
+  StyleSheet,
+  View,
+  type StyleProp,
+  type TextStyle,
+  type ViewStyle,
+} from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { Brand, Pressed } from '@/constants/theme';
@@ -19,6 +26,7 @@ type PrimaryButtonProps = {
   accessibilityLabel?: string;
   tone?: PrimaryButtonTone;
   style?: StyleProp<ViewStyle>;
+  textStyle?: StyleProp<TextStyle>;
 };
 
 /** The "Get started" pill — an ink frame doubling as the outline around a filled sage disc. */
@@ -29,6 +37,7 @@ export default function PrimaryButton({
   accessibilityLabel,
   tone = 'default',
   style,
+  textStyle,
 }: PrimaryButtonProps) {
   const theme = useTheme();
   const isDark = useColorScheme() === 'dark';
@@ -52,7 +61,9 @@ export default function PrimaryButton({
         style,
       ]}>
       <View style={[styles.fill, { backgroundColor: colors.fill }]}>
-        <ThemedText fontWeight="bold" style={[styles.text, { color: colors.text }]}>
+        <ThemedText
+          fontWeight="bold"
+          style={[styles.text, { color: colors.text }, textStyle]}>
           {label}
         </ThemedText>
       </View>

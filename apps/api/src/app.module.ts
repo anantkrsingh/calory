@@ -24,6 +24,7 @@ import { RoutinesModule } from './routines/routines.module';
 import { SettingsModule } from './settings/settings.module';
 import { StatsModule } from './stats/stats.module';
 import { StepsModule } from './steps/steps.module';
+import { TicketsModule } from './tickets/tickets.module';
 import { UploadsModule } from './uploads/uploads.module';
 import { UsersModule } from './users/users.module';
 import { WorkoutsModule } from './workouts/workouts.module';
@@ -53,6 +54,7 @@ import { WorkoutsModule } from './workouts/workouts.module';
     UploadsModule,
     StepsModule,
     NotificationsModule,
+    TicketsModule,
   ],
   providers: [
     // Authenticated by default; routes opt out with `@Public()`.

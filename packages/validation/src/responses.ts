@@ -25,6 +25,9 @@ import {
   routineDayStatusSchema,
   setTypeSchema,
   sexSchema,
+  ticketStatusSchema,
+  ticketTimelineActorRoleSchema,
+  ticketTimelineEventTypeSchema,
   unitSystemSchema,
   userRoleSchema,
   workoutStatusSchema,
@@ -90,6 +93,46 @@ export const userSchema = z.object({
 export const accountDeletionScheduleSchema = z.object({
   scheduledDeletionAt: isoDateTimeSchema,
   gracePeriodDays: z.number().int().positive(),
+});
+
+export const ticketAttachmentSchema = z.object({
+  url: z.url(),
+  publicId: z.string(),
+  resourceType: z.string(),
+  bytes: z.number().int(),
+  format: z.string().optional(),
+  originalName: z.string().optional(),
+  mimeType: z.string().optional(),
+  width: z.number().int().optional(),
+  height: z.number().int().optional(),
+});
+
+export const supportTicketSchema = z.object({
+  ...entityFields,
+  userId: objectIdSchema,
+  userEmail: z.email().optional(),
+  userDisplayName: z.string().optional(),
+  subject: z.string(),
+  message: z.string(),
+  status: ticketStatusSchema,
+  attachments: z.array(ticketAttachmentSchema),
+  timeline: z.array(
+    z.object({
+      id: z.string(),
+      type: ticketTimelineEventTypeSchema,
+      actorRole: ticketTimelineActorRoleSchema,
+      actorId: objectIdSchema.optional(),
+      actorName: z.string().optional(),
+      message: z.string().optional(),
+      fromStatus: ticketStatusSchema.optional(),
+      toStatus: ticketStatusSchema.optional(),
+      attachments: z.array(ticketAttachmentSchema),
+      createdAt: isoDateTimeSchema,
+    }),
+  ),
+  adminNote: z.string().optional(),
+  reviewedById: objectIdSchema.optional(),
+  reviewedAt: isoDateTimeSchema.optional(),
 });
 
 export const authTokensSchema = z.object({

@@ -6,6 +6,7 @@ export { DietPlansService, dietPlansService } from './diet-plans.service';
 export { ExercisesService, exercisesService } from './exercises.service';
 export { MeasurementsService, measurementsService } from './measurements.service';
 export { QuotesService, quotesService } from './quotes.service';
+export { TicketsService, ticketsService } from './tickets.service';
 export { UsersService, usersService } from './users.service';
 export {
   WorkoutRoutinesService,

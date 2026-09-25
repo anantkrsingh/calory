@@ -235,6 +235,26 @@ enum NotificationTargetPlatform {
   android
 }
 
+enum TicketStatus {
+  open
+  in_review
+  resolved
+  closed
+}
+
+enum TicketTimelineEventType {
+  created
+  comment
+  status_change
+  reopened
+}
+
+enum TicketTimelineActorRole {
+  user
+  admin
+  system
+}
+
 // ---------------------------------------------------------------------------
 // Composite types
 // ---------------------------------------------------------------------------
@@ -355,6 +375,31 @@ type BodyMeasurements {
   rightCalf  Float?
 }
 
+type TicketAttachment {
+  url          String
+  publicId     String
+  resourceType String
+  bytes        Int
+  format       String?
+  originalName String?
+  mimeType     String?
+  width        Int?
+  height       Int?
+}
+
+type TicketTimelineEvent {
+  id          String
+  type        TicketTimelineEventType
+  actorRole   TicketTimelineActorRole
+  actorId     String? @db.ObjectId
+  actorName   String?
+  message     String?
+  fromStatus  TicketStatus?
+  toStatus    TicketStatus?
+  attachments TicketAttachment[]
+  createdAt   DateTime
+}
+
 
 model User {
   id            String   @id @default(auto()) @map("_id") @db.ObjectId
@@ -410,8 +455,32 @@ model User {
   dietPlans       DietPlan[]
   dailyMealLogs   DailyMealLog[]
   notificationDeliveries NotificationDelivery[]
+  supportTickets SupportTicket[]
 
   @@map("users")
+}
+
+model SupportTicket {
+  id     String @id @default(auto()) @map("_id") @db.ObjectId
+  userId String @db.ObjectId
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  subject     String
+  message     String
+  status      TicketStatus @default(open)
+  attachments TicketAttachment[]
+  timeline    TicketTimelineEvent[]
+  adminNote   String?
+
+  reviewedById String? @db.ObjectId
+  reviewedAt   DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, createdAt])
+  @@index([status, createdAt])
+  @@map("support_tickets")
 }
 
 model Plan {

@@ -8,8 +8,6 @@ import {
   type LucideIcon,
   Moon,
   ShieldCheck,
-  SlidersHorizontal,
-  Target,
   User,
 } from "lucide-react-native";
 import { useRef } from "react";
@@ -68,16 +66,10 @@ export default function ProfileScreen() {
       label: "Edit Profile",
       onPress: () => router.push("/edit-profile"),
     },
-    { icon: Target, label: "Goals", onPress: () => router.push("/goals") },
     {
       icon: Bell,
       label: "Notifications & permissions",
       onPress: () => router.push("/notifications"),
-    },
-    {
-      icon: SlidersHorizontal,
-      label: "Units & Preferences",
-      onPress: () => router.push("/preferences"),
     },
     {
       icon: LifeBuoy,

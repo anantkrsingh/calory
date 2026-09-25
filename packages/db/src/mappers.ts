@@ -18,6 +18,7 @@ import type {
   NotificationDeliveryCounts,
   Plan,
   Routine,
+  SupportTicket,
   User,
   Workout,
   WorkoutRoutine,
@@ -41,6 +42,8 @@ import type {
   NotificationDeliveryRow,
   PlanRow,
   RoutineRow,
+  SupportTicketAdminRow,
+  SupportTicketRow,
   UserRow,
   WorkoutRoutineRow,
   WorkoutRow,
@@ -293,6 +296,66 @@ export function toDailySteps(row: DailyStepsRow): DailySteps {
     userId: row.userId,
     date: row.date,
     steps: row.steps,
+    createdAt: iso(row.createdAt),
+    updatedAt: iso(row.updatedAt),
+  };
+}
+
+export function toSupportTicket(
+  row: SupportTicketRow | SupportTicketAdminRow,
+): SupportTicket {
+  const adminRow = row as SupportTicketAdminRow;
+
+  return {
+    id: row.id,
+    userId: row.userId,
+    userEmail: adminRow.user?.email,
+    userDisplayName: adminRow.user?.profile.displayName,
+    subject: row.subject,
+    message: row.message,
+    status: row.status,
+    attachments: row.attachments.map((attachment) =>
+      compact({
+        url: attachment.url,
+        publicId: attachment.publicId,
+        resourceType: attachment.resourceType,
+        bytes: attachment.bytes,
+        format: attachment.format,
+        originalName: attachment.originalName,
+        mimeType: attachment.mimeType,
+        width: attachment.width,
+        height: attachment.height,
+      }) as SupportTicket['attachments'][number],
+    ),
+    timeline: (row.timeline ?? []).map((event) =>
+      compact({
+        id: event.id,
+        type: event.type,
+        actorRole: event.actorRole,
+        actorId: event.actorId,
+        actorName: event.actorName,
+        message: event.message,
+        fromStatus: event.fromStatus,
+        toStatus: event.toStatus,
+        attachments: event.attachments.map((attachment) =>
+          compact({
+            url: attachment.url,
+            publicId: attachment.publicId,
+            resourceType: attachment.resourceType,
+            bytes: attachment.bytes,
+            format: attachment.format,
+            originalName: attachment.originalName,
+            mimeType: attachment.mimeType,
+            width: attachment.width,
+            height: attachment.height,
+          }) as SupportTicket['attachments'][number],
+        ),
+        createdAt: iso(event.createdAt),
+      }) as SupportTicket['timeline'][number],
+    ),
+    adminNote: orUndefined(row.adminNote),
+    reviewedById: orUndefined(row.reviewedById),
+    reviewedAt: isoOrUndefined(row.reviewedAt),
     createdAt: iso(row.createdAt),
     updatedAt: iso(row.updatedAt),
   };
