@@ -1,6 +1,8 @@
 import type { Citation } from '@fitness/types';
 import { z } from 'zod';
 
+import { retrieveBlogEvidence } from './fit-crate-kb';
+
 export type ChatIntent =
   | 'personalized_plan'
   | 'personalized_info'
@@ -113,12 +115,18 @@ export function requiresDietPreferences(content: string): boolean {
 
 export function retrieveFitCrateEvidence(
   intent: ChatIntent,
+  content: string,
 ): FitCrateEvidence[] {
-  if (intent !== 'information_evidence') return [];
+  if (
+    intent !== 'information_evidence' &&
+    intent !== 'personalized_info' &&
+    intent !== 'personalized_plan' &&
+    intent !== 'personalized_edit'
+  ) {
+    return [];
+  }
 
-  // Fit Crate KB/blog retrieval plugs in here. Until those curated pages
-  // exist, the verified evidence set is intentionally empty.
-  return [];
+  return retrieveBlogEvidence(content);
 }
 
 export function mapVerifiedCitations(evidence: FitCrateEvidence[]): Citation[] {
@@ -138,7 +146,7 @@ export function buildChatWorkflow(
     profile,
     content,
   );
-  const evidence = retrieveFitCrateEvidence(intent);
+  const evidence = retrieveFitCrateEvidence(intent, content);
   const citations = mapVerifiedCitations(evidence);
 
   const state: ChatWorkflowState =

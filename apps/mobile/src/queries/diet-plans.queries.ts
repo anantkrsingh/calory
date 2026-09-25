@@ -38,7 +38,7 @@ export class DietPlansQueries {
   static me(enabled: boolean) {
     return queryOptions({
       queryKey: DietPlansQueries.keys.me(),
-      queryFn: () => dietPlansService.me(),
+      queryFn: ({ signal }) => dietPlansService.me(signal),
       enabled,
       staleTime: 5 * 60 * 1000,
     });
@@ -47,7 +47,7 @@ export class DietPlansQueries {
   static today(enabled: boolean, date: IsoDate) {
     return queryOptions({
       queryKey: DietPlansQueries.keys.today(date),
-      queryFn: () => dietPlansService.today(date),
+      queryFn: ({ signal }) => dietPlansService.today(date, signal),
       enabled,
       staleTime: 30 * 1000,
       // Poll while the plan is still generating, so the loading state clears
@@ -129,6 +129,7 @@ export function useMarkDietItemsTaken(): UseMutationResult<
   const queryClient = useQueryClient();
 
   return useMutation({
+    mutationKey: [...DietPlansQueries.root, 'mark-taken'],
     mutationFn: ({ date, input }: MarkDietItemsTakenVariables) =>
       dietPlansService.markTaken(date, input),
     onMutate: async ({ date, input }) => {
@@ -153,8 +154,7 @@ export function useMarkDietItemsTaken(): UseMutationResult<
         );
       }
     },
-    onSuccess: (data, { date }) => {
-      queryClient.setQueryData(DietPlansQueries.keys.today(date), data);
+    onSuccess: (_data, { date }) => {
       // Intake changed, so the day's balance did too.
       void queryClient.invalidateQueries({
         queryKey: CaloriesQueries.keys.day(date),

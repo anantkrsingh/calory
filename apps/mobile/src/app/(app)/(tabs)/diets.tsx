@@ -191,7 +191,6 @@ export default function DietsScreen() {
               onToggleItem={toggleItem}
               onToggleMeal={toggleMeal}
               onShowCitations={showCitations}
-              disabled={markTaken.isPending}
             />
           ))}
 

@@ -16,15 +16,18 @@ export class DietPlansService extends BaseService {
   }
 
   /** The caller's current AI-generated weekly diet plan (whatever its status). */
-  async me(): Promise<DietPlan> {
-    const { data } = await this.client.get<DietPlan>(this.url('me'));
+  async me(signal?: AbortSignal): Promise<DietPlan> {
+    const { data } = await this.client.get<DietPlan>(this.url('me'), {
+      signal,
+    });
     return data;
   }
 
   /** Today's meals layered with which items have actually been taken. */
-  async today(date: IsoDate): Promise<TodayDiet> {
+  async today(date: IsoDate, signal?: AbortSignal): Promise<TodayDiet> {
     const { data } = await this.client.get<TodayDiet>(
       this.url('today', date),
+      { signal },
     );
     return data;
   }

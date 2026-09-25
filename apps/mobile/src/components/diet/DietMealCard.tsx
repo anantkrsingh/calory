@@ -1,7 +1,7 @@
 import type { DietMeal, Id } from '@fitness/types';
 import { Check, Info } from 'lucide-react-native';
-import { memo } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { memo, useEffect, useState } from 'react';
+import { Animated, Easing, Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { Brand, Pressed, Spacing } from '@/constants/theme';
@@ -32,6 +32,27 @@ function DietMealCardComponent({
   const allTaken =
     meal.items.length > 0 && meal.items.every((item) => takenItemIds.has(item.id));
   const hasCitations = meal.citations.length > 0;
+  const [toggleProgress] = useState(() => new Animated.Value(allTaken ? 1 : 0));
+
+  useEffect(() => {
+    Animated.timing(toggleProgress, {
+      toValue: allTaken ? 1 : 0,
+      duration: 180,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: false,
+    }).start();
+  }, [allTaken, toggleProgress]);
+
+  const mealToggleAnimatedStyle = {
+    backgroundColor: toggleProgress.interpolate({
+      inputRange: [0, 1],
+      outputRange: [theme.backgroundElement, Brand.accent],
+    }),
+    width: toggleProgress.interpolate({
+      inputRange: [0, 1],
+      outputRange: [112, 86],
+    }),
+  };
 
   return (
     <View
@@ -76,17 +97,16 @@ function DietMealCardComponent({
           disabled={disabled}
           onPress={() => onToggleMeal(meal.id, !allTaken)}
           style={({ pressed }) => [
-            styles.mealToggle,
-            {
-              backgroundColor: allTaken ? Brand.accent : theme.backgroundElement,
-              opacity: disabled ? 0.5 : pressed ? Pressed.opacity : 1,
-            },
+            styles.mealTogglePressable,
+            { opacity: disabled ? 0.5 : pressed ? Pressed.opacity : 1 },
           ]}>
-          <Check color={allTaken ? '#FFFFFF' : theme.textSecondary} size={14} strokeWidth={3} />
-          <ThemedText
-            style={[styles.mealToggleText, allTaken && styles.mealToggleTextTaken]}>
-            {allTaken ? 'Taken' : 'Mark taken'}
-          </ThemedText>
+          <Animated.View style={[styles.mealToggle, mealToggleAnimatedStyle]}>
+            <Check color={allTaken ? '#FFFFFF' : theme.textSecondary} size={14} strokeWidth={3} />
+            <ThemedText
+              style={[styles.mealToggleText, allTaken && styles.mealToggleTextTaken]}>
+              {allTaken ? 'Taken' : 'Mark taken'}
+            </ThemedText>
+          </Animated.View>
         </Pressable>
       </View>
 
@@ -180,12 +200,17 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 16,
   },
+  mealTogglePressable: {
+    borderRadius: 999,
+  },
   mealToggle: {
     alignItems: 'center',
-    borderCurve: 'continuous',
     borderRadius: 999,
     flexDirection: 'row',
     gap: 4,
+    justifyContent: 'center',
+    minHeight: 30,
+    overflow: 'hidden',
     paddingHorizontal: Spacing.two + 2,
     paddingVertical: 6,
   },
