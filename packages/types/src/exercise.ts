@@ -4,6 +4,7 @@ import type {
   ExerciseCategory,
   ExerciseLogFieldRequirement,
   MuscleGroup,
+  SetType,
 } from './enums';
 
 /** One step of an exercise's illustrated how-to — distinct from `Exercise.instructions`
@@ -88,4 +89,43 @@ export interface ExercisePersonalRecord {
   bestDistanceM?: number;
   bestDurationSec?: number;
   achievedAt: string;
+}
+
+export interface ExerciseRepHistorySet {
+  setId: string;
+  order: number;
+  type: SetType;
+  reps?: number;
+  weightKg?: number;
+  durationSec?: number;
+  distanceM?: number;
+  rpe?: number;
+  completed: boolean;
+  notes?: string;
+  estimatedOneRepMaxKg?: number;
+  volumeKg?: number;
+  isPersonalRecord?: boolean;
+}
+
+export interface ExerciseRepHistorySession {
+  workoutId: Id;
+  workoutName: string;
+  date: string;
+  durationSec?: number;
+  sets: ExerciseRepHistorySet[];
+}
+
+export interface ExerciseRepsHistory {
+  exerciseId: Id;
+  exerciseName: string;
+  personalRecord?: ExercisePersonalRecord;
+  totalSessions: number;
+  totalSets: number;
+  totalReps: number;
+  maxWeightKg?: number;
+  maxReps?: number;
+  bestEstimatedOneRepMaxKg?: number;
+  historyLimitDays?: number;
+  isLimitedByPlan: boolean;
+  sessions: ExerciseRepHistorySession[];
 }

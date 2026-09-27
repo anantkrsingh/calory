@@ -1,4 +1,8 @@
-import type { Exercise, ExerciseCatalogue } from '@fitness/types';
+import type {
+  Exercise,
+  ExerciseCatalogue,
+  ExerciseRepsHistory,
+} from '@fitness/types';
 import type { ExerciseByMuscleQueryInput } from '@fitness/validation';
 import type { AxiosInstance } from 'axios';
 
@@ -25,6 +29,14 @@ export class ExercisesService extends BaseService {
 
   async get(id: string): Promise<Exercise> {
     const { data } = await this.client.get<Exercise>(this.url(id));
+    return data;
+  }
+
+  /** Complete reps and set progression history for an exercise. */
+  async repsHistory(id: string): Promise<ExerciseRepsHistory> {
+    const { data } = await this.client.get<ExerciseRepsHistory>(
+      this.url(id, 'reps-history'),
+    );
     return data;
   }
 

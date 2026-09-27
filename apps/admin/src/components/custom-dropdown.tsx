@@ -45,7 +45,7 @@ export function CustomDropdown({
   }, []);
 
   return (
-    <div ref={containerRef} className={`relative w-full ${className}`}>
+    <div ref={containerRef} className={`relative w-full ${isOpen ? "z-30" : "z-0"} ${className}`}>
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}

@@ -10,17 +10,26 @@ import { IAP_ENABLED } from '@/lib/purchases';
 import { useIsPro } from '@/queries/purchases.queries';
 
 
+import { selectUser, useAuthStore } from '@/stores/auth.store';
+
 export function PremiumUpsellCard() {
   const router = useRouter();
   const theme = useTheme();
+  const user = useAuthStore(selectUser);
   const isPro = useIsPro();
 
   if (!IAP_ENABLED) return null;
 
+  const planTitle = isPro
+    ? user?.planName
+      ? `${user.planName} - Active`
+      : 'Calory Pro - Active'
+    : 'Upgrade to Calory Pro';
+
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={isPro ? 'Fit Crate Pro is active' : 'Upgrade to Fit Crate Pro'}
+      accessibilityLabel={isPro ? 'Calory Pro is active' : 'Upgrade to Calory Pro'}
       onPress={() => router.push('/premium')}
       style={({ pressed }) => [styles.card, pressed && Pressed]}>
       <LinearGradient
@@ -37,10 +46,12 @@ export function PremiumUpsellCard() {
 
           <View style={styles.textBlock}>
             <ThemedText fontWeight="700" style={styles.title}>
-              {isPro ? 'Fit Crate Pro — Active' : 'Upgrade to Fit Crate Pro'}
+              {planTitle}
             </ThemedText>
             <ThemedText themeColor="textSecondary" style={styles.subtitle}>
-              {isPro ? 'Tap to manage your subscription' : 'Unlock AI diet plans, analytics & more'}
+              {isPro
+                ? 'Tap to manage your subscription & benefits'
+                : 'Unlock AI diet plans, unlimited reps history & coach'}
             </ThemedText>
           </View>
 
