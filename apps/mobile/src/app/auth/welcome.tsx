@@ -103,9 +103,16 @@ export default function WelcomeScreen() {
         <PrimaryButton
           label="Get started"
           onPress={() => router.push("/auth/onboarding")}
+          textStyle={{ color: isDark ? "#fff" : "#000" }}
           style={styles.getStartedSpacing}
         />
-        <View style={{ flexDirection: "row" ,justifyContent:"space-evenly",gap:10}}>
+        <View
+          style={{
+            flexDirection: "row",
+            justifyContent: "space-evenly",
+            gap: 10,
+          }}
+        >
           <SocialButton
             onClick={() => void socialLogin.signIn("google")}
             loading={socialLogin.pendingProvider === "google"}

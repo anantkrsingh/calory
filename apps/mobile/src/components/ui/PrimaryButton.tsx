@@ -10,7 +10,6 @@ import {
 import { ThemedText } from "@/components/themed-text";
 import { Brand, Pressed } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
-import { useTheme } from "@/hooks/use-theme";
 
 type PrimaryButtonTone = "default" | "danger";
 
@@ -46,7 +45,6 @@ export default function PrimaryButton({
   style,
   textStyle,
 }: PrimaryButtonProps) {
-  const theme = useTheme();
   const isDark = useColorScheme() === "dark";
   const colors = TONE_COLORS[tone];
   const frameColor = isDark
@@ -54,7 +52,7 @@ export default function PrimaryButton({
       ? colors.fill
       : Brand.teal
     : colors.frame;
-  const fillColor = isDark ? "#000000" : colors.fill;
+  const fillColor = isDark ? "#000000E3" : colors.fill;
 
   return (
     <Pressable

@@ -23,7 +23,7 @@ import {
   Trophy,
   User,
 } from "lucide-react-native";
-import { useState, useRef } from "react";
+import { useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -94,11 +94,24 @@ const GOAL_OPTIONS: { id: FitnessGoal; label: string; Icon: LucideIcon }[] = [
   { id: "train_sport", label: "Train for sport", Icon: Trophy },
 ];
 
-type MenuOption = {
+type MenuItem = {
+  key: string;
   icon: LucideIcon;
   label: string;
-  onPress: () => void;
 };
+
+const ACCOUNT_MENU_ITEMS: MenuItem[] = [
+  { key: "edit_profile", icon: User, label: "Edit Profile" },
+  { key: "activity_level", icon: Activity, label: "Activity level" },
+  { key: "fitness_goals", icon: Target, label: "Fitness goals" },
+  { key: "notifications", icon: Bell, label: "Notifications & permissions" },
+  { key: "help", icon: LifeBuoy, label: "Help & Support" },
+];
+
+const LEGAL_MENU_ITEMS: MenuItem[] = [
+  { key: "privacy", icon: ShieldCheck, label: "Privacy Policy" },
+  { key: "terms", icon: FileText, label: "Terms of Service" },
+];
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -119,56 +132,35 @@ export default function ProfileScreen() {
     user?.profile.fitnessGoals ?? []
   );
 
-  const openActivitySheet = () => {
-    setDraftActivityLevel(user?.profile.activityLevel);
-    activitySheetRef.current?.present();
+  const handleAccountMenuPress = (key: string) => {
+    switch (key) {
+      case "edit_profile":
+        router.push("/edit-profile");
+        break;
+      case "activity_level":
+        setDraftActivityLevel(user?.profile.activityLevel);
+        activitySheetRef.current?.present();
+        break;
+      case "fitness_goals":
+        setDraftGoals(user?.profile.fitnessGoals ?? []);
+        goalsSheetRef.current?.present();
+        break;
+      case "notifications":
+        router.push("/notifications");
+        break;
+      case "help":
+        router.push("/help");
+        break;
+    }
   };
 
-  const openGoalsSheet = () => {
-    setDraftGoals(user?.profile.fitnessGoals ?? []);
-    goalsSheetRef.current?.present();
+  const handleLegalMenuPress = (key: string) => {
+    if (key === "privacy") {
+      void Linking.openURL(PRIVACY_POLICY_URL);
+    } else if (key === "terms") {
+      void Linking.openURL(TERMS_OF_SERVICE_URL);
+    }
   };
-
-  const accountOptions: MenuOption[] = [
-    {
-      icon: User,
-      label: "Edit Profile",
-      onPress: () => router.push("/edit-profile"),
-    },
-    {
-      icon: Activity,
-      label: "Activity level",
-      onPress: openActivitySheet,
-    },
-    {
-      icon: Target,
-      label: "Fitness goals",
-      onPress: openGoalsSheet,
-    },
-    {
-      icon: Bell,
-      label: "Notifications & permissions",
-      onPress: () => router.push("/notifications"),
-    },
-    {
-      icon: LifeBuoy,
-      label: "Help & Support",
-      onPress: () => router.push("/help"),
-    },
-  ];
-
-  const legalOptions: MenuOption[] = [
-    {
-      icon: ShieldCheck,
-      label: "Privacy Policy",
-      onPress: () => Linking.openURL(PRIVACY_POLICY_URL),
-    },
-    {
-      icon: FileText,
-      label: "Terms of Service",
-      onPress: () => Linking.openURL(TERMS_OF_SERVICE_URL),
-    },
-  ];
 
   const cardStyle = [
     styles.card,
@@ -271,11 +263,13 @@ export default function ProfileScreen() {
 
         {user ? (
           <View style={cardStyle}>
-            {accountOptions.map((option, index) => (
+            {ACCOUNT_MENU_ITEMS.map((option, index) => (
               <MenuRow
-                key={option.label}
-                {...option}
-                showDivider={index < accountOptions.length - 1}
+                key={option.key}
+                icon={option.icon}
+                label={option.label}
+                onPress={() => handleAccountMenuPress(option.key)}
+                showDivider={index < ACCOUNT_MENU_ITEMS.length - 1}
               />
             ))}
           </View>
@@ -308,11 +302,13 @@ export default function ProfileScreen() {
         </View>
 
         <View style={cardStyle}>
-          {legalOptions.map((option, index) => (
+          {LEGAL_MENU_ITEMS.map((option, index) => (
             <MenuRow
-              key={option.label}
-              {...option}
-              showDivider={index < legalOptions.length - 1}
+              key={option.key}
+              icon={option.icon}
+              label={option.label}
+              onPress={() => handleLegalMenuPress(option.key)}
+              showDivider={index < LEGAL_MENU_ITEMS.length - 1}
             />
           ))}
         </View>
@@ -466,7 +462,12 @@ function MenuRow({
   label,
   onPress,
   showDivider,
-}: MenuOption & { showDivider: boolean }) {
+}: {
+  icon: LucideIcon;
+  label: string;
+  onPress: () => void;
+  showDivider: boolean;
+}) {
   const theme = useTheme();
 
   return (
