@@ -2,11 +2,11 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { LegalShell } from "@/components/legal-shell";
-import { APP_NAME, LEGAL_UPDATED, SUPPORT_EMAIL } from "@/lib/site";
+import { APP_NAME, LEGAL_UPDATED, PLAY_STORE_URL, PUBLISHER_NAME, SUPPORT_EMAIL } from "@/lib/site";
 
 export const metadata: Metadata = {
-  title: "Privacy Policy — Fit Crate",
-  description: "How Fit Crate collects, uses, and protects your data.",
+  title: `Privacy Policy — ${APP_NAME} (${PUBLISHER_NAME})`,
+  description: `How ${APP_NAME} by ${PUBLISHER_NAME} collects, uses, and protects your data.`,
 };
 
 export default function PrivacyPolicyPage() {
@@ -14,8 +14,11 @@ export default function PrivacyPolicyPage() {
     <LegalShell eyebrow="Legal" title="Privacy Policy" updated={LEGAL_UPDATED}>
       <p>
         This Privacy Policy explains what information {APP_NAME} (&ldquo;{APP_NAME}&rdquo;,
-        &ldquo;we&rdquo;, &ldquo;us&rdquo;) collects when you use the Fit Crate mobile app and this
-        website, how we use it, and the choices you have — including deleting your account and
+        &ldquo;we&rdquo;, &ldquo;us&rdquo;), developed and published by <strong>{PUBLISHER_NAME}</strong>, collects when you use the {APP_NAME} mobile application (available on{" "}
+        <a href={PLAY_STORE_URL} target="_blank" rel="noopener noreferrer">
+          Google Play Store
+        </a>
+        ) and this website, how we use it, and the choices you have — including deleting your account and
         data at any time.
       </p>
       <p>

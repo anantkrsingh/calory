@@ -2,11 +2,11 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { LegalShell } from "@/components/legal-shell";
-import { APP_NAME, LEGAL_UPDATED, SUPPORT_EMAIL } from "@/lib/site";
+import { APP_NAME, LEGAL_UPDATED, PLAY_STORE_URL, PUBLISHER_NAME, SUPPORT_EMAIL } from "@/lib/site";
 
 export const metadata: Metadata = {
-  title: "Delete Your Account — Fit Crate",
-  description: "How to permanently delete your Fit Crate account and data.",
+  title: `Delete Your Account — ${APP_NAME} (${PUBLISHER_NAME})`,
+  description: `How to permanently delete your ${APP_NAME} account and data. Published by ${PUBLISHER_NAME}.`,
 };
 
 const KEEP_ITEMS = [
@@ -25,28 +25,58 @@ const DELETE_ITEMS = [
 
 export default function DeleteAccountPage() {
   return (
-    <LegalShell eyebrow="Account" title="Delete Your Account" updated={LEGAL_UPDATED}>
+    <LegalShell eyebrow="Account & Data Deletion" title="Delete Your Account" updated={LEGAL_UPDATED}>
+      <div className="mb-10 rounded-2xl border border-border bg-surface p-6 shadow-sm">
+        <h2 className="!mt-0 !text-xl font-bold text-text">Application & Publisher Information</h2>
+        <dl className="mt-4 grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2 text-sm">
+          <div>
+            <dt className="font-medium text-text-secondary">Publisher / Developer</dt>
+            <dd className="font-semibold text-text">{PUBLISHER_NAME}</dd>
+          </div>
+          <div>
+            <dt className="font-medium text-text-secondary">Application Name</dt>
+            <dd className="font-semibold text-text">{APP_NAME}</dd>
+          </div>
+          <div className="sm:col-span-2">
+            <dt className="font-medium text-text-secondary">Google Play Store URL</dt>
+            <dd className="font-semibold text-brand-accent underline break-all">
+              <a href={PLAY_STORE_URL} target="_blank" rel="noopener noreferrer">
+                {PLAY_STORE_URL}
+              </a>
+            </dd>
+          </div>
+          <div>
+            <dt className="font-medium text-text-secondary">Support Contact</dt>
+            <dd className="font-semibold text-text">
+              <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>
+            </dd>
+          </div>
+        </dl>
+      </div>
+
       <p>
-        You can permanently delete your {APP_NAME} account and the data attached to it at any
-        time. This action is irreversible — once it&apos;s done, there&apos;s no way to recover
-        your routines, history, or logs.
+        You can permanently delete your <strong>{APP_NAME}</strong> account and all data attached to it at any
+        time. {APP_NAME} is developed and published by <strong>{PUBLISHER_NAME}</strong>. You can find our app on the{" "}
+        <a href={PLAY_STORE_URL} target="_blank" rel="noopener noreferrer">
+          Google Play Store
+        </a>.
+      </p>
+      <p>
+        Account deletion is irreversible — once confirmed, there is no way to recover your workout routines, exercise history, calorie tracking logs, or AI coach conversations.
       </p>
 
       <h2>Option 1 — Delete in the app</h2>
       <p>
-        Open Fit Crate, go to <strong>Profile → Delete Account</strong>, and confirm. Your account
-        and data are removed right away.
+        Open <strong>{APP_NAME}</strong> on your mobile device, go to <strong>Profile → Delete Account</strong>, and confirm your request. Your account and personal data will be removed immediately.
       </p>
 
-      <h2>Option 2 — Request deletion by email</h2>
+      <h2>Option 2 — Request deletion by email / web</h2>
       <p>
-        If you can&apos;t access the app, email{" "}
-        <a href={`mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent("Delete my Fit Crate account")}`}>
+        If you can&apos;t access the app or have uninstalled it, you can request account deletion by sending an email to{" "}
+        <a href={`mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(`Delete my ${APP_NAME} account`)}`}>
           {SUPPORT_EMAIL}
         </a>{" "}
-        from the address on your account with the subject &ldquo;Delete my Fit Crate account.&rdquo;
-        We&apos;ll verify it&apos;s you and confirm once your account has been deleted, generally
-        within 30 days.
+        from the email address associated with your {APP_NAME} account. Please use the subject line &ldquo;Delete my {APP_NAME} account.&rdquo; Our team at {PUBLISHER_NAME} will verify your identity and process the deletion, generally within 30 days.
       </p>
 
       <h2>What gets deleted</h2>
@@ -64,8 +94,9 @@ export default function DeleteAccountPage() {
         ))}
       </ul>
       <p>
-        See our <Link href="/privacy">Privacy Policy</Link> for more detail on how we handle your data.
+        For further details on how {PUBLISHER_NAME} collects and handles your data, please see our <Link href="/privacy">Privacy Policy</Link>.
       </p>
     </LegalShell>
   );
 }
+

@@ -2,6 +2,7 @@ import Image from "next/image";
 
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
+import { PLAY_STORE_URL } from "@/lib/site";
 
 const FEATURES = [
   {
@@ -256,7 +257,9 @@ export default function Home() {
                 Download for iOS
               </a>
               <a
-                href="#"
+                href={PLAY_STORE_URL}
+                target="_blank"
+                rel="noopener noreferrer"
                 className="rounded-full border-2 border-white bg-transparent px-7 py-3.5 text-base font-bold text-white transition-transform hover:scale-[1.03] active:scale-[0.98]"
               >
                 Download for Android
