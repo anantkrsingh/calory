@@ -5,7 +5,12 @@ export { ChatsService, chatsService } from './chats.service';
 export { DietPlansService, dietPlansService } from './diet-plans.service';
 export { ExercisesService, exercisesService } from './exercises.service';
 export { MeasurementsService, measurementsService } from './measurements.service';
+export { PlansService, plansService } from './plans.service';
 export { QuotesService, quotesService } from './quotes.service';
+export {
+  SubscriptionsService,
+  subscriptionsService,
+} from './subscriptions.service';
 export { TicketsService, ticketsService } from './tickets.service';
 export { UsersService, usersService } from './users.service';
 export {

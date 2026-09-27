@@ -47,12 +47,12 @@ export default function EmailStep({
   return (
     <ThemedView style={styles.container}>
       <ThemedText type="subtitle" style={styles.title}>
-        {optional ? 'Add an email?' : 'What&apos;s your email?'}
+        {optional ? 'Add an email?' : 'What\'s your email?'}
       </ThemedText>
       <ThemedText type="small" style={[styles.subtitle, { color: theme.textSecondary }]}>
         {optional
           ? 'You can add a verified email to your Apple account, or skip this for now.'
-          : 'We&apos;ll use this to verify your account and send important updates'}
+          : 'We\'ll use this to verify your account and send important updates'}
       </ThemedText>
 
       <View style={styles.inputContainer}>

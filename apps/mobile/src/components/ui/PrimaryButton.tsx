@@ -49,12 +49,8 @@ export default function PrimaryButton({
   const theme = useTheme();
   const isDark = useColorScheme() === "dark";
   const colors = TONE_COLORS[tone];
-  const frameColor = isDark
-    ? tone === "danger"
-      ? colors.fill
-      : Brand.teal
-    : colors.frame;
-  const fillColor = isDark ? "#000000" : colors.fill;
+  const frameColor = isDark ? theme.backgroundSelected : colors.frame;
+  const fillColor = colors.fill;
 
   return (
     <Pressable
@@ -98,6 +94,7 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     alignItems: "center",
     justifyContent: "center",
+    paddingHorizontal: 20,
   },
   text: {
     fontSize: 20,

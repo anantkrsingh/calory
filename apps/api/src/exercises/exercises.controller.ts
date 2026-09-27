@@ -22,12 +22,14 @@ import type {
   Exercise,
   ExerciseCatalogue,
   ExercisePersonalRecord,
+  ExerciseRepsHistory,
   Paginated,
 } from '@fitness/types';
 import {
   exerciseSchema,
   exerciseCatalogueSchema,
   exercisePersonalRecordSchema,
+  exerciseRepsHistorySchema,
   createExerciseSchema,
   exerciseByMuscleQuerySchema,
   exerciseQuerySchema,
@@ -113,6 +115,23 @@ export class ExercisesController {
     @Param('id', zodPipe(objectIdSchema)) id: string,
   ): Promise<ExercisePersonalRecord> {
     return this.exercises.personalRecords(user.id, id);
+  }
+
+  @Get(':id/reps-history')
+  @ApiOperation({
+    summary:
+      'Get reps history, personal records, and set progression for an exercise',
+  })
+  @ApiResponse({ status: 404, description: 'Not found' })
+  @ApiZodResponse(exerciseRepsHistorySchema, {
+    description: 'Reps and sets history',
+    name: 'ExerciseRepsHistory',
+  })
+  repsHistory(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', zodPipe(objectIdSchema)) id: string,
+  ): Promise<ExerciseRepsHistory> {
+    return this.exercises.repsHistory(user.id, id);
   }
 
   @Put(':id/favorite')

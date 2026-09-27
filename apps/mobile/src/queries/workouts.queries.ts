@@ -1,5 +1,5 @@
 import type { Exercise, Workout } from '@fitness/types';
-import { useMutation, type UseMutationResult } from '@tanstack/react-query';
+import { useMutation, useQueryClient, type UseMutationResult } from '@tanstack/react-query';
 
 import { generateClientId } from '@/lib/client-id';
 import { workoutsService } from '@/services/workouts.service';
@@ -27,6 +27,8 @@ export function useLogExerciseSet(): UseMutationResult<
   Error,
   LogExerciseSetInput
 > {
+  const queryClient = useQueryClient();
+
   return useMutation({
     mutationFn: async (input) => {
       const workout = await workoutsService.create({
@@ -57,6 +59,14 @@ export function useLogExerciseSet(): UseMutationResult<
       return workoutsService.complete(workout.id, {
         completedAt: new Date(input.stoppedAt).toISOString(),
         durationSec: input.durationSec,
+      });
+    },
+    onSuccess: (_workout, variables) => {
+      void queryClient.invalidateQueries({
+        queryKey: ['exercises', 'reps-history', variables.exercise.id],
+      });
+      void queryClient.invalidateQueries({
+        queryKey: ['workouts'],
       });
     },
   });

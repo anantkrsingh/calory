@@ -23,7 +23,7 @@ import {
   Trophy,
   User,
 } from "lucide-react-native";
-import { useState, useRef } from "react";
+import { useCallback, useState, useRef } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -100,6 +100,27 @@ type MenuOption = {
   onPress: () => void;
 };
 
+type AccountOptionKey =
+  | "profile"
+  | "activity"
+  | "goals"
+  | "notifications"
+  | "help";
+
+type AccountMenuOption = {
+  key: AccountOptionKey;
+  icon: LucideIcon;
+  label: string;
+};
+
+const ACCOUNT_OPTIONS: AccountMenuOption[] = [
+  { key: "profile", icon: User, label: "Edit Profile" },
+  { key: "activity", icon: Activity, label: "Activity level" },
+  { key: "goals", icon: Target, label: "Fitness goals" },
+  { key: "notifications", icon: Bell, label: "Notifications & permissions" },
+  { key: "help", icon: LifeBuoy, label: "Help & Support" },
+];
+
 export default function ProfileScreen() {
   const router = useRouter();
   const theme = useTheme();
@@ -119,43 +140,35 @@ export default function ProfileScreen() {
     user?.profile.fitnessGoals ?? []
   );
 
-  const openActivitySheet = () => {
+  const openActivitySheet = useCallback(() => {
     setDraftActivityLevel(user?.profile.activityLevel);
     activitySheetRef.current?.present();
-  };
+  }, [user?.profile.activityLevel]);
 
-  const openGoalsSheet = () => {
+  const openGoalsSheet = useCallback(() => {
     setDraftGoals(user?.profile.fitnessGoals ?? []);
     goalsSheetRef.current?.present();
-  };
+  }, [user?.profile.fitnessGoals]);
 
-  const accountOptions: MenuOption[] = [
-    {
-      icon: User,
-      label: "Edit Profile",
-      onPress: () => router.push("/edit-profile"),
-    },
-    {
-      icon: Activity,
-      label: "Activity level",
-      onPress: openActivitySheet,
-    },
-    {
-      icon: Target,
-      label: "Fitness goals",
-      onPress: openGoalsSheet,
-    },
-    {
-      icon: Bell,
-      label: "Notifications & permissions",
-      onPress: () => router.push("/notifications"),
-    },
-    {
-      icon: LifeBuoy,
-      label: "Help & Support",
-      onPress: () => router.push("/help"),
-    },
-  ];
+  const handleAccountOptionPress = (key: AccountOptionKey) => {
+    switch (key) {
+      case "profile":
+        router.push("/edit-profile");
+        break;
+      case "activity":
+        openActivitySheet();
+        break;
+      case "goals":
+        openGoalsSheet();
+        break;
+      case "notifications":
+        router.push("/notifications");
+        break;
+      case "help":
+        router.push("/help");
+        break;
+    }
+  };
 
   const legalOptions: MenuOption[] = [
     {
@@ -271,11 +284,13 @@ export default function ProfileScreen() {
 
         {user ? (
           <View style={cardStyle}>
-            {accountOptions.map((option, index) => (
+            {ACCOUNT_OPTIONS.map((option, index) => (
               <MenuRow
                 key={option.label}
-                {...option}
-                showDivider={index < accountOptions.length - 1}
+                icon={option.icon}
+                label={option.label}
+                onPress={() => handleAccountOptionPress(option.key)}
+                showDivider={index < ACCOUNT_OPTIONS.length - 1}
               />
             ))}
           </View>
@@ -465,8 +480,8 @@ function MenuRow({
   icon: Icon,
   label,
   onPress,
-  showDivider,
-}: MenuOption & { showDivider: boolean }) {
+  showDivider = false,
+}: MenuOption & { showDivider?: boolean }) {
   const theme = useTheme();
 
   return (

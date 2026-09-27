@@ -1,4 +1,8 @@
-import type { Exercise, ExerciseCatalogue } from '@fitness/types';
+import type {
+  Exercise,
+  ExerciseCatalogue,
+  ExerciseRepsHistory,
+} from '@fitness/types';
 import type { ExerciseByMuscleQueryInput } from '@fitness/validation';
 import {
   queryOptions,
@@ -20,6 +24,8 @@ export class ExercisesQueries {
     byMuscle: (query: ExerciseByMuscleQueryInput) =>
       [...ExercisesQueries.root, 'by-muscle', query] as const,
     detail: (id: string) => [...ExercisesQueries.root, 'detail', id] as const,
+    repsHistory: (id: string) =>
+      [...ExercisesQueries.root, 'reps-history', id] as const,
   };
 
   static byMuscle(enabled: boolean, query: ExerciseByMuscleQueryInput) {
@@ -39,6 +45,15 @@ export class ExercisesQueries {
       staleTime: 5 * 60 * 1000,
     });
   }
+
+  static repsHistory(enabled: boolean, id: string) {
+    return queryOptions({
+      queryKey: ExercisesQueries.keys.repsHistory(id),
+      queryFn: () => exercisesService.repsHistory(id),
+      enabled,
+      staleTime: 30 * 1000,
+    });
+  }
 }
 
 export function useExercisesByMuscle(
@@ -51,6 +66,15 @@ export function useExercisesByMuscle(
 export function useExercise(id: string | undefined): UseQueryResult<Exercise> {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
   return useQuery(ExercisesQueries.detail(isAuthenticated && !!id, id ?? ''));
+}
+
+export function useExerciseRepsHistory(
+  id: string | undefined,
+): UseQueryResult<ExerciseRepsHistory> {
+  const isAuthenticated = useAuthStore(selectIsAuthenticated);
+  return useQuery(
+    ExercisesQueries.repsHistory(isAuthenticated && !!id, id ?? ''),
+  );
 }
 
 /** Favorites/unfavorites depending on the exercise's current state, updates the
