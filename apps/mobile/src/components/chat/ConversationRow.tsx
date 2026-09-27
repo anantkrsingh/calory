@@ -47,7 +47,6 @@ function ConversationRowComponent({
   const theme = useTheme();
   const title = conversation.title?.trim() || 'New chat';
   const when = formatWhen(conversation.lastMessageAt ?? conversation.createdAt);
-  const count = conversation.messageCount;
 
   return (
     <Pressable
@@ -69,7 +68,7 @@ function ConversationRowComponent({
       <View style={styles.iconWrap}>
         <ChatIcon
           color={selected ? Brand.accent : theme.text}
-          size={20}
+          size={26}
         />
       </View>
 
@@ -82,14 +81,6 @@ function ConversationRowComponent({
             {when}
           </ThemedText>
         </View>
-        <ThemedText
-          themeColor="textSecondary"
-          numberOfLines={1}
-          style={styles.meta}>
-          {count === 0
-            ? 'No messages yet'
-            : `${count} message${count === 1 ? '' : 's'}`}
-        </ThemedText>
       </View>
 
       {selected ? (
@@ -109,7 +100,7 @@ const styles = StyleSheet.create({
   row: {
     alignItems: 'center',
     borderCurve: 'continuous',
-    borderRadius: 24,
+    borderRadius: 999,
     borderWidth: HAIRLINE,
     flexDirection: 'row',
     gap: Spacing.three,
@@ -131,8 +122,8 @@ const styles = StyleSheet.create({
   iconWrap: {
     alignItems: 'center',
     justifyContent: 'center',
-    width: 24,
-    height: 24,
+    width: 28,
+    height: 28,
   },
   checkBadge: {
     alignItems: 'center',
@@ -144,7 +135,6 @@ const styles = StyleSheet.create({
   },
   copy: {
     flex: 1,
-    gap: 3,
     minWidth: 0,
   },
   titleRow: {
@@ -160,9 +150,5 @@ const styles = StyleSheet.create({
   when: {
     fontSize: 12,
     lineHeight: 16,
-  },
-  meta: {
-    fontSize: 13,
-    lineHeight: 18,
   },
 });

@@ -23,8 +23,10 @@ import {
   Trophy,
   User,
 } from "lucide-react-native";
-import { useRef } from "react";
+import { useState, useRef } from "react";
 import {
+  ActivityIndicator,
+  Alert,
   Linking,
   Platform,
   Pressable,
@@ -34,6 +36,7 @@ import {
   View,
 } from "react-native";
 
+import { getErrorMessage } from "@/api/errors";
 import { TabScreen } from "@/components/tab-screen";
 import { ScreenAppBar } from "@/components/screen-app-bar";
 import { ThemedText } from "@/components/themed-text";
@@ -109,6 +112,23 @@ export default function ProfileScreen() {
   const activitySheetRef = useRef<TrueSheet>(null);
   const goalsSheetRef = useRef<TrueSheet>(null);
 
+  const [draftActivityLevel, setDraftActivityLevel] = useState<
+    ActivityLevel | undefined
+  >(user?.profile.activityLevel);
+  const [draftGoals, setDraftGoals] = useState<FitnessGoal[]>(
+    user?.profile.fitnessGoals ?? []
+  );
+
+  const openActivitySheet = () => {
+    setDraftActivityLevel(user?.profile.activityLevel);
+    activitySheetRef.current?.present();
+  };
+
+  const openGoalsSheet = () => {
+    setDraftGoals(user?.profile.fitnessGoals ?? []);
+    goalsSheetRef.current?.present();
+  };
+
   const accountOptions: MenuOption[] = [
     {
       icon: User,
@@ -118,12 +138,12 @@ export default function ProfileScreen() {
     {
       icon: Activity,
       label: "Activity level",
-      onPress: () => activitySheetRef.current?.present(),
+      onPress: openActivitySheet,
     },
     {
       icon: Target,
       label: "Fitness goals",
-      onPress: () => goalsSheetRef.current?.present(),
+      onPress: openGoalsSheet,
     },
     {
       icon: Bell,
@@ -158,28 +178,48 @@ export default function ProfileScreen() {
     },
   ];
 
-  const currentActivityLevel = user?.profile.activityLevel;
-  const currentGoals = user?.profile.fitnessGoals ?? [];
-
   const handleSelectActivity = (level: ActivityLevel) => {
-    updateProfile.mutate({
-      profile: {
-        activityLevel: level,
-      },
-    });
+    setDraftActivityLevel(level);
   };
 
   const handleToggleGoal = (goal: FitnessGoal) => {
-    const hasGoal = currentGoals.includes(goal);
-    const nextGoals = hasGoal
-      ? currentGoals.filter((g) => g !== goal)
-      : [...currentGoals, goal];
+    setDraftGoals((current) =>
+      current.includes(goal)
+        ? current.filter((g) => g !== goal)
+        : [...current, goal]
+    );
+  };
 
-    updateProfile.mutate({
-      profile: {
-        fitnessGoals: nextGoals,
-      },
-    });
+  const handleSaveActivity = async () => {
+    if (!draftActivityLevel) {
+      activitySheetRef.current?.dismiss();
+      return;
+    }
+    try {
+      await updateProfile.mutateAsync({
+        profile: { activityLevel: draftActivityLevel },
+      });
+      activitySheetRef.current?.dismiss();
+    } catch (err) {
+      Alert.alert(
+        "Couldn’t save",
+        getErrorMessage(err, "Something went wrong. Try again.")
+      );
+    }
+  };
+
+  const handleSaveGoals = async () => {
+    try {
+      await updateProfile.mutateAsync({
+        profile: { fitnessGoals: draftGoals },
+      });
+      goalsSheetRef.current?.dismiss();
+    } catch (err) {
+      Alert.alert(
+        "Couldn’t save",
+        getErrorMessage(err, "Something went wrong. Try again.")
+      );
+    }
   };
 
   return (
@@ -319,22 +359,27 @@ export default function ProfileScreen() {
             <View style={styles.sheetHeader}>
               <ThemedText style={styles.sheetTitle}>Activity level</ThemedText>
               <Pressable
-                onPress={() => void activitySheetRef.current?.dismiss()}
+                disabled={updateProfile.isPending}
+                onPress={() => void handleSaveActivity()}
                 style={({ pressed }) => [
                   styles.doneButton,
                   { backgroundColor: Brand.accent },
-                  pressed && Pressed,
+                  (pressed || updateProfile.isPending) && Pressed,
                 ]}
               >
-                <ThemedText fontWeight="bold" style={styles.doneButtonText}>
-                  Done
-                </ThemedText>
+                {updateProfile.isPending ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <ThemedText fontWeight="bold" style={styles.doneButtonText}>
+                    Done
+                  </ThemedText>
+                )}
               </Pressable>
             </View>
 
             <View style={styles.chipRow}>
               {ACTIVITY_LEVELS.map((level) => {
-                const selected = currentActivityLevel === level;
+                const selected = draftActivityLevel === level;
                 const Icon = ACTIVITY_ICONS[level];
                 return (
                   <Chip
@@ -371,22 +416,27 @@ export default function ProfileScreen() {
             <View style={styles.sheetHeader}>
               <ThemedText style={styles.sheetTitle}>Fitness goals</ThemedText>
               <Pressable
-                onPress={() => void goalsSheetRef.current?.dismiss()}
+                disabled={updateProfile.isPending}
+                onPress={() => void handleSaveGoals()}
                 style={({ pressed }) => [
                   styles.doneButton,
                   { backgroundColor: Brand.accent },
-                  pressed && Pressed,
+                  (pressed || updateProfile.isPending) && Pressed,
                 ]}
               >
-                <ThemedText fontWeight="bold" style={styles.doneButtonText}>
-                  Done
-                </ThemedText>
+                {updateProfile.isPending ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <ThemedText fontWeight="bold" style={styles.doneButtonText}>
+                    Done
+                  </ThemedText>
+                )}
               </Pressable>
             </View>
 
             <View style={styles.chipRow}>
               {GOAL_OPTIONS.map(({ id, label, Icon }) => {
-                const selected = currentGoals.includes(id);
+                const selected = draftGoals.includes(id);
                 return (
                   <Chip
                     key={id}
