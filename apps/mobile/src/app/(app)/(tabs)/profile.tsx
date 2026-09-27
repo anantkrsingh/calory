@@ -100,6 +100,27 @@ type MenuOption = {
   onPress: () => void;
 };
 
+type AccountOptionKey =
+  | "profile"
+  | "activity"
+  | "goals"
+  | "notifications"
+  | "help";
+
+type AccountMenuOption = {
+  key: AccountOptionKey;
+  icon: LucideIcon;
+  label: string;
+};
+
+const ACCOUNT_OPTIONS: AccountMenuOption[] = [
+  { key: "profile", icon: User, label: "Edit Profile" },
+  { key: "activity", icon: Activity, label: "Activity level" },
+  { key: "goals", icon: Target, label: "Fitness goals" },
+  { key: "notifications", icon: Bell, label: "Notifications & permissions" },
+  { key: "help", icon: LifeBuoy, label: "Help & Support" },
+];
+
 export default function ProfileScreen() {
   const router = useRouter();
   const theme = useTheme();
@@ -129,6 +150,25 @@ export default function ProfileScreen() {
     goalsSheetRef.current?.present();
   }, [user?.profile.fitnessGoals]);
 
+  const handleAccountOptionPress = (key: AccountOptionKey) => {
+    switch (key) {
+      case "profile":
+        router.push("/edit-profile");
+        break;
+      case "activity":
+        openActivitySheet();
+        break;
+      case "goals":
+        openGoalsSheet();
+        break;
+      case "notifications":
+        router.push("/notifications");
+        break;
+      case "help":
+        router.push("/help");
+        break;
+    }
+  };
 
   const legalOptions: MenuOption[] = [
     {
@@ -244,35 +284,15 @@ export default function ProfileScreen() {
 
         {user ? (
           <View style={cardStyle}>
-            <MenuRow
-              icon={User}
-              label="Edit Profile"
-              onPress={() => router.push("/edit-profile")}
-              showDivider
-            />
-            <MenuRow
-              icon={Activity}
-              label="Activity level"
-              onPress={openActivitySheet}
-              showDivider
-            />
-            <MenuRow
-              icon={Target}
-              label="Fitness goals"
-              onPress={openGoalsSheet}
-              showDivider
-            />
-            <MenuRow
-              icon={Bell}
-              label="Notifications & permissions"
-              onPress={() => router.push("/notifications")}
-              showDivider
-            />
-            <MenuRow
-              icon={LifeBuoy}
-              label="Help & Support"
-              onPress={() => router.push("/help")}
-            />
+            {ACCOUNT_OPTIONS.map((option, index) => (
+              <MenuRow
+                key={option.label}
+                icon={option.icon}
+                label={option.label}
+                onPress={() => handleAccountOptionPress(option.key)}
+                showDivider={index < ACCOUNT_OPTIONS.length - 1}
+              />
+            ))}
           </View>
         ) : null}
 
@@ -460,8 +480,8 @@ function MenuRow({
   icon: Icon,
   label,
   onPress,
-  showDivider,
-}: MenuOption & { showDivider: boolean }) {
+  showDivider = false,
+}: MenuOption & { showDivider?: boolean }) {
   const theme = useTheme();
 
   return (
