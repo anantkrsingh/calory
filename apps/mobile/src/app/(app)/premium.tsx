@@ -1,6 +1,5 @@
 import { Redirect, useRouter, type Href } from 'expo-router';
 import {
-  BadgeCheck,
   Check,
   ChefHat,
   Dumbbell,
@@ -49,8 +48,6 @@ import {
   useSyncSubscription,
 } from '@/queries/purchases.queries';
 import { selectUser, useAuthStore } from '@/stores/auth.store';
-import { useDevPurchasesStore } from '@/stores/dev-purchases.store';
-import type { Plan } from '@fitness/types';
 
 type PlanId = 'weekly' | 'monthly' | 'yearly';
 
@@ -86,6 +83,11 @@ function messageFor(error: unknown, fallback: string): string {
   return purchasesError?.message || fallback;
 }
 
+function calculateExpirationDate(durationInDays: number | null): string | null {
+  if (!durationInDays) return null;
+  return new Date(Date.now() + durationInDays * 24 * 60 * 60 * 1000).toISOString();
+}
+
 export default function PremiumScreen() {
   const router = useRouter();
   const theme = useTheme();
@@ -101,10 +103,6 @@ export default function PremiumScreen() {
   const restore = useRestorePurchases();
   const syncSubscription = useSyncSubscription();
   const cancelSubscription = useCancelSubscription();
-  const devSimulateFree = useDevPurchasesStore((s) => s.devSimulateFree);
-
-  if (!IAP_ENABLED) return <Redirect href={'/(tabs)/profile' as Href} />;
-
   const isPro = useIsPro();
   const isLoading =
     offeringsQuery.isPending && (apiPlansQuery.isPending || !apiPlansQuery.data);
@@ -177,12 +175,12 @@ export default function PremiumScreen() {
                 ? 7
                 : null);
 
+        const expirationDate = calculateExpirationDate(durationInDays);
+
         const result = await syncSubscription.mutateAsync({
           entitlementIds,
           storeProductId: effectiveApiPlan.storeProductId ?? effectiveApiPlan.id,
-          expirationDate: durationInDays
-            ? new Date(Date.now() + durationInDays * 24 * 60 * 60 * 1000).toISOString()
-            : null,
+          expirationDate,
           isSandbox: true,
         });
 
@@ -214,6 +212,8 @@ export default function PremiumScreen() {
       Alert.alert('Restore failed', messageFor(error, 'Something went wrong. Try again.'));
     }
   };
+
+  if (!IAP_ENABLED) return <Redirect href={'/(tabs)/profile' as Href} />;
 
   return (
     <ThemedView style={styles.screen}>

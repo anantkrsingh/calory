@@ -24,6 +24,7 @@ import { ApiZodBody } from '../common/swagger';
 import { zodPipe } from '../common/zod-validation.pipe';
 import {
   SubscriptionsService,
+  type RevenueCatWebhookPayload,
   type SubscriptionStatusResponse,
   type SyncSubscriptionResponse,
 } from './subscriptions.service';
@@ -69,7 +70,8 @@ export class SubscriptionsController {
   @Post('cancel')
   @ApiBearerAuth('access-token')
   @ApiOperation({
-    summary: 'Cancel or reset current subscription (Development / Testing / Customer Service)',
+    summary:
+      'Cancel or reset current subscription (Development / Testing / Customer Service)',
   })
   @ApiResponse({
     status: 200,
@@ -89,7 +91,7 @@ export class SubscriptionsController {
   })
   @ApiResponse({ status: 200, description: 'Webhook received' })
   webhook(
-    @Body() payload: any,
+    @Body() payload: RevenueCatWebhookPayload,
     @Headers('authorization') authHeader?: string,
   ): Promise<{ received: boolean }> {
     return this.subscriptionsService.handleWebhook(payload, authHeader);

@@ -26,6 +26,19 @@ export interface SyncSubscriptionResponse {
   user: User;
 }
 
+export interface RevenueCatWebhookEvent {
+  type: string;
+  app_user_id?: string;
+  original_app_user_id?: string;
+  product_id?: string;
+  entitlement_ids?: string[];
+  expiration_at_ms?: number;
+}
+
+export interface RevenueCatWebhookPayload {
+  event?: RevenueCatWebhookEvent;
+}
+
 @Injectable()
 export class SubscriptionsService {
   private readonly logger = new Logger(SubscriptionsService.name);
@@ -235,7 +248,7 @@ export class SubscriptionsService {
    * CANCELLATION, EXPIRATION, PRODUCT_CHANGE).
    */
   async handleWebhook(
-    payload: any,
+    payload: RevenueCatWebhookPayload,
     authHeader?: string,
   ): Promise<{ received: boolean }> {
     const webhookSecret = process.env.REVENUECAT_WEBHOOK_AUTH_HEADER;
@@ -264,7 +277,9 @@ export class SubscriptionsService {
       return { received: true };
     }
 
-    this.logger.log(`Processing RevenueCat webhook "${type}" for user: ${targetUserId}`);
+    this.logger.log(
+      `Processing RevenueCat webhook "${type}" for user: ${targetUserId}`,
+    );
 
     // Try finding user by MongoDB ObjectId or email
     const user = await this.prisma.user.findFirst({
@@ -292,15 +307,23 @@ export class SubscriptionsService {
             where: { storeProductId: product_id, isActive: true },
           });
         }
-        const webhookDuration = (product_id && (product_id.toLowerCase().includes('year') || product_id.toLowerCase().includes('annual')))
-          ? 'yearly'
-          : (product_id && product_id.toLowerCase().includes('month'))
-            ? 'monthly'
-            : (product_id && product_id.toLowerCase().includes('week'))
-              ? 'weekly'
-              : null;
+        const webhookDuration =
+          product_id &&
+          (product_id.toLowerCase().includes('year') ||
+            product_id.toLowerCase().includes('annual'))
+            ? 'yearly'
+            : product_id && product_id.toLowerCase().includes('month')
+              ? 'monthly'
+              : product_id && product_id.toLowerCase().includes('week')
+                ? 'weekly'
+                : null;
 
-        if (!plan && webhookDuration && Array.isArray(entitlement_ids) && entitlement_ids.length > 0) {
+        if (
+          !plan &&
+          webhookDuration &&
+          Array.isArray(entitlement_ids) &&
+          entitlement_ids.length > 0
+        ) {
           plan = await this.prisma.plan.findFirst({
             where: {
               duration: webhookDuration,
@@ -309,7 +332,11 @@ export class SubscriptionsService {
             },
           });
         }
-        if (!plan && Array.isArray(entitlement_ids) && entitlement_ids.length > 0) {
+        if (
+          !plan &&
+          Array.isArray(entitlement_ids) &&
+          entitlement_ids.length > 0
+        ) {
           plan = await this.prisma.plan.findFirst({
             where: {
               revenueCatEntitlementIds: { hasSome: entitlement_ids },

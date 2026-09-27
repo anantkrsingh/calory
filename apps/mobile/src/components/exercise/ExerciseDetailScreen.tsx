@@ -1,17 +1,14 @@
 import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import {
-  Award,
   Calendar,
   ChevronRight,
   Crown,
   Dumbbell,
   Heart,
   History,
-  Sparkles,
   Timer,
   Trophy,
-  Zap,
 } from "lucide-react-native";
 import { useState, type ReactNode } from "react";
 import {
@@ -88,11 +85,8 @@ export function ExerciseDetailScreen() {
     error,
     refetch,
   } = useExercise(id);
-  const {
-    data: repsHistory,
-    isLoading: isLoadingHistory,
-    refetch: refetchHistory,
-  } = useExerciseRepsHistory(id);
+  const { data: repsHistory, isLoading: isLoadingHistory } =
+    useExerciseRepsHistory(id);
 
   const toggleFavorite = useToggleExerciseFavorite();
 

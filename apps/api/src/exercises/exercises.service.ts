@@ -329,10 +329,7 @@ export class ExercisesService {
    * Complete reps and set progression history for one exercise.
    * Respects user's active plan repsHistoryDays limit if configured.
    */
-  async repsHistory(
-    userId: Id,
-    exerciseId: Id,
-  ): Promise<ExerciseRepsHistory> {
+  async repsHistory(userId: Id, exerciseId: Id): Promise<ExerciseRepsHistory> {
     const exercise = await this.findById(userId, exerciseId);
     const pr = await this.personalRecords(userId, exerciseId);
 
@@ -386,7 +383,9 @@ export class ExercisesService {
     let bestEstimatedOneRepMaxKg: number | undefined = undefined;
 
     for (const workout of workouts) {
-      const exerciseEntry = workout.exercises.find((e) => e.exerciseId === exerciseId);
+      const exerciseEntry = workout.exercises.find(
+        (e) => e.exerciseId === exerciseId,
+      );
       if (!exerciseEntry) continue;
 
       const completedSets = exerciseEntry.sets.filter((s) => s.completed);
@@ -423,7 +422,9 @@ export class ExercisesService {
         }
 
         const isPersonalRecord = Boolean(
-          (weightKg != null && pr.bestWeightKg != null && weightKg >= pr.bestWeightKg) ||
+          (weightKg != null &&
+            pr.bestWeightKg != null &&
+            weightKg >= pr.bestWeightKg) ||
           (reps != null && pr.bestReps != null && reps >= pr.bestReps) ||
           (estimatedOneRepMaxKg != null &&
             pr.bestEstimatedOneRepMaxKg != null &&

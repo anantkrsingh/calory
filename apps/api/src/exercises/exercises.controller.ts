@@ -119,7 +119,8 @@ export class ExercisesController {
 
   @Get(':id/reps-history')
   @ApiOperation({
-    summary: 'Get reps history, personal records, and set progression for an exercise',
+    summary:
+      'Get reps history, personal records, and set progression for an exercise',
   })
   @ApiResponse({ status: 404, description: 'Not found' })
   @ApiZodResponse(exerciseRepsHistorySchema, {
