@@ -1,9 +1,10 @@
 import type { ChatConversation } from '@fitness/types';
-import { Check, ChevronRight, MessageSquare } from 'lucide-react-native';
+import { Check, ChevronRight } from 'lucide-react-native';
 import { memo } from 'react';
 import { Platform, Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
+import { ChatIcon } from '@/components/ui/ChatIcon';
 import { Brand, Pressed, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
@@ -65,19 +66,10 @@ function ConversationRowComponent({
         },
         pressed && Pressed,
       ]}>
-      <View
-        style={[
-          styles.iconWrap,
-          {
-            backgroundColor: selected
-              ? 'rgba(239, 90, 36, 0.12)'
-              : theme.background,
-          },
-        ]}>
-        <MessageSquare
-          color={selected ? Brand.accent : Brand.ink}
-          size={18}
-          strokeWidth={2.2}
+      <View style={styles.iconWrap}>
+        <ChatIcon
+          color={selected ? Brand.accent : theme.text}
+          size={20}
         />
       </View>
 
@@ -117,11 +109,11 @@ const styles = StyleSheet.create({
   row: {
     alignItems: 'center',
     borderCurve: 'continuous',
-    borderRadius: 16,
+    borderRadius: 24,
     borderWidth: HAIRLINE,
     flexDirection: 'row',
     gap: Spacing.three,
-    paddingHorizontal: Spacing.three,
+    paddingHorizontal: Spacing.four,
     paddingVertical: 14,
     ...Platform.select({
       android: {
@@ -138,11 +130,9 @@ const styles = StyleSheet.create({
   },
   iconWrap: {
     alignItems: 'center',
-    borderCurve: 'continuous',
-    borderRadius: 14,
-    height: 44,
     justifyContent: 'center',
-    width: 44,
+    width: 24,
+    height: 24,
   },
   checkBadge: {
     alignItems: 'center',

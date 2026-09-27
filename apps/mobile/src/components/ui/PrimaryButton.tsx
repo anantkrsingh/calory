@@ -42,9 +42,21 @@ export default function PrimaryButton({
   const theme = useTheme();
   const isDark = useColorScheme() === 'dark';
   const colors = TONE_COLORS[tone];
-  // Both tones share the same near-black ink ring, which reads as nearly
-  // invisible against a dark background — swap it for a light ring there.
-  const frameColor = isDark ? theme.backgroundSelected : colors.frame;
+  const frameColor = isDark
+    ? tone === 'danger'
+      ? colors.frame
+      : Brand.teal
+    : colors.frame;
+  const fillColor = isDark
+    ? tone === 'danger'
+      ? colors.fill
+      : theme.backgroundElement
+    : colors.fill;
+  const textColor = isDark
+    ? tone === 'danger'
+      ? colors.text
+      : theme.text
+    : colors.text;
 
   return (
     <Pressable
@@ -60,10 +72,10 @@ export default function PrimaryButton({
         pressed && !disabled && Pressed,
         style,
       ]}>
-      <View style={[styles.fill, { backgroundColor: colors.fill }]}>
+      <View style={[styles.fill, { backgroundColor: fillColor }]}>
         <ThemedText
           fontWeight="bold"
-          style={[styles.text, { color: colors.text }, textStyle]}>
+          style={[styles.text, { color: textColor }, textStyle]}>
           {label}
         </ThemedText>
       </View>

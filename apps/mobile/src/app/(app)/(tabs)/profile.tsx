@@ -1,13 +1,26 @@
+import { TrueSheet } from "@lodev09/react-native-true-sheet";
+import type { ActivityLevel, FitnessGoal } from "@fitness/types";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import {
+  Activity,
+  Armchair,
   Bell,
+  Check,
   ChevronRight,
+  Dumbbell,
   FileText,
+  Flame,
+  Footprints,
+  HeartPulse,
   LifeBuoy,
   type LucideIcon,
   Moon,
+  PersonStanding,
   ShieldCheck,
+  Target,
+  TrendingDown,
+  Trophy,
   User,
 } from "lucide-react-native";
 import { useRef } from "react";
@@ -29,11 +42,13 @@ import {
   type DeleteAccountSheetRef,
 } from "@/components/profile/DeleteAccountSheet";
 import { PremiumUpsellCard } from "@/components/profile/PremiumUpsellCard";
+import Chip from "@/components/ui/Chip";
 import PrimaryButton from "@/components/ui/PrimaryButton";
 import { BottomTabInset, Brand, Pressed, Spacing } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { useTheme } from "@/hooks/use-theme";
 import { displayNameOf, initialsOf } from "@/lib/user";
+import { useUpdateProfile } from "@/queries/users.queries";
 import { selectUser, useAuthStore } from "@/stores/auth.store";
 import { useThemeStore } from "@/stores/theme.store";
 
@@ -42,6 +57,39 @@ const TERMS_OF_SERVICE_URL = "https://caloryfitness.netlify.app/terms";
 
 const AVATAR_SIZE = 64;
 const HAIRLINE = StyleSheet.hairlineWidth || 1;
+
+const ACTIVITY_LEVELS: ActivityLevel[] = [
+  "sedentary",
+  "light",
+  "moderate",
+  "active",
+  "very_active",
+];
+
+const ACTIVITY_LABELS: Record<ActivityLevel, string> = {
+  sedentary: "Sedentary",
+  light: "Lightly active",
+  moderate: "Moderately active",
+  active: "Very active",
+  very_active: "Extremely active",
+};
+
+const ACTIVITY_ICONS: Record<ActivityLevel, LucideIcon> = {
+  sedentary: Armchair,
+  light: Footprints,
+  moderate: PersonStanding,
+  active: Dumbbell,
+  very_active: Flame,
+};
+
+const GOAL_OPTIONS: { id: FitnessGoal; label: string; Icon: LucideIcon }[] = [
+  { id: "lose_weight", label: "Lose weight", Icon: TrendingDown },
+  { id: "build_muscle", label: "Build muscle", Icon: Dumbbell },
+  { id: "improve_fitness", label: "Improve fitness", Icon: HeartPulse },
+  { id: "gain_strength", label: "Gain strength", Icon: Dumbbell },
+  { id: "stay_healthy", label: "Stay healthy", Icon: HeartPulse },
+  { id: "train_sport", label: "Train for sport", Icon: Trophy },
+];
 
 type MenuOption = {
   icon: LucideIcon;
@@ -54,17 +102,28 @@ export default function ProfileScreen() {
   const theme = useTheme();
   const user = useAuthStore(selectUser);
   const clearAuth = useAuthStore((state) => state.clear);
-  // Effective scheme — the user's explicit choice if they've made one,
-  // otherwise whatever the device's system Appearance is currently set to.
+  const updateProfile = useUpdateProfile();
   const isDarkMode = useColorScheme() === "dark";
   const setThemePreference = useThemeStore((s) => s.setPreference);
   const deleteAccountSheetRef = useRef<DeleteAccountSheetRef>(null);
+  const activitySheetRef = useRef<TrueSheet>(null);
+  const goalsSheetRef = useRef<TrueSheet>(null);
 
   const accountOptions: MenuOption[] = [
     {
       icon: User,
       label: "Edit Profile",
       onPress: () => router.push("/edit-profile"),
+    },
+    {
+      icon: Activity,
+      label: "Activity level",
+      onPress: () => activitySheetRef.current?.present(),
+    },
+    {
+      icon: Target,
+      label: "Fitness goals",
+      onPress: () => goalsSheetRef.current?.present(),
     },
     {
       icon: Bell,
@@ -98,6 +157,30 @@ export default function ProfileScreen() {
       borderColor: theme.border,
     },
   ];
+
+  const currentActivityLevel = user?.profile.activityLevel;
+  const currentGoals = user?.profile.fitnessGoals ?? [];
+
+  const handleSelectActivity = (level: ActivityLevel) => {
+    updateProfile.mutate({
+      profile: {
+        activityLevel: level,
+      },
+    });
+  };
+
+  const handleToggleGoal = (goal: FitnessGoal) => {
+    const hasGoal = currentGoals.includes(goal);
+    const nextGoals = hasGoal
+      ? currentGoals.filter((g) => g !== goal)
+      : [...currentGoals, goal];
+
+    updateProfile.mutate({
+      profile: {
+        fitnessGoals: nextGoals,
+      },
+    });
+  };
 
   return (
     <TabScreen
@@ -221,6 +304,109 @@ export default function ProfileScreen() {
       </ScrollView>
 
       <DeleteAccountSheet ref={deleteAccountSheetRef} onDeleted={clearAuth} />
+
+      <TrueSheet
+        ref={activitySheetRef}
+        detents={["auto"]}
+        dimmed
+        dimmedDetentIndex={0}
+        backgroundColor={theme.backgroundElement}
+        cornerRadius={24}
+        grabber={false}
+      >
+        <ScrollView showsVerticalScrollIndicator={false}>
+          <View style={styles.sheetContent}>
+            <View style={styles.sheetHeader}>
+              <ThemedText style={styles.sheetTitle}>Activity level</ThemedText>
+              <Pressable
+                onPress={() => void activitySheetRef.current?.dismiss()}
+                style={({ pressed }) => [
+                  styles.doneButton,
+                  { backgroundColor: Brand.accent },
+                  pressed && Pressed,
+                ]}
+              >
+                <ThemedText fontWeight="bold" style={styles.doneButtonText}>
+                  Done
+                </ThemedText>
+              </Pressable>
+            </View>
+
+            <View style={styles.chipRow}>
+              {ACTIVITY_LEVELS.map((level) => {
+                const selected = currentActivityLevel === level;
+                const Icon = ACTIVITY_ICONS[level];
+                return (
+                  <Chip
+                    key={level}
+                    label={ACTIVITY_LABELS[level]}
+                    selected={selected}
+                    onPress={() => handleSelectActivity(level)}
+                    icon={
+                      selected ? (
+                        <Check size={18} color={Brand.accent} />
+                      ) : (
+                        <Icon size={18} color={theme.text} />
+                      )
+                    }
+                  />
+                );
+              })}
+            </View>
+          </View>
+        </ScrollView>
+      </TrueSheet>
+
+      <TrueSheet
+        ref={goalsSheetRef}
+        detents={["auto"]}
+        dimmed
+        dimmedDetentIndex={0}
+        backgroundColor={theme.backgroundElement}
+        cornerRadius={24}
+        grabber={false}
+      >
+        <ScrollView showsVerticalScrollIndicator={false}>
+          <View style={styles.sheetContent}>
+            <View style={styles.sheetHeader}>
+              <ThemedText style={styles.sheetTitle}>Fitness goals</ThemedText>
+              <Pressable
+                onPress={() => void goalsSheetRef.current?.dismiss()}
+                style={({ pressed }) => [
+                  styles.doneButton,
+                  { backgroundColor: Brand.accent },
+                  pressed && Pressed,
+                ]}
+              >
+                <ThemedText fontWeight="bold" style={styles.doneButtonText}>
+                  Done
+                </ThemedText>
+              </Pressable>
+            </View>
+
+            <View style={styles.chipRow}>
+              {GOAL_OPTIONS.map(({ id, label, Icon }) => {
+                const selected = currentGoals.includes(id);
+                return (
+                  <Chip
+                    key={id}
+                    label={label}
+                    selected={selected}
+                    onPress={() => handleToggleGoal(id)}
+                    icon={
+                      selected ? (
+                        <Check size={18} color={Brand.accent} />
+                      ) : (
+                        <Icon size={18} color={theme.text} />
+                      )
+                    }
+                  />
+                );
+              })}
+            </View>
+          </View>
+        </ScrollView>
+      </TrueSheet>
     </TabScreen>
   );
 }
@@ -332,4 +518,36 @@ const styles = StyleSheet.create({
   dangerZone: { gap: Spacing.three },
   deleteAccountButton: { alignSelf: "center", paddingVertical: Spacing.one },
   deleteAccountText: { color: Brand.accent },
+  sheetContent: {
+    paddingHorizontal: Spacing.four,
+    paddingTop: Spacing.four,
+    paddingBottom: Spacing.six,
+  },
+  sheetHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: Spacing.three,
+  },
+  sheetTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+  },
+  doneButton: {
+    paddingHorizontal: Spacing.three,
+    paddingVertical: 6,
+    borderRadius: 999,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  doneButtonText: {
+    color: "#FFFFFF",
+    fontSize: 14,
+  },
+  chipRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: Spacing.two,
+  },
 });
+
