@@ -5,18 +5,25 @@ import {
   type StyleProp,
   type TextStyle,
   type ViewStyle,
-} from 'react-native';
+} from "react-native";
 
-import { ThemedText } from '@/components/themed-text';
-import { Brand, Pressed } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
-import { useTheme } from '@/hooks/use-theme';
+import { ThemedText } from "@/components/themed-text";
+import { Brand, Pressed } from "@/constants/theme";
+import { useColorScheme } from "@/hooks/use-color-scheme";
+import { useTheme } from "@/hooks/use-theme";
 
-type PrimaryButtonTone = 'default' | 'danger';
+type PrimaryButtonTone = "default" | "danger";
 
-const TONE_COLORS: Record<PrimaryButtonTone, { frame: string; fill: string; text: string }> = {
-  default: { frame: Brand.ctaOutline, fill: Brand.ctaFill, text: Brand.ctaOutline },
-  danger: { frame: Brand.ctaOutline, fill: Brand.accent, text: '#FFFFFF' },
+const TONE_COLORS: Record<
+  PrimaryButtonTone,
+  { frame: string; fill: string; text: string }
+> = {
+  default: {
+    frame: Brand.ctaOutline,
+    fill: Brand.ctaFill,
+    text: Brand.ctaOutline,
+  },
+  danger: { frame: Brand.ctaOutline, fill: Brand.accent, text: "#FFFFFF" },
 };
 
 type PrimaryButtonProps = {
@@ -35,28 +42,19 @@ export default function PrimaryButton({
   onPress,
   disabled = false,
   accessibilityLabel,
-  tone = 'default',
+  tone = "default",
   style,
   textStyle,
 }: PrimaryButtonProps) {
   const theme = useTheme();
-  const isDark = useColorScheme() === 'dark';
+  const isDark = useColorScheme() === "dark";
   const colors = TONE_COLORS[tone];
   const frameColor = isDark
-    ? tone === 'danger'
-      ? colors.frame
+    ? tone === "danger"
+      ? colors.fill
       : Brand.teal
     : colors.frame;
-  const fillColor = isDark
-    ? tone === 'danger'
-      ? colors.fill
-      : theme.backgroundElement
-    : colors.fill;
-  const textColor = isDark
-    ? tone === 'danger'
-      ? colors.text
-      : theme.text
-    : colors.text;
+  const fillColor = isDark ? "#000000" : colors.fill;
 
   return (
     <Pressable
@@ -71,11 +69,13 @@ export default function PrimaryButton({
         disabled && styles.disabled,
         pressed && !disabled && Pressed,
         style,
-      ]}>
+      ]}
+    >
       <View style={[styles.fill, { backgroundColor: fillColor }]}>
         <ThemedText
           fontWeight="bold"
-          style={[styles.text, { color: textColor }, textStyle]}>
+          style={[styles.text, { color: colors.text }, textStyle]}
+        >
           {label}
         </ThemedText>
       </View>
@@ -96,8 +96,8 @@ const styles = StyleSheet.create({
   fill: {
     height: 58,
     borderRadius: 999,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   text: {
     fontSize: 20,
