@@ -103,10 +103,7 @@ export default function WelcomeScreen() {
         <PrimaryButton
           label="Get started"
           onPress={() => router.push("/auth/onboarding")}
-          style={[
-            styles.getStartedSpacing,
-            isDark && { backgroundColor: theme.backgroundElement },
-          ]}
+          style={styles.getStartedSpacing}
         />
         <View style={{ flexDirection: "row" ,justifyContent:"space-evenly",gap:10}}>
           <SocialButton

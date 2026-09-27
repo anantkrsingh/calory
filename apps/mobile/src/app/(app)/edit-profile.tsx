@@ -1,22 +1,13 @@
 import { LIMITS, UNIT_CONVERSION } from '@/constants/app';
-import type { ActivityLevel, FitnessGoal, Sex, UnitSystem } from '@fitness/types';
+import type { Sex, UnitSystem } from '@fitness/types';
 import { SegmentedControl } from '@expo/ui/community/segmented-control';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import {
-  Armchair,
   Camera,
-  Check,
-  Dumbbell,
   EyeOff,
-  Flame,
-  Footprints,
-  HeartPulse,
   Mars,
-  PersonStanding,
-  TrendingDown,
-  Trophy,
   Venus,
   type LucideIcon,
 } from 'lucide-react-native';
@@ -35,7 +26,6 @@ import { getErrorMessage } from '@/api/errors';
 import { ScreenAppBar } from '@/components/screen-app-bar';
 import { TabScreen } from '@/components/tab-screen';
 import { ThemedText } from '@/components/themed-text';
-import Chip from '@/components/ui/Chip';
 import DateOfBirthPicker, {
   type DateOfBirthPickerRef,
 } from '@/components/ui/DateOfBirthPicker';
@@ -57,39 +47,6 @@ const SEX_OPTIONS: { value: Sex; label: string; Icon: LucideIcon }[] = [
   { value: 'prefer_not_to_say', label: 'Prefer not to say', Icon: EyeOff },
 ];
 
-const ACTIVITY_LEVELS: ActivityLevel[] = [
-  'sedentary',
-  'light',
-  'moderate',
-  'active',
-  'very_active',
-];
-
-const ACTIVITY_LABELS: Record<ActivityLevel, string> = {
-  sedentary: 'Sedentary',
-  light: 'Lightly active',
-  moderate: 'Moderately active',
-  active: 'Very active',
-  very_active: 'Extremely active',
-};
-
-const ACTIVITY_ICONS: Record<ActivityLevel, LucideIcon> = {
-  sedentary: Armchair,
-  light: Footprints,
-  moderate: PersonStanding,
-  active: Dumbbell,
-  very_active: Flame,
-};
-
-const GOAL_OPTIONS: { id: FitnessGoal; label: string; Icon: LucideIcon }[] = [
-  { id: 'lose_weight', label: 'Lose weight', Icon: TrendingDown },
-  { id: 'build_muscle', label: 'Build muscle', Icon: Dumbbell },
-  { id: 'improve_fitness', label: 'Improve fitness', Icon: HeartPulse },
-  { id: 'gain_strength', label: 'Gain strength', Icon: Dumbbell },
-  { id: 'stay_healthy', label: 'Stay healthy', Icon: HeartPulse },
-  { id: 'train_sport', label: 'Train for sport', Icon: Trophy },
-];
-
 const round = (value: number): number => Math.round(value * 10) / 10;
 
 function heightToDisplay(cm: number, system: UnitSystem): number {
@@ -105,8 +62,6 @@ type Draft = {
   sex: Sex | undefined;
   dateOfBirth: string | undefined;
   heightCm: number | undefined;
-  activityLevel: ActivityLevel | undefined;
-  fitnessGoals: FitnessGoal[];
   units: UnitSystem;
   notificationsEnabled: boolean;
 };
@@ -117,8 +72,6 @@ function draftFromUser(user: ReturnType<typeof selectUser>): Draft {
     sex: user?.profile.sex,
     dateOfBirth: user?.profile.dateOfBirth,
     heightCm: user?.profile.heightCm,
-    activityLevel: user?.profile.activityLevel,
-    fitnessGoals: user?.profile.fitnessGoals ?? [],
     units: user?.preferences.units ?? 'metric',
     notificationsEnabled: user?.preferences.notificationsEnabled ?? false,
   };
@@ -153,15 +106,6 @@ export default function EditProfileScreen() {
 
   const handleUnitsChange = (units: UnitSystem) => {
     patch({ units });
-  };
-
-  const toggleGoal = (goal: FitnessGoal) => {
-    const has = draft.fitnessGoals.includes(goal);
-    patch({
-      fitnessGoals: has
-        ? draft.fitnessGoals.filter((g) => g !== goal)
-        : [...draft.fitnessGoals, goal],
-    });
   };
 
   const pickAvatar = useCallback(async () => {
@@ -211,8 +155,6 @@ export default function EditProfileScreen() {
           sex: draft.sex,
           dateOfBirth: draft.dateOfBirth,
           heightCm: draft.heightCm,
-          activityLevel: draft.activityLevel,
-          fitnessGoals: draft.fitnessGoals,
         },
         preferences: {
           units: draft.units,
@@ -348,60 +290,9 @@ export default function EditProfileScreen() {
               selectedIndex={draft.units === 'metric' ? 0 : 1}
               onValueChange={(value) => handleUnitsChange(value.toLowerCase() as UnitSystem)}
               tintColor={Brand.accent}
-              // The app's theme is a manual JS preference, independent of the
-              // OS setting — without this the native control renders using
-              // the system's actual scheme, which can leave unselected label
-              // text invisible (e.g. light-on-light) when the two disagree.
               appearance={colorScheme}
               style={styles.segmentedControl}
             />
-          </View>
-        </Field>
-
-        <Field label="Activity level">
-          <View style={styles.chipRow}>
-            {ACTIVITY_LEVELS.map((level) => {
-              const selected = draft.activityLevel === level;
-              const Icon = ACTIVITY_ICONS[level];
-              return (
-                <Chip
-                  key={level}
-                  label={ACTIVITY_LABELS[level]}
-                  selected={selected}
-                  onPress={() => patch({ activityLevel: level })}
-                  icon={
-                    selected ? (
-                      <Check size={18} color={Brand.accent} />
-                    ) : (
-                      <Icon size={18} color={theme.text} />
-                    )
-                  }
-                />
-              );
-            })}
-          </View>
-        </Field>
-
-        <Field label="Fitness goals">
-          <View style={styles.chipRow}>
-            {GOAL_OPTIONS.map(({ id, label, Icon }) => {
-              const selected = draft.fitnessGoals.includes(id);
-              return (
-                <Chip
-                  key={id}
-                  label={label}
-                  selected={selected}
-                  onPress={() => toggleGoal(id)}
-                  icon={
-                    selected ? (
-                      <Check size={18} color={Brand.accent} />
-                    ) : (
-                      <Icon size={18} color={theme.text} />
-                    )
-                  }
-                />
-              );
-            })}
           </View>
         </Field>
 
@@ -525,11 +416,6 @@ const styles = StyleSheet.create({
   segmentedControl: {
     width: 160,
     height: 40,
-  },
-  chipRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: Spacing.two,
   },
   saveButton: {
     marginTop: Spacing.two,

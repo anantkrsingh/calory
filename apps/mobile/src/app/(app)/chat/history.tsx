@@ -107,6 +107,7 @@ export default function ChatHistoryScreen() {
   return (
     <TabScreen
       appBar={false}
+      contentStyle={styles.screenContent}
       header={
         <ScreenAppBar
           title="History"
@@ -203,6 +204,9 @@ function ListSeparator() {
 }
 
 const styles = StyleSheet.create({
+  screenContent: {
+    paddingHorizontal: Spacing.two,
+  },
   iconButton: {
     alignItems: 'center',
     height: 44,

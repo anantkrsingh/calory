@@ -29,6 +29,7 @@ import {
   SegmentedProgressBar,
   SexStep,
 } from "@/components/onboarding";
+import { authService } from "@/services/auth.service";
 import { Brand, Pressed, Spacing } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
 import { useCreateMeasurement, useRequestEmailChange, useUpdateProfile } from "@/queries";
@@ -74,24 +75,24 @@ export default function OnboardingScreen() {
 
   const canContinue = isStepComplete(currentStep, userData, isAppleAccount);
 
-  // Social sign-in may already have a real name. Apple shares it only in the
-  // native credential on first authorization, so prefill it when present and
-  // skip the Name step entirely for accounts that already have one.
   useEffect(() => {
-    if (isLoggedIn && currentUser.profile.displayName && !userData.displayName) {
-      updateUserData({ displayName: currentUser.profile.displayName });
+    if (isLoggedIn && currentUser?.profile) {
+      const p = currentUser.profile;
+      updateUserData({
+        ...(p.displayName && !userData.displayName ? { displayName: p.displayName } : {}),
+        ...(p.sex != null && userData.sex === undefined ? { sex: p.sex } : {}),
+        ...(p.dateOfBirth != null && !userData.dateOfBirth ? { dateOfBirth: p.dateOfBirth } : {}),
+        ...(p.heightCm != null && userData.heightCm === undefined ? { heightCm: p.heightCm } : {}),
+        ...(p.activityLevel != null && userData.activityLevel === undefined ? { activityLevel: p.activityLevel } : {}),
+        ...(p.fitnessGoals?.length && (!userData.fitnessGoals || userData.fitnessGoals.length === 0)
+          ? { fitnessGoals: p.fitnessGoals }
+          : {}),
+      });
     }
     // Only meant to run once, when the screen picks up a logged-in user.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoggedIn]);
 
-  // Reanimated bakes the outgoing step's `exiting` animation into its last-rendered
-  // props. Changing `direction` and `currentStep` in the same tick (React batches
-  // them) means the step being removed still carries the *previous* click's exiting
-  // animation — so reversing direction right after would exit and enter on the same
-  // side and collide. Committing the direction flip on its own frame first lets the
-  // still-mounted current step re-render with the correct exiting animation before
-  // the step index changes and actually removes it.
   const goToStep = (
     nextDirection: "forward" | "backward",
     advance: () => void,
@@ -180,7 +181,11 @@ export default function OnboardingScreen() {
 
   const handleClose = () => {
     resetOnboarding();
-    router.dismissTo("/auth/welcome");
+    if (isLoggedIn) {
+      void authService.logout();
+    } else {
+      router.dismissTo("/auth/welcome");
+    }
   };
 
   const renderStep = () => {

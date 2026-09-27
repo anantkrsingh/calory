@@ -298,7 +298,7 @@ export default forwardRef<DateOfBirthPickerRef, DateOfBirthPickerProps>(function
             styles.sheetPadding,
             cardStyle,
           ]}>
-          <View style={[styles.card, { backgroundColor: theme.background }]}>
+          <View style={[styles.card, { backgroundColor: theme.backgroundElement }]}>
           <View style={styles.handle} />
 
           {mode === 'day' && (
@@ -411,7 +411,7 @@ export default forwardRef<DateOfBirthPickerRef, DateOfBirthPickerProps>(function
                           onPress={() => handleSelectMonth(month)}
                           style={[
                             styles.pill,
-                            { backgroundColor: theme.backgroundElement },
+                            { backgroundColor: theme.background },
                             isSelected && { backgroundColor: Brand.accent },
                           ]}>
                           <ThemedText
@@ -459,7 +459,7 @@ export default forwardRef<DateOfBirthPickerRef, DateOfBirthPickerProps>(function
                             onPress={() => handleSelectYear(year)}
                             style={[
                               styles.pill,
-                              { backgroundColor: theme.backgroundElement },
+                              { backgroundColor: theme.background },
                               isSelected && { backgroundColor: Brand.accent },
                             ]}>
                             <ThemedText type="small" style={{ color: isSelected ? 'white' : theme.text }}>
@@ -497,7 +497,7 @@ function HeaderChevron({
       onPress={onPress}
       disabled={disabled}
       hitSlop={10}
-      style={[styles.chevronButton, { backgroundColor: theme.backgroundElement }]}>
+      style={[styles.chevronButton, { backgroundColor: theme.background }]}>
       {direction === 'prev' ? (
         <ChevronLeft size={18} color={theme.text} opacity={disabled ? 0.3 : 1} />
       ) : (

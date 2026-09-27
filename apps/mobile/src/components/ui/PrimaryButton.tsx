@@ -5,18 +5,25 @@ import {
   type StyleProp,
   type TextStyle,
   type ViewStyle,
-} from 'react-native';
+} from "react-native";
 
-import { ThemedText } from '@/components/themed-text';
-import { Brand, Pressed } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
-import { useTheme } from '@/hooks/use-theme';
+import { ThemedText } from "@/components/themed-text";
+import { Brand, Pressed } from "@/constants/theme";
+import { useColorScheme } from "@/hooks/use-color-scheme";
+import { useTheme } from "@/hooks/use-theme";
 
-type PrimaryButtonTone = 'default' | 'danger';
+type PrimaryButtonTone = "default" | "danger";
 
-const TONE_COLORS: Record<PrimaryButtonTone, { frame: string; fill: string; text: string }> = {
-  default: { frame: Brand.ctaOutline, fill: Brand.ctaFill, text: Brand.ctaOutline },
-  danger: { frame: Brand.ctaOutline, fill: Brand.accent, text: '#FFFFFF' },
+const TONE_COLORS: Record<
+  PrimaryButtonTone,
+  { frame: string; fill: string; text: string }
+> = {
+  default: {
+    frame: Brand.ctaOutline,
+    fill: Brand.ctaFill,
+    text: Brand.ctaOutline,
+  },
+  danger: { frame: Brand.ctaOutline, fill: Brand.accent, text: "#FFFFFF" },
 };
 
 type PrimaryButtonProps = {
@@ -35,16 +42,15 @@ export default function PrimaryButton({
   onPress,
   disabled = false,
   accessibilityLabel,
-  tone = 'default',
+  tone = "default",
   style,
   textStyle,
 }: PrimaryButtonProps) {
   const theme = useTheme();
-  const isDark = useColorScheme() === 'dark';
+  const isDark = useColorScheme() === "dark";
   const colors = TONE_COLORS[tone];
-  // Both tones share the same near-black ink ring, which reads as nearly
-  // invisible against a dark background — swap it for a light ring there.
   const frameColor = isDark ? theme.backgroundSelected : colors.frame;
+  const fillColor = colors.fill;
 
   return (
     <Pressable
@@ -59,11 +65,13 @@ export default function PrimaryButton({
         disabled && styles.disabled,
         pressed && !disabled && Pressed,
         style,
-      ]}>
-      <View style={[styles.fill, { backgroundColor: colors.fill }]}>
+      ]}
+    >
+      <View style={[styles.fill, { backgroundColor: fillColor }]}>
         <ThemedText
           fontWeight="bold"
-          style={[styles.text, { color: colors.text }, textStyle]}>
+          style={[styles.text, { color: colors.text }, textStyle]}
+        >
           {label}
         </ThemedText>
       </View>
@@ -84,8 +92,8 @@ const styles = StyleSheet.create({
   fill: {
     height: 58,
     borderRadius: 999,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     paddingHorizontal: 20,
   },
   text: {
