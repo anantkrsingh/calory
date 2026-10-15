@@ -50,7 +50,7 @@ export function PlanManagementClient({ plans }: PlanManagementClientProps) {
     setPrice(9.99);
     setCurrency("USD");
     setStoreProductId("com.fitness.pro.monthly");
-    setRevenueCatEntitlementIds(["premium"]);
+    setRevenueCatEntitlementIds(["pro"]);
     setNewEntitlementInput("");
     setChatMessagesLimit(100);
     setTokensLimit(100000);

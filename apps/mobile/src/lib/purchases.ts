@@ -21,9 +21,9 @@ const API_KEYS: Partial<Record<typeof Platform.OS, string | undefined>> = {
  */
 export const IAP_ENABLED = process.env.EXPO_PUBLIC_IAP_ENABLED !== 'false';
 
-/** Entitlement identifier configured in the RevenueCat dashboard — every
- * "is this user Pro?" check in the app goes through this one constant. */
+/** Single canonical entitlement identifier configured in RevenueCat: 'pro'. */
 export const ENTITLEMENT_ID = 'pro';
+export const ENTITLEMENT_IDS = ['pro'];
 
 let configured = false;
 
@@ -118,8 +118,25 @@ export async function restorePurchases(): Promise<CustomerInfo> {
   return Purchases.restorePurchases();
 }
 
-/** `true` once `ENTITLEMENT_ID` is active on the given customer info. Treats
+/**
+ * Returns the primary active entitlement object, checking 'pro', 'premium',
+ * and any custom active entitlement.
+ */
+export function getActiveEntitlement(info: CustomerInfo | null | undefined) {
+  if (!info?.entitlements?.active) return null;
+  for (const id of ENTITLEMENT_IDS) {
+    if (info.entitlements.active[id]) return info.entitlements.active[id];
+  }
+  const keys = Object.keys(info.entitlements.active);
+  return keys.length > 0 ? info.entitlements.active[keys[0]] : null;
+}
+
+/** `true` once any active entitlement (pro, premium, etc.) is found. Treats
  * `null`/`undefined` (not loaded yet, or RevenueCat unavailable) as not Pro. */
 export function hasActiveEntitlement(info: CustomerInfo | null | undefined): boolean {
-  return Boolean(info?.entitlements.active[ENTITLEMENT_ID]);
+  if (!info?.entitlements?.active) return false;
+  if (ENTITLEMENT_IDS.some((id) => Boolean(info.entitlements.active[id]))) {
+    return true;
+  }
+  return Object.keys(info.entitlements.active).length > 0;
 }

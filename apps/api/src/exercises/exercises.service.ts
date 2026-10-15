@@ -16,6 +16,9 @@ import type {
   Exercise,
   ExerciseCatalogue,
   ExercisePersonalRecord,
+  ExerciseRepHistorySession,
+  ExerciseRepHistorySet,
+  ExerciseRepsHistory,
   Id,
   Paginated,
 } from '@fitness/types';
@@ -320,6 +323,157 @@ export class ExercisesService {
     }
 
     return record;
+  }
+
+  /**
+   * Complete reps and set progression history for one exercise.
+   * Respects user's active plan repsHistoryDays limit if configured.
+   */
+  async repsHistory(userId: Id, exerciseId: Id): Promise<ExerciseRepsHistory> {
+    const exercise = await this.findById(userId, exerciseId);
+    const pr = await this.personalRecords(userId, exerciseId);
+
+    // Check user plan limit on reps history days
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        planId: true,
+        plan: { select: { repsHistoryDays: true } },
+      },
+    });
+
+    let historyLimitDays: number | undefined = undefined;
+    let isLimitedByPlan = false;
+    let cutoffDate: Date | undefined = undefined;
+
+    if (user?.plan?.repsHistoryDays) {
+      historyLimitDays = user.plan.repsHistoryDays;
+      isLimitedByPlan = true;
+      cutoffDate = new Date();
+      cutoffDate.setDate(cutoffDate.getDate() - historyLimitDays);
+    } else if (!user?.planId) {
+      // Check if active default plan has repsHistoryDays limit
+      const activeFreePlan = await this.prisma.plan.findFirst({
+        where: { price: 0, isActive: true },
+        select: { repsHistoryDays: true },
+      });
+      if (activeFreePlan?.repsHistoryDays) {
+        historyLimitDays = activeFreePlan.repsHistoryDays;
+        isLimitedByPlan = true;
+        cutoffDate = new Date();
+        cutoffDate.setDate(cutoffDate.getDate() - historyLimitDays);
+      }
+    }
+
+    const workouts = await this.prisma.workout.findMany({
+      where: {
+        userId,
+        status: 'completed',
+        exercises: { some: { exerciseId } },
+        ...(cutoffDate ? { startedAt: { gte: cutoffDate } } : {}),
+      },
+      orderBy: { startedAt: 'desc' },
+    });
+
+    const sessions: ExerciseRepHistorySession[] = [];
+    let totalSets = 0;
+    let totalReps = 0;
+    let maxWeightKg: number | undefined = undefined;
+    let maxReps: number | undefined = undefined;
+    let bestEstimatedOneRepMaxKg: number | undefined = undefined;
+
+    for (const workout of workouts) {
+      const exerciseEntry = workout.exercises.find(
+        (e) => e.exerciseId === exerciseId,
+      );
+      if (!exerciseEntry) continue;
+
+      const completedSets = exerciseEntry.sets.filter((s) => s.completed);
+      if (completedSets.length === 0) continue;
+
+      const sets: ExerciseRepHistorySet[] = completedSets.map((s, index) => {
+        const reps = s.reps ?? undefined;
+        const weightKg = s.weightKg ?? undefined;
+        let volumeKg: number | undefined = undefined;
+        let estimatedOneRepMaxKg: number | undefined = undefined;
+
+        if (reps != null) {
+          totalReps += reps;
+          if (maxReps === undefined || reps > maxReps) {
+            maxReps = reps;
+          }
+        }
+
+        if (weightKg != null) {
+          if (maxWeightKg === undefined || weightKg > maxWeightKg) {
+            maxWeightKg = weightKg;
+          }
+        }
+
+        if (weightKg != null && reps != null) {
+          volumeKg = Math.round(weightKg * reps * 10) / 10;
+          estimatedOneRepMaxKg = estimateOneRepMax(weightKg, reps);
+          if (
+            bestEstimatedOneRepMaxKg === undefined ||
+            estimatedOneRepMaxKg > bestEstimatedOneRepMaxKg
+          ) {
+            bestEstimatedOneRepMaxKg = estimatedOneRepMaxKg;
+          }
+        }
+
+        const isPersonalRecord = Boolean(
+          (weightKg != null &&
+            pr.bestWeightKg != null &&
+            weightKg >= pr.bestWeightKg) ||
+          (reps != null && pr.bestReps != null && reps >= pr.bestReps) ||
+          (estimatedOneRepMaxKg != null &&
+            pr.bestEstimatedOneRepMaxKg != null &&
+            estimatedOneRepMaxKg >= pr.bestEstimatedOneRepMaxKg),
+        );
+
+        return {
+          setId: s.id || `set-${index + 1}`,
+          order: s.order ?? index,
+          type: s.type,
+          reps,
+          weightKg,
+          durationSec: s.durationSec ?? undefined,
+          distanceM: s.distanceM ?? undefined,
+          rpe: s.rpe ?? undefined,
+          completed: s.completed,
+          notes: s.notes ?? undefined,
+          estimatedOneRepMaxKg,
+          volumeKg,
+          isPersonalRecord,
+        };
+      });
+
+      totalSets += sets.length;
+
+      sessions.push({
+        workoutId: workout.id,
+        workoutName: workout.name,
+        date: workout.startedAt.toISOString(),
+        durationSec: workout.durationSec ?? undefined,
+        sets,
+      });
+    }
+
+    return {
+      exerciseId,
+      exerciseName: exercise.name,
+      personalRecord: pr,
+      totalSessions: sessions.length,
+      totalSets,
+      totalReps,
+      maxWeightKg: maxWeightKg ?? pr.bestWeightKg,
+      maxReps: maxReps ?? pr.bestReps,
+      bestEstimatedOneRepMaxKg:
+        bestEstimatedOneRepMaxKg ?? pr.bestEstimatedOneRepMaxKg,
+      historyLimitDays,
+      isLimitedByPlan,
+      sessions,
+    };
   }
 
   /** Loads an exercise, throwing if it doesn't exist or is another user's

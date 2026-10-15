@@ -20,28 +20,35 @@ export function Sidebar({ user }: { user: User }) {
   const pathname = usePathname();
 
   return (
-    <aside className="flex h-screen w-60 shrink-0 flex-col border-r border-neutral-200 bg-white">
-      <div className="flex items-center gap-2 px-5 py-5">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-neutral-900 text-sm font-bold text-white">
-          F
+    <aside className="flex h-screen w-64 shrink-0 flex-col border-r border-neutral-200 bg-white">
+      <div className="flex items-center gap-3 px-5 py-5 border-b border-neutral-100">
+        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-orange-600 text-base font-bold text-white shadow-sm shadow-orange-500/20">
+          C
         </div>
-        <span className="text-sm font-semibold text-neutral-900">Fitness Admin</span>
+        <div>
+          <span className="text-sm font-bold tracking-tight text-neutral-900 block">
+            Calory Admin
+          </span>
+          <span className="text-[11px] font-medium text-neutral-400 block -mt-0.5">
+            Management Portal
+          </span>
+        </div>
       </div>
 
-      <nav className="flex flex-1 flex-col gap-0.5 px-3">
+      <nav className="flex flex-1 flex-col gap-1 px-3 py-4">
         {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
           const active = pathname === href || pathname.startsWith(`${href}/`);
           return (
             <Link
               key={href}
               href={href}
-              className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition ${
+              className={`flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-medium transition ${
                 active
-                  ? "bg-neutral-100 text-neutral-900"
+                  ? "bg-orange-50 text-orange-600 font-semibold"
                   : "text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900"
               }`}
             >
-              <Icon size={18} strokeWidth={2} />
+              <Icon size={18} strokeWidth={active ? 2.5 : 2} className={active ? "text-orange-600" : "text-neutral-400"} />
               {label}
             </Link>
           );

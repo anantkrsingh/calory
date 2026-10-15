@@ -43,5 +43,14 @@ export const createPlanSchema = z.object({
 
 export const updatePlanSchema = createPlanSchema.partial();
 
+export const syncSubscriptionSchema = z.object({
+  appUserId: z.string().optional(),
+  entitlementIds: z.array(z.string()).default([]),
+  storeProductId: z.string().optional(),
+  expirationDate: z.string().nullish(),
+  isSandbox: z.boolean().optional(),
+});
+
 export type CreatePlanInput = z.infer<typeof createPlanSchema>;
 export type UpdatePlanInput = z.infer<typeof updatePlanSchema>;
+export type SyncSubscriptionInput = z.infer<typeof syncSubscriptionSchema>;

@@ -192,6 +192,45 @@ export const exercisePersonalRecordSchema = z.object({
   achievedAt: isoDateTimeSchema,
 });
 
+export const exerciseRepHistorySetSchema = z.object({
+  setId: z.string(),
+  order: z.number().int(),
+  type: setTypeSchema,
+  reps: z.number().int().optional(),
+  weightKg: z.number().optional(),
+  durationSec: z.number().int().optional(),
+  distanceM: z.number().optional(),
+  rpe: z.number().optional(),
+  completed: z.boolean(),
+  notes: z.string().optional(),
+  estimatedOneRepMaxKg: z.number().optional(),
+  volumeKg: z.number().optional(),
+  isPersonalRecord: z.boolean().optional(),
+});
+
+export const exerciseRepHistorySessionSchema = z.object({
+  workoutId: objectIdSchema,
+  workoutName: z.string(),
+  date: isoDateTimeSchema,
+  durationSec: z.number().int().optional(),
+  sets: z.array(exerciseRepHistorySetSchema),
+});
+
+export const exerciseRepsHistorySchema = z.object({
+  exerciseId: objectIdSchema,
+  exerciseName: z.string(),
+  personalRecord: exercisePersonalRecordSchema.optional(),
+  totalSessions: z.number().int(),
+  totalSets: z.number().int(),
+  totalReps: z.number().int(),
+  maxWeightKg: z.number().optional(),
+  maxReps: z.number().int().optional(),
+  bestEstimatedOneRepMaxKg: z.number().optional(),
+  historyLimitDays: z.number().int().optional(),
+  isLimitedByPlan: z.boolean(),
+  sessions: z.array(exerciseRepHistorySessionSchema),
+});
+
 export const workoutSetResponseSchema = z.object({
   id: z.string(),
   order: z.number().int(),
