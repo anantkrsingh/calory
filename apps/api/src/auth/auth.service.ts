@@ -209,7 +209,8 @@ export class AuthService {
       );
       const linkedAccounts = profile.appleRefreshToken
         ? existing.linkedAccounts.map((account) =>
-            account.provider === profile.provider && account.subject === profile.subject
+            account.provider === profile.provider &&
+            account.subject === profile.subject
               ? { ...account, refreshToken: profile.appleRefreshToken }
               : account,
           )

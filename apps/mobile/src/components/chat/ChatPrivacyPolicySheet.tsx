@@ -7,15 +7,19 @@ import { ThemedText } from '@/components/themed-text';
 import { Brand, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
-type Props = { visible: boolean; loading?: boolean; onAgree: () => void };
+type Props = { visible: boolean; loading?: boolean; onAgree: () => void; onDismiss: () => void };
 
-export function ChatPrivacyPolicySheet({ visible, loading, onAgree }: Props) {
+export function ChatPrivacyPolicySheet({ visible, loading, onAgree, onDismiss }: Props) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const [checked, setChecked] = useState(false);
+  const dismiss = () => {
+    setChecked(false);
+    onDismiss();
+  };
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={() => undefined}>
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={dismiss}>
       <View style={styles.backdrop}>
         <View style={[styles.sheet, { backgroundColor: theme.background, paddingBottom: insets.bottom + Spacing.four }]}>
           <View style={[styles.handle, { backgroundColor: theme.border }]} />
@@ -34,6 +38,9 @@ export function ChatPrivacyPolicySheet({ visible, loading, onAgree }: Props) {
           </Pressable>
           <Pressable accessibilityRole="button" disabled={!checked || loading} onPress={onAgree} style={[styles.button, { backgroundColor: checked ? Brand.accent : theme.border, opacity: loading ? 0.6 : 1 }]}>
             <ThemedText style={styles.buttonText}>{loading ? 'Saving…' : 'Agree and continue'}</ThemedText>
+          </Pressable>
+          <Pressable accessibilityRole="button" onPress={dismiss} style={styles.button}>
+            <ThemedText themeColor="textSecondary">Dismiss</ThemedText>
           </Pressable>
         </View>
       </View>

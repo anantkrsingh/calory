@@ -1,12 +1,12 @@
 import { Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { paginate, toSkipTake, toUser, type Prisma } from '@fitness/db';
+import { AuthProvider } from '@fitness/types';
 import type {
   AccountDeletionSchedule,
   DevicePlatform,
   Id,
   Paginated,
   User,
-  AuthProvider,
 } from '@fitness/types';
 import type {
   AdminUpdateUserInput,
@@ -75,7 +75,9 @@ export class UsersService {
           user.scheduledDeletionAt = scheduledDeletionAt.toISOString();
           user.scheduledDeletionDaysRemaining = Math.max(
             0,
-            Math.ceil((scheduledDeletionAt.getTime() - Date.now()) / 86_400_000),
+            Math.ceil(
+              (scheduledDeletionAt.getTime() - Date.now()) / 86_400_000,
+            ),
           );
         }
         return user;
@@ -227,13 +229,18 @@ export class UsersService {
     if (!current) throw new NotFoundException('User not found');
 
     const appleTokens = current.linkedAccounts
-      .filter((account) => account.provider === AuthProvider.Apple && account.refreshToken)
+      .filter(
+        (account) =>
+          account.provider === AuthProvider.Apple && account.refreshToken,
+      )
       .map((account) => account.refreshToken as string);
     for (const token of appleTokens) {
       try {
         await revokeAppleToken(token, this.env);
       } catch (error) {
-        this.logger.warn(`Apple token revocation failed during account deletion: ${error instanceof Error ? error.message : String(error)}`);
+        this.logger.warn(
+          `Apple token revocation failed during account deletion: ${error instanceof Error ? error.message : String(error)}`,
+        );
       }
     }
 

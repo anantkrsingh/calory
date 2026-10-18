@@ -1,6 +1,6 @@
 import { useFocusEffect, useRouter } from 'expo-router';
 import { History, Plus } from 'lucide-react-native';
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -30,6 +30,7 @@ export default function ChatScreen() {
   const router = useRouter();
   const theme = useTheme();
   const insets = useSafeAreaInsets();
+  const [privacyVisible, setPrivacyVisible] = useState(false);
   const hydrated = useChatSessionStore(selectChatSessionHydrated);
   const activeId = useChatSessionStore(selectActiveConversationId);
   const setActiveId = useChatSessionStore((s) => s.setActiveConversationId);
@@ -87,11 +88,15 @@ export default function ChatScreen() {
   // Android back from chat goes to Home instead of exiting the app.
   useFocusEffect(
     useCallback(() => {
+      setPrivacyVisible(true);
       const sub = BackHandler.addEventListener('hardwareBackPress', () => {
         router.navigate('/');
         return true;
       });
-      return () => sub.remove();
+      return () => {
+        setPrivacyVisible(false);
+        sub.remove();
+      };
     }, [router]),
   );
 
@@ -198,8 +203,12 @@ export default function ChatScreen() {
         />
       )}
       <ChatPrivacyPolicySheet
-        visible={!privacyQuery.isLoading && !privacyAccepted}
+        visible={privacyVisible && !privacyQuery.isLoading && !privacyAccepted}
         loading={acceptPrivacy.isPending}
+        onDismiss={() => {
+          setPrivacyVisible(false);
+          router.navigate('/');
+        }}
         onAgree={() => { void acceptPrivacy.mutateAsync(); }}
       />
     </ThemedView>

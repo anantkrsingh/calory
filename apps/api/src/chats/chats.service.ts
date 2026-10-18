@@ -188,7 +188,10 @@ export class ChatsService {
     return this.prisma.chatPrivacyAcceptance.upsert({
       where: { userId },
       create: { userId, policyVersion: CHAT_PRIVACY_POLICY_VERSION },
-      update: { policyVersion: CHAT_PRIVACY_POLICY_VERSION, acceptedAt: new Date() },
+      update: {
+        policyVersion: CHAT_PRIVACY_POLICY_VERSION,
+        acceptedAt: new Date(),
+      },
     });
   }
 
@@ -918,8 +921,14 @@ export class ChatsService {
     input: SendChatMessageInput,
   ) {
     const acceptance = await this.getPrivacyAcceptance(userId);
-    if (!acceptance || acceptance.policyVersion !== CHAT_PRIVACY_POLICY_VERSION) {
-      throw new HttpException('Chat privacy policy acceptance is required.', HttpStatus.FORBIDDEN);
+    if (
+      !acceptance ||
+      acceptance.policyVersion !== CHAT_PRIVACY_POLICY_VERSION
+    ) {
+      throw new HttpException(
+        'Chat privacy policy acceptance is required.',
+        HttpStatus.FORBIDDEN,
+      );
     }
     const settings = await this.prisma.appSettings.findFirst();
     const modelConfig = resolveModelConfig(
