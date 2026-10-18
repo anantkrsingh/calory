@@ -21,6 +21,16 @@ export class ChatsService extends BaseService {
     super('/chats', client);
   }
 
+  async getPrivacyAcceptance(): Promise<{ policyVersion: string; acceptedAt: string } | null> {
+    const { data } = await this.client.get(`${this.path}/privacy-acceptance`);
+    return data;
+  }
+
+  async acceptPrivacyPolicy(): Promise<{ policyVersion: string; acceptedAt: string }> {
+    const { data } = await this.client.post(`${this.path}/privacy-acceptance`);
+    return data;
+  }
+
   async list(query: ChatQueryInput = {}): Promise<Paginated<ChatConversation>> {
     const { data } = await this.client.get<Paginated<ChatConversation>>(
       this.path,

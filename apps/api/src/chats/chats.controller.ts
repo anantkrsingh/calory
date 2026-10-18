@@ -70,6 +70,16 @@ export class ChatsController {
     return this.chats.list(user.id, query);
   }
 
+  @Get('privacy-acceptance')
+  getPrivacyAcceptance(@CurrentUser() user: AuthenticatedUser) {
+    return this.chats.getPrivacyAcceptance(user.id);
+  }
+
+  @Post('privacy-acceptance')
+  acceptPrivacyPolicy(@CurrentUser() user: AuthenticatedUser) {
+    return this.chats.acceptPrivacyPolicy(user.id);
+  }
+
   @Post()
   @ApiOperation({ summary: 'Create a chat conversation' })
   @ApiZodBody(createChatSchema)

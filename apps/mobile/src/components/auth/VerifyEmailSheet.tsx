@@ -1,3 +1,5 @@
+import { useForm } from 'react-hook-form';
+import { useFormField } from '@/hooks/use-form-field';
 import { TrueSheet } from '@lodev09/react-native-true-sheet';
 import { useRouter } from 'expo-router';
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
@@ -54,10 +56,20 @@ export default forwardRef<VerifyEmailSheetRef, VerifyEmailSheetProps>(function V
   const verifyRegistration = useVerifyRegistration();
   const verifyEmailChange = useVerifyEmailChange();
 
-  const [otpDigits, setOtpDigits] = useState<string[]>(Array(OTP_LENGTH).fill(''));
+  const form = useForm<{
+    otpDigits: string[];
+  }>({
+    defaultValues: {
+      otpDigits: Array(OTP_LENGTH).fill(''),
+    },
+  });
+  const { handleSubmit: submitForm, reset, clearErrors } = form;
+  const [otpDigits, setOtpDigits] = useFormField(form, 'otpDigits', { validate: (value) => value.join('').length === OTP_LENGTH || 'Please enter a 4-digit code' });
   const [resendTimer, setResendTimer] = useState(RESEND_SECONDS);
-  const [error, setError] = useState<string | null>(null);
+  const [serverError, setError] = useState<string | null>(null);
   const inputs = useRef<(TextInput | null)[]>([]);
+
+  const error = form.formState.errors.otpDigits?.message ?? serverError;
 
   const otp = otpDigits.join('');
   const canResend = resendTimer === 0;
@@ -88,7 +100,7 @@ export default forwardRef<VerifyEmailSheetRef, VerifyEmailSheetProps>(function V
   useImperativeHandle(ref, () => ({
     present: () => {
       // The code was already sent by register — just reset UI state.
-      setOtpDigits(Array(OTP_LENGTH).fill(''));
+      reset();
       setError(null);
       setResendTimer(RESEND_SECONDS);
       sheetRef.current?.present();
@@ -96,6 +108,7 @@ export default forwardRef<VerifyEmailSheetRef, VerifyEmailSheetProps>(function V
   }));
 
   const handleDigitChange = (index: number, text: string) => {
+    clearErrors('otpDigits');
     const digits = text.replace(/\D/g, '');
 
     if (digits.length > 1) {
@@ -126,12 +139,7 @@ export default forwardRef<VerifyEmailSheetRef, VerifyEmailSheetProps>(function V
     }
   };
 
-  const handleVerify = async () => {
-    if (otp.length !== OTP_LENGTH) {
-      setError('Please enter a 4-digit code');
-      return;
-    }
-
+  const handleVerify = submitForm(async () => {
     setError(null);
 
     try {
@@ -149,7 +157,7 @@ export default forwardRef<VerifyEmailSheetRef, VerifyEmailSheetProps>(function V
     } catch (cause) {
       setError(getErrorMessage(cause, 'Verification failed. Please try again.'));
     }
-  };
+  });
 
   const handleResend = async () => {
     if (!canResend) return;

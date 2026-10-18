@@ -207,6 +207,13 @@ export class AuthService {
           account.provider === profile.provider &&
           account.subject === profile.subject,
       );
+      const linkedAccounts = profile.appleRefreshToken
+        ? existing.linkedAccounts.map((account) =>
+            account.provider === profile.provider && account.subject === profile.subject
+              ? { ...account, refreshToken: profile.appleRefreshToken }
+              : account,
+          )
+        : null;
 
       const user = await this.prisma.user.update({
         where: { id: existing.id },
@@ -214,17 +221,20 @@ export class AuthService {
           lastLoginAt: new Date(),
           // Same cancel-on-login policy as the password flow.
           deletionRequestedAt: null,
-          ...(alreadyLinked
-            ? {}
-            : {
-                linkedAccounts: {
-                  push: {
-                    provider: profile.provider,
-                    subject: profile.subject,
-                    email: profile.email ?? null,
+          ...(linkedAccounts
+            ? { linkedAccounts }
+            : alreadyLinked
+              ? {}
+              : {
+                  linkedAccounts: {
+                    push: {
+                      provider: profile.provider,
+                      subject: profile.subject,
+                      email: profile.email ?? null,
+                      refreshToken: null,
+                    },
                   },
-                },
-              }),
+                }),
           ...(profile.emailVerified && !existing.emailVerified
             ? { emailVerified: true }
             : {}),
@@ -280,6 +290,7 @@ export class AuthService {
             provider: profile.provider,
             subject: profile.subject,
             email: profile.email,
+            refreshToken: profile.appleRefreshToken ?? null,
           },
         ],
         lastLoginAt: new Date(),

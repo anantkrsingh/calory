@@ -53,6 +53,7 @@ export const envSchema = z.object({
     .describe(
       'Comma-separated app bundle / services ids accepted as identity token audiences',
     ),
+  APPLE_CLIENT_SECRET: z.string().optional(),
 
   LLM_PROVIDER: z.enum(['openai', 'gemini']).default('openai'),
   /** Overrides the provider's default model when set. */

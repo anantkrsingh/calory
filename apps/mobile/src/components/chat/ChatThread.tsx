@@ -1,3 +1,5 @@
+import { useForm } from 'react-hook-form';
+import { useFormField } from '@/hooks/use-form-field';
 import { useChat } from "@ai-sdk/react";
 import type { Citation } from "@fitness/types";
 import type { UIMessage } from "ai";
@@ -73,7 +75,15 @@ export function ChatThread({ conversationId, onNotFound }: ChatThreadProps) {
   useEffect(() => {
     if (isApiError(error) && error.isNotFound) onNotFound?.();
   }, [error, onNotFound]);
-  const [draft, setDraft] = useState("");
+  const form = useForm<{
+    draft: string;
+  }>({
+    defaultValues: {
+      draft: "",
+    },
+  });
+  const { handleSubmit: submitForm } = form;
+  const [draft, setDraft] = useFormField(form, 'draft', { validate: (value) => !!value.trim() });
   const [isAtBottom, setIsAtBottom] = useState(true);
   const listRef = useRef<FlatList<UIMessage>>(null);
   const syncedMessagesRef = useRef<string | null>(null);
@@ -187,7 +197,7 @@ export function ChatThread({ conversationId, onNotFound }: ChatThreadProps) {
     scrollToEnd(true);
     lastSentTextRef.current = content;
     await sendMessage({ text: content });
-  }, [draft, scrollToEnd, sendMessage, sending]);
+  }, [draft, scrollToEnd, sendMessage, sending, setDraft]);
 
   const answerQuestion = useCallback(
     (selected: string[]) => {
@@ -209,7 +219,7 @@ export function ChatThread({ conversationId, onNotFound }: ChatThreadProps) {
       lastSentTextRef.current = prompt;
       void sendMessage({ text: prompt });
     },
-    [scrollToEnd, sendMessage, sending],
+    [scrollToEnd, sendMessage, sending, setDraft],
   );
 
   /** Resends the exact text behind a failed send, and clears its error bubble. */
@@ -361,7 +371,7 @@ export function ChatThread({ conversationId, onNotFound }: ChatThreadProps) {
         value={draft}
         onChangeText={setDraft}
         onSend={() => {
-          void send();
+          void submitForm(send)();
         }}
         sending={sending}
         disabled={isLoading && messages.length === 0}

@@ -1,3 +1,5 @@
+import { useForm } from 'react-hook-form';
+import { useFormField } from '@/hooks/use-form-field';
 import type {
   SupportTicket,
   TicketStatus,
@@ -130,12 +132,25 @@ export default function HelpScreen() {
   const reopenTicket = useReopenTicket();
   const uploadAttachment = useUploadTicketAttachment();
 
-  const [subject, setSubject] = useState('');
-  const [message, setMessage] = useState('');
-  const [attachment, setAttachment] = useState<AttachmentDraft | null>(null);
+  const form = useForm<{
+    subject: string;
+    message: string;
+    attachment: AttachmentDraft | null;
+  }>({
+    defaultValues: {
+      subject: '',
+      message: '',
+      attachment: null,
+    },
+  });
+  const { handleSubmit: submitForm } = form;
+  const [subject, setSubject] = useFormField(form, 'subject', { validate: (value) => value.trim().length >= 3 });
+  const [message, setMessage] = useFormField(form, 'message', { validate: (value) => value.trim().length >= 10 });
+  const [attachment, setAttachment] = useFormField(form, 'attachment');
   const [submissionError, setSubmissionError] = useState<string | null>(null);
   const [selectedTicket, setSelectedTicket] = useState<SupportTicket | null>(null);
-  const [commentText, setCommentText] = useState('');
+  const commentForm = useForm({ defaultValues: { commentText: '' } });
+  const [commentText, setCommentText] = useFormField(commentForm, 'commentText', { validate: (value) => !!value.trim() });
   const [commentError, setCommentError] = useState<string | null>(null);
 
   const submitting = createTicket.isPending || uploadAttachment.isPending;
@@ -195,7 +210,7 @@ export default function HelpScreen() {
       type: mimeTypeForAttachment(asset.fileName, asset.mimeType),
       size: asset.fileSize,
     });
-  }, []);
+  }, [setAttachment]);
 
   const submit = useCallback(async () => {
     if (!canSubmit) return;
@@ -223,6 +238,9 @@ export default function HelpScreen() {
       );
     }
   }, [
+    setAttachment,
+    setMessage,
+    setSubject,
     attachment,
     canSubmit,
     createTicket,
@@ -236,7 +254,7 @@ export default function HelpScreen() {
     setCommentText('');
     setCommentError(null);
     void detailSheetRef.current?.present();
-  }, []);
+  }, [setCommentText]);
 
   const submitComment = useCallback(async () => {
     if (!detailTicket || commentText.trim().length === 0 || commenting) return;
@@ -257,7 +275,7 @@ export default function HelpScreen() {
         getErrorMessage(error, 'Please try again in a moment.'),
       );
     }
-  }, [addComment, commentText, commenting, detailTicket, reopenTicket]);
+  }, [addComment, commentText, commenting, detailTicket, reopenTicket, setCommentText]);
 
   return (
     <TabScreen appBar={false} header={<ScreenAppBar title="Tickets" />}>
@@ -487,7 +505,7 @@ export default function HelpScreen() {
 
           <PrimaryButton
             label={submitting ? 'Submitting...' : 'Submit Ticket'}
-            onPress={() => void submit()}
+            onPress={() => void submitForm(submit)()}
             disabled={!canSubmit}
             style={styles.submitButton}
           />
@@ -615,7 +633,7 @@ export default function HelpScreen() {
                     ? 'Reopen Ticket'
                     : 'Add Comment'
               }
-              onPress={() => void submitComment()}
+              onPress={() => void commentForm.handleSubmit(submitComment)()}
               disabled={commentText.trim().length === 0 || commenting}
               style={styles.submitButton}
               textStyle={styles.createButtonText}

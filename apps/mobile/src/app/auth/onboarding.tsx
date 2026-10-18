@@ -1,3 +1,5 @@
+import { useForm } from 'react-hook-form';
+import { useFormField } from '@/hooks/use-form-field';
 import { useRouter } from "expo-router";
 import { SymbolView } from "expo-symbols";
 import { useEffect, useRef, useState } from "react";
@@ -56,10 +58,21 @@ export default function OnboardingScreen() {
       ? STEPS_WITH_NAMED_ACCOUNT
       : STEPS_WITH_ACCOUNT
     : totalSteps;
-  const userData = useOnboardingStore((state) => state.userData);
+  const storedUserData = useOnboardingStore((state) => state.userData);
+  const form = useForm<{ userData: OnboardingUserData }>({
+    defaultValues: { userData: storedUserData },
+  });
+  const { handleSubmit: submitForm } = form;
+  const [userData, setUserData] = useFormField(form, 'userData', {
+    validate: (value) => isStepComplete(currentStep, value, isAppleAccount),
+  });
   const nextStep = useOnboardingStore((state) => state.nextStep);
   const prevStep = useOnboardingStore((state) => state.prevStep);
-  const updateUserData = useOnboardingStore((state) => state.updateUserData);
+  const persistUserData = useOnboardingStore((state) => state.updateUserData);
+  const updateUserData = (data: Partial<OnboardingUserData>) => {
+    setUserData((current) => ({ ...current, ...data }));
+    persistUserData(data);
+  };
   const resetOnboarding = useOnboardingStore((state) => state.resetOnboarding);
   const [direction, setDirection] = useState<"forward" | "backward">("forward");
   // Tracks the incoming step's measured height so the (position: absolute)
@@ -101,7 +114,7 @@ export default function OnboardingScreen() {
     requestAnimationFrame(advance);
   };
 
-  const handleNext = () => {
+  const handleNext = () => submitForm(() => {
     if (currentStep < effectiveTotalSteps) {
       goToStep("forward", nextStep);
       return;
@@ -125,7 +138,7 @@ export default function OnboardingScreen() {
 
     // Password comes next; register + OTP happen after that.
     router.push("/auth/create-password");
-  };
+  })();
 
   // Already has a verified account — persists the fitness profile collected
   // here directly, instead of the email-OTP path new signups go through.

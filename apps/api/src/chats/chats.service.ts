@@ -75,6 +75,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { WorkoutRoutineService } from '../routines/workout-routine.service';
 import {
   buildChatWorkflow,
+  buildUserProfileContext,
   buildChatCategorizationPrompt,
   buildFinalWorkflowInstruction,
   buildWorkflowPlannerPrompt,
@@ -97,6 +98,7 @@ const DIET_SAVE_CONFIRM_RE =
 const DIET_SAVE_DECLINE_RE = /\b(no|nope|don't|dont|cancel|stop|not now)\b/i;
 const MAX_CHAT_CITATIONS = 4;
 const DEFAULT_WORKOUT_HISTORY_LIMIT = 8;
+export const CHAT_PRIVACY_POLICY_VERSION = '2026-10-15';
 const MAX_WORKOUT_HISTORY_LIMIT = 15;
 const DEFAULT_WORKOUT_HISTORY_DAYS = 90;
 
@@ -177,6 +179,18 @@ export class ChatsService {
     @Inject(AI_SEARCH_TOOL_RESOLVER)
     private readonly resolveSearchTool: AiSearchToolResolver,
   ) {}
+
+  async getPrivacyAcceptance(userId: Id) {
+    return this.prisma.chatPrivacyAcceptance.findUnique({ where: { userId } });
+  }
+
+  async acceptPrivacyPolicy(userId: Id) {
+    return this.prisma.chatPrivacyAcceptance.upsert({
+      where: { userId },
+      create: { userId, policyVersion: CHAT_PRIVACY_POLICY_VERSION },
+      update: { policyVersion: CHAT_PRIVACY_POLICY_VERSION, acceptedAt: new Date() },
+    });
+  }
 
   async list(
     userId: Id,
@@ -746,6 +760,7 @@ export class ChatsService {
     });
 
     return {
+      displayName: user.profile.displayName ?? null,
       ageYears: user.profile.dateOfBirth
         ? yearsSince(user.profile.dateOfBirth)
         : null,
@@ -827,6 +842,9 @@ export class ChatsService {
       | undefined,
   ): Promise<ChatCategorization> {
     const fallback = deterministicChatCategorization(content, workflow);
+    if (fallback.category === 'personal_data' && !fallback.citationsRequired) {
+      return fallback;
+    }
     const modelConfig = resolveModelConfig(
       PromptCategory.ChatCategorization,
       prompts,
@@ -846,16 +864,8 @@ export class ChatsService {
         return { ...result.object, citationsRequired: false };
       }
 
-      if (fallback.citationsRequired && !result.object.citationsRequired) {
-        return {
-          ...result.object,
-          citationsRequired: true,
-          reason:
-            result.object.reason ??
-            'Deterministic fallback requires citations for this topic.',
-        };
-      }
-
+      // The classifier distinguishes saved-data retrieval from advice; keywords
+      // such as "weight" alone must not force citations back on.
       return result.object;
     } catch (error) {
       this.logger.warn(
@@ -907,6 +917,10 @@ export class ChatsService {
     conversationId: Id,
     input: SendChatMessageInput,
   ) {
+    const acceptance = await this.getPrivacyAcceptance(userId);
+    if (!acceptance || acceptance.policyVersion !== CHAT_PRIVACY_POLICY_VERSION) {
+      throw new HttpException('Chat privacy policy acceptance is required.', HttpStatus.FORBIDDEN);
+    }
     const settings = await this.prisma.appSettings.findFirst();
     const modelConfig = resolveModelConfig(
       PromptCategory.UserChat,
@@ -1000,7 +1014,10 @@ export class ChatsService {
         };
       });
 
-    const system = resolvePrompt(PromptCategory.UserChat, settings?.aiPrompts);
+    const system = [
+      resolvePrompt(PromptCategory.UserChat, settings?.aiPrompts),
+      buildUserProfileContext(profile),
+    ].join('\n\n');
 
     const result = streamText({
       model,

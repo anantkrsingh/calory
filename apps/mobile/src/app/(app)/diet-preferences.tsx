@@ -1,8 +1,10 @@
+import { useForm } from 'react-hook-form';
+import { useFormField } from '@/hooks/use-form-field';
 import { DietCuisine, DietType } from '@fitness/types';
 import type { GenerateDietPlanInput } from '@fitness/validation';
 import { useRouter } from 'expo-router';
 import { Check, Minus, Plus, X } from 'lucide-react-native';
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, type ReactNode } from 'react';
 import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import Animated, {
@@ -25,6 +27,7 @@ import { resolveFontFamily } from '@/components/ui/Text';
 import { LIMITS } from '@/constants/app';
 import { Brand, Pressed, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useRegenerateDietPlan } from '@/queries/diet-plans.queries';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
@@ -128,12 +131,27 @@ function parseExclusions(text: string): string[] {
 export default function DietPreferencesScreen() {
   const router = useRouter();
   const theme = useTheme();
+  const isDark = useColorScheme() === 'dark';
   const regenerate = useRegenerateDietPlan();
 
-  const [dietTypes, setDietTypes] = useState<DietType[]>([DietType.NonVeg]);
-  const [cuisine, setCuisine] = useState<DietCuisine | undefined>(undefined);
-  const [excludeText, setExcludeText] = useState('');
-  const [mealsPerDay, setMealsPerDay] = useState<number>(LIMITS.dietMealsPerDay.default);
+  const form = useForm<{
+    dietTypes: DietType[];
+    cuisine: DietCuisine | undefined;
+    excludeText: string;
+    mealsPerDay: number;
+  }>({
+    defaultValues: {
+      dietTypes: [DietType.NonVeg],
+      cuisine: undefined,
+      excludeText: '',
+      mealsPerDay: LIMITS.dietMealsPerDay.default,
+    },
+  });
+  const { handleSubmit: submitForm } = form;
+  const [dietTypes, setDietTypes] = useFormField(form, 'dietTypes');
+  const [cuisine, setCuisine] = useFormField(form, 'cuisine');
+  const [excludeText, setExcludeText] = useFormField(form, 'excludeText');
+  const [mealsPerDay, setMealsPerDay] = useFormField(form, 'mealsPerDay');
 
   const adjustMealsPerDay = (delta: number) => {
     setMealsPerDay((current) =>
@@ -144,7 +162,7 @@ export default function DietPreferencesScreen() {
     );
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = submitForm(async () => {
     const preferences: GenerateDietPlanInput = {
       dietTypes,
       cuisine,
@@ -161,7 +179,7 @@ export default function DietPreferencesScreen() {
         getErrorMessage(err, 'Something went wrong. Try again.'),
       );
     }
-  };
+  });
 
   return (
     <TabScreen
@@ -269,6 +287,7 @@ export default function DietPreferencesScreen() {
 
         <PrimaryButton
           label={regenerate.isPending ? 'Generating…' : 'Generate Plan'}
+          textStyle={{ color: isDark ? '#FFFFFF' : '#000000' }}
           onPress={() => {
             void handleSubmit();
           }}

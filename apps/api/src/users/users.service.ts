@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { paginate, toSkipTake, toUser, type Prisma } from '@fitness/db';
 import type {
   AccountDeletionSchedule,
@@ -6,6 +6,7 @@ import type {
   Id,
   Paginated,
   User,
+  AuthProvider,
 } from '@fitness/types';
 import type {
   AdminUpdateUserInput,
@@ -15,6 +16,8 @@ import type {
 
 import { PrismaService } from '../prisma/prisma.service';
 import { UploadsService } from '../uploads/uploads.service';
+import { ENV, type Env } from '../config/env.module';
+import { revokeAppleToken } from '../auth/social-providers';
 
 const AVATAR_FOLDER = 'fitness-tracker/avatars';
 
@@ -25,9 +28,11 @@ export const ACCOUNT_DELETION_GRACE_DAYS = 30;
 
 @Injectable()
 export class UsersService {
+  private readonly logger = new Logger(UsersService.name);
   constructor(
     private readonly prisma: PrismaService,
     private readonly uploads: UploadsService,
+    @Inject(ENV) private readonly env: Env,
   ) {}
 
   /** Admin-only: every account, newest first, optionally filtered by email/name. */
@@ -59,7 +64,25 @@ export class UsersService {
       this.prisma.user.count({ where }),
     ]);
 
-    return paginate(rows.map(toUser), query, total);
+    return paginate(
+      rows.map((row) => {
+        const user = toUser(row);
+        if (row.deletionRequestedAt) {
+          const scheduledDeletionAt = new Date(row.deletionRequestedAt);
+          scheduledDeletionAt.setDate(
+            scheduledDeletionAt.getDate() + ACCOUNT_DELETION_GRACE_DAYS,
+          );
+          user.scheduledDeletionAt = scheduledDeletionAt.toISOString();
+          user.scheduledDeletionDaysRemaining = Math.max(
+            0,
+            Math.ceil((scheduledDeletionAt.getTime() - Date.now()) / 86_400_000),
+          );
+        }
+        return user;
+      }),
+      query,
+      total,
+    );
   }
 
   async findById(id: Id): Promise<User> {
@@ -202,6 +225,17 @@ export class UsersService {
   async requestDeletion(id: Id): Promise<AccountDeletionSchedule> {
     const current = await this.prisma.user.findUnique({ where: { id } });
     if (!current) throw new NotFoundException('User not found');
+
+    const appleTokens = current.linkedAccounts
+      .filter((account) => account.provider === AuthProvider.Apple && account.refreshToken)
+      .map((account) => account.refreshToken as string);
+    for (const token of appleTokens) {
+      try {
+        await revokeAppleToken(token, this.env);
+      } catch (error) {
+        this.logger.warn(`Apple token revocation failed during account deletion: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    }
 
     const deletionRequestedAt = new Date();
     await this.prisma.user.update({

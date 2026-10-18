@@ -9,6 +9,7 @@ export interface SocialProfile {
   displayName?: string;
   avatarUrl?: string;
   emailVerified: boolean;
+  appleRefreshToken?: string;
 }
 
 export interface AuthTokens {

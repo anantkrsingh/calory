@@ -2,6 +2,7 @@ import type { CalorieBalance } from '@fitness/types';
 import { Flame, Footprints, UtensilsCrossed } from 'lucide-react-native';
 import { memo } from 'react';
 import { StyleSheet, View } from 'react-native';
+import Svg, { Circle, G } from 'react-native-svg';
 
 import { ThemedText } from '@/components/themed-text';
 import { Brand, Spacing } from '@/constants/theme';
@@ -9,18 +10,20 @@ import { useTheme } from '@/hooks/use-theme';
 
 type CalorieBalanceCardProps = {
   balance: CalorieBalance;
+  targets: {
+    targetProteinG?: number | null;
+    targetFatG?: number | null;
+    targetCarbsG?: number | null;
+  };
 };
 
-/** Today's real energy balance: what was actually eaten against the computed
- * target, plus where the day's burn came from. Sits above the plan's macro
- * targets on the Metrics tab — targets are the plan, this is the reality. */
-function CalorieBalanceCardComponent({ balance }: CalorieBalanceCardProps) {
+/** Intake against daily targets, macro energy shares, and the day's burn. */
+function CalorieBalanceCardComponent({ balance, targets }: CalorieBalanceCardProps) {
   const theme = useTheme();
 
   const {
     targetCalories,
     consumedCalories,
-    remainingCalories,
     burnedFromExercise,
     burnedFromSteps,
     burnedTotal,
@@ -30,10 +33,25 @@ function CalorieBalanceCardComponent({ balance }: CalorieBalanceCardProps) {
   } = balance;
 
   const hasTarget = targetCalories !== null && targetCalories > 0;
-  const progress = hasTarget
-    ? Math.min(consumedCalories / targetCalories, 1)
-    : 0;
-  const overTarget = hasTarget && consumedCalories > targetCalories;
+
+  const macros = [
+    { label: 'Protein', value: balance.consumedProteinG, target: targets.targetProteinG, color: Brand.teal, energyPerGram: 4 },
+    { label: 'Fat', value: balance.consumedFatG, target: targets.targetFatG, color: '#D59B28', energyPerGram: 9 },
+    { label: 'Carbs', value: balance.consumedCarbsG, target: targets.targetCarbsG, color: '#8B7BE8', energyPerGram: 4 },
+  ];
+  const totalMacroCalories = macros.reduce((sum, macro) => sum + Math.max(0, macro.value) * macro.energyPerGram, 0);
+  const shares = macros.map((macro) => totalMacroCalories > 0
+    ? Math.max(0, macro.value) * macro.energyPerGram / totalMacroCalories
+    : 0);
+  // Largest-remainder rounding keeps the displayed whole percentages at 100%.
+  const percentages = shares.map((share) => Math.floor(share * 100));
+  if (totalMacroCalories > 0) {
+    const remainder = 100 - percentages.reduce((sum, value) => sum + value, 0);
+    const order = shares.map((share, index) => ({ index, fraction: share * 100 - percentages[index] }))
+      .sort((a, b) => b.fraction - a.fraction);
+    for (let index = 0; index < remainder; index += 1) percentages[order[index].index] += 1;
+  }
+  const circumference = 2 * Math.PI * 48;
 
   return (
     <View
@@ -41,41 +59,60 @@ function CalorieBalanceCardComponent({ balance }: CalorieBalanceCardProps) {
         styles.card,
         { backgroundColor: theme.surface, borderColor: theme.border },
       ]}>
-      <View style={styles.headline}>
-        <ThemedText fontWeight="700" style={styles.eaten}>
-          {consumedCalories}
-          <ThemedText themeColor="textSecondary" style={styles.eatenUnit}>
-            {hasTarget ? ` / ${targetCalories} kcal` : ' kcal eaten'}
-          </ThemedText>
-        </ThemedText>
-
-        {remainingCalories !== null ? (
-          <ThemedText themeColor="textSecondary" style={styles.remaining}>
-            {overTarget
-              ? `${consumedCalories - (targetCalories ?? 0)} over`
-              : `${remainingCalories} left`}
-          </ThemedText>
-        ) : null}
-      </View>
-
-      {hasTarget ? (
-        <View style={[styles.track, { backgroundColor: theme.backgroundElement }]}>
-          <View
-            style={[
-              styles.fill,
-              {
-                width: `${progress * 100}%`,
-                backgroundColor: overTarget ? Brand.teal : Brand.accent,
-              },
-            ]}
-          />
+      <View style={styles.metricsRow}>
+        <View style={styles.progressList}>
+          <MetricProgress label="Calories" value={consumedCalories} target={targetCalories} unit="kcal" color={Brand.accent} />
+          {macros.map((macro) => (
+            <MetricProgress key={macro.label} {...macro} unit="g" />
+          ))}
         </View>
-      ) : (
+        <View style={styles.breakdown}>
+          <View
+            accessible
+            accessibilityRole="image"
+            accessibilityLabel={totalMacroCalories > 0
+              ? `Consumed macro calorie breakdown: ${macros.map((macro, index) => `${macro.label} ${percentages[index]} percent`).join(', ')}`
+              : 'No macros logged yet'}
+            style={styles.chart}>
+            <Svg width={112} height={112} viewBox="0 0 112 112">
+              <Circle cx={56} cy={56} r={48} stroke={theme.backgroundSelected} strokeWidth={12} fill="none" />
+              <G rotation={-90} origin="56, 56">
+                {macros.map((macro, index) => shares[index] > 0 ? (
+                  <Circle
+                    key={macro.label}
+                    cx={56}
+                    cy={56}
+                    r={48}
+                    stroke={macro.color}
+                    strokeWidth={12}
+                    fill="none"
+                    strokeDasharray={[shares[index] * circumference, circumference * (1 - shares[index])]}
+                    strokeDashoffset={-shares.slice(0, index).reduce((sum, share) => sum + share, 0) * circumference}
+                  />
+                ) : null)}
+              </G>
+            </Svg>
+            <View style={styles.chartCenter} pointerEvents="none">
+              <ThemedText fontWeight="700" style={styles.chartValue}>{Math.round(consumedCalories)}</ThemedText>
+              <ThemedText themeColor="textSecondary" style={styles.statLabel}>kcal eaten</ThemedText>
+            </View>
+          </View>
+          {totalMacroCalories > 0 ? macros.map((macro, index) => (
+            <View key={macro.label} style={styles.legendRow}>
+              <View style={[styles.legendDot, { backgroundColor: macro.color }]} />
+              <ThemedText themeColor="textSecondary" style={styles.statLabel}>{macro.label} {percentages[index]}%</ThemedText>
+            </View>
+          )) : (
+            <ThemedText themeColor="textSecondary" style={styles.statLabel}>No macros yet</ThemedText>
+          )}
+        </View>
+      </View>
+      {!hasTarget ? (
         <ThemedText themeColor="textSecondary" style={styles.hint}>
           Add your height, weight, date of birth and sex in your profile to see
           a personalised calorie target.
         </ThemedText>
-      )}
+      ) : null}
 
       <View style={[styles.stats, { borderTopColor: theme.border }]}>
         <BurnStat
@@ -107,6 +144,33 @@ function CalorieBalanceCardComponent({ balance }: CalorieBalanceCardProps) {
           intake{trendLabel(adaptive.trendKgPerDay)}.
         </ThemedText>
       ) : null}
+    </View>
+  );
+}
+
+function MetricProgress({ label, value, target, unit, color }: {
+  label: string;
+  value: number;
+  target?: number | null;
+  unit: string;
+  color: string;
+}) {
+  const theme = useTheme();
+  const hasTarget = target != null && target > 0;
+  const progress = hasTarget ? Math.min(Math.max(value / target, 0), 1) : 0;
+  const amount = `${Math.round(value)}${hasTarget ? ` / ${Math.round(target)}` : ''} ${unit}`;
+  return (
+    <View style={styles.metric}>
+      <ThemedText fontWeight="600" style={styles.statLabel}>{label}</ThemedText>
+      <ThemedText themeColor="textSecondary" style={styles.statLabel}>{amount}</ThemedText>
+      <View
+        accessibilityRole="progressbar"
+        accessibilityLabel={label}
+        accessibilityValue={{ min: 0, max: 100, now: Math.round(progress * 100), text: `${amount}${hasTarget ? '' : ', no target set'}` }}
+        style={[styles.track, { backgroundColor: theme.backgroundSelected }]}>
+        <View style={[styles.fill, { width: `${progress * 100}%`, backgroundColor: color }]} />
+      </View>
+      {!hasTarget ? <ThemedText themeColor="textSecondary" style={styles.footnote}>No target set</ThemedText> : null}
     </View>
   );
 }
@@ -153,20 +217,15 @@ const styles = StyleSheet.create({
     padding: Spacing.three,
     gap: Spacing.two,
   },
-  headline: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    justifyContent: 'space-between',
-  },
-  eaten: {
-    fontSize: 26,
-  },
-  eatenUnit: {
-    fontSize: 14,
-  },
-  remaining: {
-    fontSize: 13,
-  },
+  metricsRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: Spacing.three },
+  progressList: { flex: 1, minWidth: 120, gap: Spacing.three },
+  metric: { gap: 4 },
+  breakdown: { alignItems: 'center', gap: 6 },
+  chart: { width: 112, height: 112 },
+  chartCenter: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, alignItems: 'center', justifyContent: 'center' },
+  chartValue: { fontSize: 20 },
+  legendRow: { alignSelf: 'stretch', flexDirection: 'row', alignItems: 'center', gap: 5 },
+  legendDot: { width: 6, height: 6, borderRadius: 3 },
   track: {
     height: 8,
     borderRadius: 4,

@@ -1,3 +1,5 @@
+import { useForm } from 'react-hook-form';
+import { useFormField } from '@/hooks/use-form-field';
 import { TrueSheet } from '@lodev09/react-native-true-sheet';
 import { useEffect, useRef, useState } from 'react';
 import {
@@ -14,6 +16,7 @@ import { getErrorMessage } from '@/api/errors';
 import { ThemedText } from '@/components/themed-text';
 import PrimaryButton from '@/components/ui/PrimaryButton';
 import { Pressed, Spacing } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useTheme } from '@/hooks/use-theme';
 import { useLogExerciseSet } from '@/queries/workouts.queries';
 import { useExerciseTimerStore } from '@/stores/exercise-timer.store';
@@ -49,6 +52,7 @@ function formatElapsed(totalSeconds: number): string {
  */
 export function LogSetSheet() {
   const theme = useTheme();
+  const isDark = useColorScheme() === 'dark';
   const sheetRef = useRef<TrueSheet>(null);
   const logSet = useLogExerciseSet();
 
@@ -57,34 +61,47 @@ export function LogSetSheet() {
     (state) => state.clearPendingLog,
   );
 
-  const [values, setValues] = useState<Record<FieldKey, string>>({
-    reps: '',
-    weightKg: '',
-    distanceM: '',
+  const form = useForm<{
+    values: Record<FieldKey, string>;
+  }>({
+    defaultValues: {
+      values: { reps: '', weightKg: '', distanceM: '' },
+    },
   });
-  const [fieldError, setFieldError] = useState<FieldKey | null>(null);
-  const [formError, setFormError] = useState<string | null>(null);
+  const { handleSubmit: submitForm, reset } = form;
+  const [values, setValues] = useFormField(form, 'values', {
+    validate: (value) => {
+      const exercise = pendingLog?.exercise;
+      if (!exercise) return true;
+      for (const field of FIELD_DEFS) {
+        if (exercise.logFields[field.key] === 'hidden') continue;
+        const raw = value[field.key].trim();
+        if (!raw) {
+          if (exercise.logFields[field.key] === 'required') return `${field.label} is required for this exercise.`;
+        } else if (!Number.isFinite(Number(raw)) || Number(raw) < 0) {
+          return `${field.label} must be a valid number.`;
+        }
+      }
+      return true;
+    },
+  });
+  const [serverError, setFormError] = useState<string | null>(null);
 
-  // Resets the form during render when a new `pendingLog` arrives — the
-  // React-sanctioned way to adjust state on a prop/store change without the
-  // extra render pass (and lint warning) a `useEffect` doing the same
-  // `setState` calls would cause. `logSet.reset()`/`present()` below are
-  // genuine external-system effects (a mutation object, an imperative ref
-  // call), so those still belong in `useEffect`.
+  const validationError = form.formState.errors.values?.message;
+  const formError = validationError ?? serverError;
+  const fieldError = validationError ? FIELD_DEFS.find((field) => validationError.startsWith(field.label))?.key : undefined;
+
   const [formResetFor, setFormResetFor] = useState(pendingLog);
   if (pendingLog !== formResetFor) {
     setFormResetFor(pendingLog);
-    if (pendingLog) {
-      setValues({ reps: '', weightKg: '', distanceM: '' });
-      setFieldError(null);
-      setFormError(null);
-    }
+    setFormError(null);
   }
 
   // `pendingLog` changes identity each time `stop()` runs, so this fires once
   // per set to log.
   useEffect(() => {
     if (!pendingLog) return;
+    reset({ values: { reps: '', weightKg: '', distanceM: '' } });
     logSet.reset();
     sheetRef.current?.present();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -98,8 +115,8 @@ export function LogSetSheet() {
     : [];
 
   const handleChange = (key: FieldKey, text: string) => {
+    form.clearErrors('values');
     setValues((prev) => ({ ...prev, [key]: text }));
-    setFieldError(null);
     setFormError(null);
   };
 
@@ -107,27 +124,14 @@ export function LogSetSheet() {
     void sheetRef.current?.dismiss();
   };
 
-  const handleSave = async () => {
+  const handleSave = () => submitForm(async () => {
     if (!exercise || !timing) return;
 
     const parsed: Partial<Record<FieldKey, number>> = {};
     for (const field of fields) {
       const raw = values[field.key].trim();
-      if (raw === '') {
-        if (exercise.logFields[field.key] === 'required') {
-          setFieldError(field.key);
-          setFormError(`${field.label} is required for this exercise.`);
-          return;
-        }
-        continue;
-      }
-
+      if (raw === '') continue;
       const num = Number(raw);
-      if (!Number.isFinite(num) || num < 0) {
-        setFieldError(field.key);
-        setFormError(`${field.label} must be a valid number.`);
-        return;
-      }
       parsed[field.key] = num;
     }
 
@@ -145,7 +149,7 @@ export function LogSetSheet() {
         getErrorMessage(err, 'Could not save this set. Please try again.'),
       );
     }
-  };
+  })();
 
   return (
     <TrueSheet
@@ -212,6 +216,7 @@ export function LogSetSheet() {
 
               <PrimaryButton
                 label={logSet.isPending ? 'Saving...' : 'Save'}
+                textStyle={{ color: isDark ? '#fff' : '#000' }}
                 onPress={() => void handleSave()}
                 disabled={logSet.isPending}
               />

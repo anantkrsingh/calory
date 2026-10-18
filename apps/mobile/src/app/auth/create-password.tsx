@@ -1,3 +1,5 @@
+import { useForm } from 'react-hook-form';
+import { useFormField } from '@/hooks/use-form-field';
 import { AUTH } from '@/constants/app';
 import type { RegisterInput } from '@fitness/validation';
 import { useRouter } from 'expo-router';
@@ -27,16 +29,23 @@ export default function CreatePasswordScreen() {
   const resetOnboarding = useOnboardingStore((state) => state.resetOnboarding);
   const register = useRegister();
   const verifyEmailSheetRef = useRef<VerifyEmailSheetRef>(null);
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [errors, setErrors] = useState({
-    password: '',
-    confirmPassword: '',
+  const form = useForm<{
+    password: string;
+    confirmPassword: string;
+  }>({
+    defaultValues: {
+      password: '',
+      confirmPassword: '',
+    },
   });
+  const { handleSubmit: submitForm, clearErrors, getValues } = form;
+  const [password, setPassword] = useFormField(form, 'password', { validate: (value) => validatePassword(value) || true });
+  const [confirmPassword, setConfirmPassword] = useFormField(form, 'confirmPassword', { validate: (value) => value === getValues('password') || 'Passwords do not match' });
+  const { errors } = form.formState;
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  const validatePassword = (pwd: string): string => {
+  function validatePassword(pwd: string): string {
     if (pwd.length < AUTH.minPasswordLength) {
       return `Password must be at least ${AUTH.minPasswordLength} characters`;
     }
@@ -57,26 +66,15 @@ export default function CreatePasswordScreen() {
 
   const handlePasswordChange = (text: string) => {
     setPassword(text);
-    setErrors({ ...errors, password: '' });
+    clearErrors('password');
   };
 
   const handleConfirmPasswordChange = (text: string) => {
     setConfirmPassword(text);
-    setErrors({ ...errors, confirmPassword: '' });
+    clearErrors('confirmPassword');
   };
 
-  const handleSubmit = async () => {
-    const passwordError = validatePassword(password);
-    if (passwordError) {
-      setErrors({ ...errors, password: passwordError });
-      return;
-    }
-
-    if (password !== confirmPassword) {
-      setErrors({ ...errors, confirmPassword: 'Passwords do not match' });
-      return;
-    }
-
+  const handleSubmit = () => submitForm(async ({ password }) => {
     setLoading(true);
     setError(null);
 
@@ -112,7 +110,7 @@ export default function CreatePasswordScreen() {
     } finally {
       setLoading(false);
     }
-  };
+  })();
 
   const handleClose = () => {
     resetOnboarding();
@@ -182,7 +180,7 @@ export default function CreatePasswordScreen() {
           </View>
           {errors.password ? (
             <ThemedText type="small" style={styles.errorText}>
-              {errors.password}
+              {errors.password?.message}
             </ThemedText>
           ) : null}
         </View>
@@ -225,7 +223,7 @@ export default function CreatePasswordScreen() {
           </View>
           {errors.confirmPassword ? (
             <ThemedText type="small" style={styles.errorText}>
-              {errors.confirmPassword}
+              {errors.confirmPassword?.message}
             </ThemedText>
           ) : null}
         </View>

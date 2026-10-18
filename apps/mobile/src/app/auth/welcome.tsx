@@ -3,6 +3,7 @@ import { useRouter } from "expo-router";
 import { useEffect, useRef } from "react";
 import {
   Alert,
+  Linking,
   Platform,
   Pressable,
   StyleSheet,
@@ -133,16 +134,6 @@ export default function WelcomeScreen() {
               />
             }
           />
-          <SocialButton
-            onClick={() => void socialLogin.signIn("x")}
-            loading={socialLogin.pendingProvider === "x"}
-            icon={
-              <Image
-                style={{ width: 28, height: 28 }}
-                source={require("@/assets/icons/social/x.svg")}
-              />
-            }
-          />
           {Platform.OS === "ios" && (
             <SocialButton
               onClick={() => void socialLogin.signIn("apple")}
@@ -175,19 +166,24 @@ export default function WelcomeScreen() {
           </Pressable>
         </View>
 
-        <ThemedText
-          fontWeight="regular"
-          style={[styles.legal, { color: theme.textSecondary }]}
-        >
-          By continuing you agree to our{" "}
-          <ThemedText fontWeight="medium" style={styles.legalLink}>
-            Terms
-          </ThemedText>{" "}
-          and{" "}
-          <ThemedText fontWeight="medium" style={styles.legalLink}>
-            Privacy Policy
+        <View style={styles.legal}>
+          <ThemedText fontWeight="regular" style={{ color: theme.textSecondary }}>
+            By continuing you agree to our{" "}
           </ThemedText>
-        </ThemedText>
+          <Pressable
+            accessibilityRole="link"
+            onPress={() => void Linking.openURL("https://caloryfitness.netlify.app/terms")}
+          >
+            <ThemedText fontWeight="medium" style={styles.legalLink}>Terms</ThemedText>
+          </Pressable>
+          <ThemedText fontWeight="regular" style={{ color: theme.textSecondary }}> and </ThemedText>
+          <Pressable
+            accessibilityRole="link"
+            onPress={() => void Linking.openURL("https://caloryfitness.netlify.app/privacy")}
+          >
+            <ThemedText fontWeight="medium" style={styles.legalLink}>Privacy Policy</ThemedText>
+          </Pressable>
+        </View>
       </View>
 
       <LoginSheet ref={loginSheetRef} />
@@ -327,10 +323,11 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   legal: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "center",
+    justifyContent: "center",
     marginTop: Spacing.three,
-    textAlign: "center",
-    fontSize: 11,
-    lineHeight: 16,
   },
   legalLink: {
     color: Brand.accent,

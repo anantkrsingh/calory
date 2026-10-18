@@ -36,6 +36,9 @@ export interface User extends Entity {
   planId?: Id;
   planName?: string;
   planExpiresAt?: IsoDate;
+  /** Scheduled account deletion, included in the admin user list. */
+  scheduledDeletionAt?: IsoDateTime;
+  scheduledDeletionDaysRemaining?: number;
   /** Lifetime chat token usage, summed across every assistant reply. */
   lifetimeInputTokens?: number;
   lifetimeOutputTokens?: number;

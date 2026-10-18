@@ -62,6 +62,7 @@ export const socialLoginSchema = z
       .min(LIMITS.name.min)
       .max(LIMITS.name.max)
       .optional(),
+    authorizationCode: z.string().min(1).optional(),
   })
   .refine(
     (data) => !data.codeVerifier || Boolean(data.redirectUri),

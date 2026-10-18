@@ -1,7 +1,7 @@
 import type { Citation } from '@fitness/types';
 import { ExternalLink, X } from 'lucide-react-native';
 import { forwardRef, useCallback, useImperativeHandle, useState } from 'react';
-import { Linking, Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Animated, Easing, Linking, Modal, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
@@ -29,16 +29,42 @@ function CitationsSheetComponent(_props: unknown, ref: React.Ref<CitationsSheetR
   const [visible, setVisible] = useState(false);
   const [citations, setCitations] = useState<Citation[]>([]);
   const [title, setTitle] = useState('Sources');
+  const [progress] = useState(() => new Animated.Value(0));
+  const { height } = useWindowDimensions();
+
+  const animateOpen = useCallback(() => {
+    Animated.timing(progress, {
+      toValue: 1,
+      duration: 240,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  }, [progress]);
 
   useImperativeHandle(ref, () => ({
     present: (nextCitations, nextTitle) => {
       setCitations(nextCitations);
       setTitle(nextTitle ?? 'Sources');
-      setVisible(true);
+      progress.stopAnimation();
+      if (visible) {
+        animateOpen();
+      } else {
+        progress.setValue(0);
+        setVisible(true);
+      }
     },
   }));
 
-  const close = useCallback(() => setVisible(false), []);
+  const close = useCallback(() => {
+    Animated.timing(progress, {
+      toValue: 0,
+      duration: 180,
+      easing: Easing.in(Easing.cubic),
+      useNativeDriver: true,
+    }).start(({ finished }) => {
+      if (finished) setVisible(false);
+    });
+  }, [progress]);
 
   const openUrl = useCallback((url: string) => {
     void Linking.openURL(url);
@@ -48,19 +74,23 @@ function CitationsSheetComponent(_props: unknown, ref: React.Ref<CitationsSheetR
     <Modal
       visible={visible}
       transparent
-      animationType="slide"
+      animationType="none"
+      onShow={animateOpen}
       statusBarTranslucent
       onRequestClose={close}>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Close sources"
-        style={styles.backdrop}
-        onPress={close}
-      />
+      <Animated.View style={[styles.backdrop, { opacity: progress }]}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Close sources"
+          style={StyleSheet.absoluteFill}
+          onPress={close}
+        />
+      </Animated.View>
 
-      <View
+      <Animated.View
         style={[
           styles.sheet,
+          { transform: [{ translateY: progress.interpolate({ inputRange: [0, 1], outputRange: [height, 0] }) }] },
           { backgroundColor: theme.background, paddingBottom: insets.bottom + Spacing.three },
         ]}>
         <View style={[styles.handle, { backgroundColor: theme.border }]} />
@@ -117,7 +147,7 @@ function CitationsSheetComponent(_props: unknown, ref: React.Ref<CitationsSheetR
             </Pressable>
           ))}
         </ScrollView>
-      </View>
+      </Animated.View>
     </Modal>
   );
 }

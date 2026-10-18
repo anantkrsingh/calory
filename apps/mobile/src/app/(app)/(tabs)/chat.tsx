@@ -14,11 +14,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { getErrorMessage } from '@/api/errors';
 import { ChatThread } from '@/components/chat/ChatThread';
+import { ChatPrivacyPolicySheet } from '@/components/chat/ChatPrivacyPolicySheet';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Brand, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { useChats, useCreateChat } from '@/queries/chats.queries';
+import { CHAT_PRIVACY_POLICY_VERSION, useAcceptChatPrivacyPolicy, useChatPrivacyAcceptance, useChats, useCreateChat } from '@/queries/chats.queries';
 import {
   selectActiveConversationId,
   selectChatSessionHydrated,
@@ -32,8 +33,11 @@ export default function ChatScreen() {
   const hydrated = useChatSessionStore(selectChatSessionHydrated);
   const activeId = useChatSessionStore(selectActiveConversationId);
   const setActiveId = useChatSessionStore((s) => s.setActiveConversationId);
+  const privacyQuery = useChatPrivacyAcceptance();
+  const acceptPrivacy = useAcceptChatPrivacyPolicy();
+  const privacyAccepted = privacyQuery.data?.policyVersion === CHAT_PRIVACY_POLICY_VERSION;
 
-  const { data: chats, isLoading: listing } = useChats();
+  const { data: chats, isLoading: listing } = useChats({}, privacyAccepted);
   const createChat = useCreateChat();
   const ensuringRef = useRef(false);
   const autoStartFailedRef = useRef(false);
@@ -44,7 +48,7 @@ export default function ChatScreen() {
 
   // Ensure there is always an active conversation for the tab.
   useEffect(() => {
-    if (!hydrated || ensuringRef.current) return;
+    if (!hydrated || !privacyAccepted || ensuringRef.current) return;
 
     const items = chats?.items;
     if (activeId) return;
@@ -77,6 +81,7 @@ export default function ChatScreen() {
     hydrated,
     listing,
     setActiveId,
+    privacyAccepted,
   ]);
 
   // Android back from chat goes to Home instead of exiting the app.
@@ -149,7 +154,11 @@ export default function ChatScreen() {
         </View>
       </View>
 
-      {!activeId ? (
+      {!privacyAccepted ? (
+        <View style={styles.centered}>
+          <ActivityIndicator color={Brand.accent} />
+        </View>
+      ) : !activeId ? (
         <View style={styles.centered}>
           {startupError ? (
             <>
@@ -188,6 +197,11 @@ export default function ChatScreen() {
           onNotFound={handleNotFound}
         />
       )}
+      <ChatPrivacyPolicySheet
+        visible={!privacyQuery.isLoading && !privacyAccepted}
+        loading={acceptPrivacy.isPending}
+        onAgree={() => { void acceptPrivacy.mutateAsync(); }}
+      />
     </ThemedView>
   );
 }

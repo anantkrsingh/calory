@@ -274,6 +274,7 @@ type LinkedAccount {
   provider AuthProvider
   subject  String
   email    String?
+  refreshToken String?
   linkedAt DateTime @default(now())
 }
 
@@ -456,8 +457,18 @@ model User {
   dailyMealLogs   DailyMealLog[]
   notificationDeliveries NotificationDelivery[]
   supportTickets SupportTicket[]
+  chatPrivacyAcceptance ChatPrivacyAcceptance?
 
   @@map("users")
+}
+
+model ChatPrivacyAcceptance {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String   @unique @db.ObjectId
+  policyVersion String
+  acceptedAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@map("chat_privacy_acceptances")
 }
 
 model SupportTicket {

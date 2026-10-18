@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { useFormField } from '@/hooks/use-form-field';
 import { Pressable, StyleSheet, View } from 'react-native';
 import type { AskQuestionPayload } from '@fitness/types';
 
@@ -25,13 +26,22 @@ export function QuestionCard({
   onSubmit,
 }: QuestionCardProps) {
   const theme = useTheme();
-  const [selected, setSelected] = useState<string[]>([]);
+  const form = useForm<{
+    selected: string[];
+  }>({
+    defaultValues: {
+      selected: [],
+    },
+  });
+  const { handleSubmit: submitForm } = form;
+  const [selected, setSelected] = useFormField(form, 'selected', { validate: (value) => value.length > 0 });
   const allowMultiple = question.allowMultiple ?? false;
 
   const toggle = (option: string) => {
     if (!interactive) return;
     if (!allowMultiple) {
-      onSubmit([option]);
+      setSelected([option]);
+      void submitForm(({ selected }) => onSubmit(selected))();
       return;
     }
     setSelected((prev) =>
@@ -79,7 +89,7 @@ export function QuestionCard({
           accessibilityRole="button"
           accessibilityLabel="Send answer"
           disabled={selected.length === 0}
-          onPress={() => onSubmit(selected)}
+          onPress={submitForm(({ selected }) => onSubmit(selected))}
           style={({ pressed }) => [
             styles.send,
             {

@@ -71,10 +71,17 @@ export function UserTableClient({
             {users.map((user) => {
               const remaining = user.remainingCredits ?? defaultCredits;
               const total = user.totalCredits ?? defaultCredits;
+              const deletionDaysRemaining = user.scheduledDeletionDaysRemaining;
               return (
                 <tr key={user.id} className="border-b border-neutral-100 hover:bg-neutral-50/60 transition">
                   <td className="px-4 py-3 font-medium text-neutral-900">
                     {user.profile.displayName}
+                    {deletionDaysRemaining !== undefined ? (
+                      <div className="mt-1 text-xs font-medium text-red-600">
+                        Scheduled for deletion, {deletionDaysRemaining}{" "}
+                        {deletionDaysRemaining === 1 ? "Day" : "Days"} remaining
+                      </div>
+                    ) : null}
                   </td>
                   <td className="px-4 py-3 text-neutral-600">{user.email}</td>
                   <td className="px-4 py-3">

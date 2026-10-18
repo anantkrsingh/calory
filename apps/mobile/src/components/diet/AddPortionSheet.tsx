@@ -1,3 +1,5 @@
+import { useForm } from 'react-hook-form';
+import { useFormField } from '@/hooks/use-form-field';
 import { TrueSheet } from '@lodev09/react-native-true-sheet';
 import type { IsoDate, PortionFood } from '@fitness/types';
 import { Minus, Plus } from 'lucide-react-native';
@@ -7,8 +9,7 @@ import {
   useImperativeHandle,
   useMemo,
   useRef,
-  useState,
-} from 'react';
+  } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { getErrorMessage } from '@/api/errors';
@@ -46,11 +47,19 @@ function AddPortionSheetComponent(
   const { data: foods, isLoading } = usePortionFoods();
   const logPortion = useLogPortion();
 
-  const [quantities, setQuantities] = useState<Record<string, number>>({});
+  const form = useForm<{
+    quantities: Record<string, number>;
+  }>({
+    defaultValues: {
+      quantities: {},
+    },
+  });
+  const { handleSubmit: submitForm, reset } = form;
+  const [quantities, setQuantities] = useFormField(form, 'quantities', { validate: (value) => Object.values(value).some((quantity) => quantity > 0) });
 
   useImperativeHandle(ref, () => ({
     present: () => {
-      setQuantities({});
+      reset();
       void sheetRef.current?.present();
     },
   }));
@@ -76,7 +85,7 @@ function AddPortionSheetComponent(
       );
       return { ...current, [id]: next };
     });
-  }, []);
+  }, [setQuantities]);
 
   const save = useCallback(async () => {
     try {
@@ -138,7 +147,7 @@ function AddPortionSheetComponent(
           <PrimaryButton
             label={logPortion.isPending ? 'Adding…' : 'Add to today'}
             onPress={() => {
-              void save();
+              void submitForm(save)();
             }}
             disabled={selected.length === 0 || logPortion.isPending}
             style={styles.cta}

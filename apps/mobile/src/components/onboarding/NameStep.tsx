@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { useFormField } from '@/hooks/use-form-field';
 import { StyleSheet, TextInput, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
@@ -18,8 +19,20 @@ export default function NameStep({
   optional = false,
 }: NameStepProps) {
   const theme = useTheme();
-  const [input, setInput] = useState(displayName);
-  const [error, setError] = useState<string | null>(null);
+  const form = useForm<{
+    input: string;
+  }>({
+    defaultValues: {
+      input: displayName,
+    },
+  });
+  const { clearErrors, trigger } = form;
+  const [input, setInput] = useFormField(form, 'input', { validate: (value) => {
+      if (!value.trim()) return optional || 'Name is required';
+      if (value.trim().length < 2) return 'Name must be at least 2 characters';
+      return value.trim().length <= 50 || 'Name must be less than 50 characters';
+    } });
+  const error = form.formState.errors.input?.message;
 
   const isValidName = (value: string): boolean => {
     const trimmed = value.trim();
@@ -28,19 +41,11 @@ export default function NameStep({
 
   const handleChange = (text: string) => {
     setInput(text);
-    setError(null);
+    clearErrors('input');
     onChange({ displayName: isValidName(text) ? text.trim() : '' });
   };
 
-  const handleBlur = () => {
-    if (input.trim() === '') {
-      setError(optional ? null : 'Name is required');
-    } else if (input.trim().length < 2) {
-      setError('Name must be at least 2 characters');
-    } else if (input.trim().length > 50) {
-      setError('Name must be less than 50 characters');
-    }
-  };
+  const handleBlur = () => { void trigger('input'); };
 
   return (
     <ThemedView style={styles.container}>

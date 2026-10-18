@@ -1,3 +1,5 @@
+import { useForm } from 'react-hook-form';
+import { useFormField } from '@/hooks/use-form-field';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, StyleSheet, TextInput, View } from 'react-native';
@@ -19,25 +21,29 @@ export default function ForgotPasswordScreen() {
   const router = useRouter();
   const forgotPassword = useForgotPassword();
 
-  const [email, setEmail] = useState('');
-  const [error, setError] = useState<string | null>(null);
+  const form = useForm<{
+    email: string;
+  }>({
+    defaultValues: {
+      email: '',
+    },
+  });
+  const { handleSubmit: submitForm, clearErrors } = form;
+  const [email, setEmail] = useFormField(form, 'email', {
+    validate: (value) => !value.trim() ? 'Email is required' : EMAIL_REGEX.test(value.trim()) || 'Please enter a valid email address',
+  });
+  const [serverError, setError] = useState<string | null>(null);
+
+  const error = form.formState.errors.email?.message ?? serverError;
 
   const handleEmailChange = (text: string) => {
     setEmail(text);
+    clearErrors('email');
     setError(null);
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = submitForm(async ({ email }) => {
     const trimmed = email.trim();
-
-    if (trimmed === '') {
-      setError('Email is required');
-      return;
-    }
-    if (!EMAIL_REGEX.test(trimmed)) {
-      setError('Please enter a valid email address');
-      return;
-    }
 
     setError(null);
 
@@ -50,7 +56,7 @@ export default function ForgotPasswordScreen() {
     } catch (cause) {
       setError(getErrorMessage(cause, 'Failed to send the reset code. Please try again.'));
     }
-  };
+  });
 
   return (
     <SafeAreaView

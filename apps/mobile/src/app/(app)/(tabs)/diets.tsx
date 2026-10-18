@@ -26,6 +26,7 @@ import { CitationsSheet, type CitationsSheetRef } from '@/components/ui/Citation
 import PrimaryButton from '@/components/ui/PrimaryButton';
 import { BottomTabInset, Brand, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 import { currentWeekDates, todayIsoDate, weekdayName } from '@/lib/date';
 import { useCalorieBalance } from '@/queries/calories.queries';
 import {
@@ -39,6 +40,7 @@ const MAX_RECONCILE_REFETCHES = 4;
 
 export default function DietsScreen() {
   const theme = useTheme();
+  const isDark = useColorScheme() === 'dark';
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const today = useState(todayIsoDate)[0];
@@ -196,7 +198,7 @@ export default function DietsScreen() {
 
           <ExtrasCard
             entries={data?.extraItems ?? []}
-            onAdd={() => addPortionRef.current?.present()}
+            onAdd={activeMode === 'today' ? undefined : () => addPortionRef.current?.present()}
             onRemove={(entryId) => {
               void removePortion.mutateAsync({ date: displayDate, entryId });
             }}
@@ -222,15 +224,15 @@ export default function DietsScreen() {
     return (
       <View style={styles.metrics}>
         {caloriesQuery.data ? (
-          <CalorieBalanceCard balance={caloriesQuery.data} />
+          <CalorieBalanceCard balance={caloriesQuery.data} targets={day} />
         ) : null}
 
-        <View style={[styles.statsRow, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+        {!caloriesQuery.data ? <View style={[styles.statsRow, { backgroundColor: theme.surface, borderColor: theme.border }]}>
           <Stat label="Calories" value={`${day.targetCalories}`} />
           <Stat label="Protein" value={`${day.targetProteinG ?? 0}g`} />
           <Stat label="Fat" value={`${day.targetFatG ?? 0}g`} />
           <Stat label="Carbs" value={`${day.targetCarbsG ?? 0}g`} />
-        </View>
+        </View> : null}
       </View>
     );
   };
@@ -257,6 +259,7 @@ export default function DietsScreen() {
           <PrimaryButton
             label="Create My Diet Plan"
             onPress={openPreferences}
+            textStyle={{ color: isDark ? '#FFFFFF' : '#000000' }}
             style={styles.ctaButton}
           />
         </View>
@@ -284,6 +287,7 @@ export default function DietsScreen() {
           <PrimaryButton
             label="Try Again"
             onPress={openPreferences}
+            textStyle={{ color: isDark ? '#FFFFFF' : '#000000' }}
             style={styles.ctaButton}
           />
         </View>

@@ -1,3 +1,5 @@
+import { useForm } from 'react-hook-form';
+import { useFormField } from '@/hooks/use-form-field';
 import { AUTH } from '@/constants/app';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
@@ -44,14 +46,28 @@ export default function ResetPasswordScreen() {
   const forgotPassword = useForgotPassword();
   const resetPassword = useResetPassword();
 
-  const [otpDigits, setOtpDigits] = useState<string[]>(Array(OTP_LENGTH).fill(''));
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
+  const form = useForm<{
+    otpDigits: string[];
+    password: string;
+    confirmPassword: string;
+  }>({
+    defaultValues: {
+      otpDigits: Array(OTP_LENGTH).fill(''),
+      password: '',
+      confirmPassword: '',
+    },
+  });
+  const { handleSubmit: submitForm, clearErrors, getValues } = form;
+  const [otpDigits, setOtpDigits] = useFormField(form, 'otpDigits', { validate: (value) => value.join('').length === OTP_LENGTH || 'Please enter a 4-digit code' });
+  const [password, setPassword] = useFormField(form, 'password', { validate: (value) => validatePassword(value) || true });
+  const [confirmPassword, setConfirmPassword] = useFormField(form, 'confirmPassword', { validate: (value) => value === getValues('password') || 'Passwords do not match' });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [serverError, setError] = useState<string | null>(null);
   const [resendTimer, setResendTimer] = useState(RESEND_SECONDS);
   const inputs = useRef<(TextInput | null)[]>([]);
+
+  const error = form.formState.errors.otpDigits?.message ?? form.formState.errors.password?.message ?? form.formState.errors.confirmPassword?.message ?? serverError;
 
   const otp = otpDigits.join('');
   const canResend = resendTimer === 0;
@@ -69,6 +85,7 @@ export default function ResetPasswordScreen() {
   }, [resendTimer]);
 
   const handleDigitChange = (index: number, text: string) => {
+    clearErrors('otpDigits');
     const digits = text.replace(/\D/g, '');
 
     if (digits.length > 1) {
@@ -110,23 +127,8 @@ export default function ResetPasswordScreen() {
     }
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = submitForm(async () => {
     if (!email) return;
-
-    if (otp.length !== OTP_LENGTH) {
-      setError('Please enter the 4-digit code');
-      return;
-    }
-
-    const passwordError = validatePassword(password);
-    if (passwordError) {
-      setError(passwordError);
-      return;
-    }
-    if (password !== confirmPassword) {
-      setError('Passwords do not match');
-      return;
-    }
 
     setError(null);
 
@@ -138,7 +140,7 @@ export default function ResetPasswordScreen() {
     } catch (cause) {
       setError(getErrorMessage(cause, 'Could not reset your password. Please try again.'));
     }
-  };
+  });
 
   const canSubmit =
     otp.length === OTP_LENGTH && password !== '' && confirmPassword !== '' && !resetPassword.isPending;
@@ -238,6 +240,7 @@ export default function ResetPasswordScreen() {
               placeholderTextColor={theme.textSecondary}
               value={password}
               onChangeText={(text) => {
+                clearErrors('password');
                 setPassword(text);
                 setError(null);
               }}
@@ -280,6 +283,7 @@ export default function ResetPasswordScreen() {
               placeholderTextColor={theme.textSecondary}
               value={confirmPassword}
               onChangeText={(text) => {
+                clearErrors('confirmPassword');
                 setConfirmPassword(text);
                 setError(null);
               }}

@@ -252,6 +252,23 @@ export async function verifyApple(
     typeof payload.email === 'string' ? payload.email : undefined;
   const nativeEmail = input.email?.trim() || undefined;
   const nativeDisplayName = input.displayName?.trim() || undefined;
+  let appleRefreshToken: string | undefined;
+  if (input.authorizationCode) {
+    const clientId = audiences[0];
+    const clientSecret = requireConfig(env.APPLE_CLIENT_SECRET, AuthProvider.Apple);
+    const exchange = (await getJson('https://appleid.apple.com/auth/token', {
+      method: 'POST',
+      headers: { 'content-type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        client_id: clientId,
+        client_secret: clientSecret,
+        code: input.authorizationCode,
+        grant_type: 'authorization_code',
+      }),
+    }, 'Apple authorization code exchange')) as { refresh_token?: string } | null;
+    appleRefreshToken = exchange?.refresh_token;
+    if (!appleRefreshToken) reject(AuthProvider.Apple);
+  }
 
   return {
     provider: AuthProvider.Apple,
@@ -265,7 +282,29 @@ export async function verifyApple(
       payload.email_verified === true ||
       payload.email_verified === 'true' ||
       Boolean(nativeEmail),
+    appleRefreshToken,
   };
+}
+
+/** Revokes the Apple refresh token associated with an account. */
+export async function revokeAppleToken(token: string, env: Env): Promise<void> {
+  const clientIds = requireConfig(env.APPLE_CLIENT_IDS, AuthProvider.Apple)
+    .split(',').map((id) => id.trim()).filter(Boolean);
+  const clientSecret = requireConfig(env.APPLE_CLIENT_SECRET, AuthProvider.Apple);
+  const response = await fetch('https://appleid.apple.com/auth/revoke', {
+    method: 'POST',
+    headers: { 'content-type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      client_id: clientIds[0],
+      client_secret: clientSecret,
+      token,
+      token_type_hint: 'refresh_token',
+    }),
+  });
+  if (!response.ok) {
+    const body = await response.text().catch(() => '');
+    throw new BadRequestException(`Apple authorization revocation failed: ${body || response.status}`);
+  }
 }
 
 export const SOCIAL_VERIFIERS: Record<

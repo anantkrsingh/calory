@@ -129,7 +129,7 @@ export default function ProfileScreen() {
     ActivityLevel | undefined
   >(user?.profile.activityLevel);
   const [draftGoals, setDraftGoals] = useState<FitnessGoal[]>(
-    user?.profile.fitnessGoals ?? []
+    user?.profile.fitnessGoals ?? [],
   );
 
   const handleAccountMenuPress = (key: string) => {
@@ -178,7 +178,7 @@ export default function ProfileScreen() {
     setDraftGoals((current) =>
       current.includes(goal)
         ? current.filter((g) => g !== goal)
-        : [...current, goal]
+        : [...current, goal],
     );
   };
 
@@ -195,7 +195,7 @@ export default function ProfileScreen() {
     } catch (err) {
       Alert.alert(
         "Couldn’t save",
-        getErrorMessage(err, "Something went wrong. Try again.")
+        getErrorMessage(err, "Something went wrong. Try again."),
       );
     }
   };
@@ -209,7 +209,7 @@ export default function ProfileScreen() {
     } catch (err) {
       Alert.alert(
         "Couldn’t save",
-        getErrorMessage(err, "Something went wrong. Try again.")
+        getErrorMessage(err, "Something went wrong. Try again."),
       );
     }
   };
@@ -510,7 +510,7 @@ const styles = StyleSheet.create({
   scrollContent: {
     gap: Spacing.three,
     marginTop: Spacing.four,
-    paddingBottom: BottomTabInset + 40,
+    paddingBottom: BottomTabInset + 60,
   },
   card: {
     borderRadius: 16,
@@ -601,4 +601,3 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
   },
 });
-

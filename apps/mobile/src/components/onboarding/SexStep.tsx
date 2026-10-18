@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { EyeOff, Mars, Venus, type LucideIcon } from 'lucide-react-native';
 
@@ -32,15 +31,13 @@ const PREFER_NOT_TO_SAY_OPTION: SexOption = {
 
 export default function SexStep({ sex, onChange }: SexStepProps) {
   const theme = useTheme();
-  const [selectedSex, setSelectedSex] = useState<Sex | undefined>(sex);
 
   const handleSexSelect = (value: Sex) => {
-    setSelectedSex(value);
     onChange({ sex: value });
   };
 
   const renderOption = ({ value, label, Icon }: SexOption) => {
-    const selected = selectedSex === value;
+    const selected = sex === value;
     return (
       <Pressable
         key={value}

@@ -21,6 +21,8 @@ import {
 import { chatsService } from '@/services/chats.service';
 import { selectIsAuthenticated, useAuthStore } from '@/stores/auth.store';
 
+export const CHAT_PRIVACY_POLICY_VERSION = '2026-10-15';
+
 export class ChatsQueries {
   static readonly root = ['chats'] as const;
 
@@ -64,9 +66,29 @@ export class ChatsQueries {
 
 export function useChats(
   query: ChatQueryInput = {},
+  enabled = true,
 ): UseQueryResult<Paginated<ChatConversation>> {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
-  return useQuery(ChatsQueries.list(isAuthenticated, query));
+  return useQuery(ChatsQueries.list(isAuthenticated && enabled, query));
+}
+
+export function useChatPrivacyAcceptance() {
+  const isAuthenticated = useAuthStore(selectIsAuthenticated);
+  return useQuery({
+    queryKey: [...ChatsQueries.root, 'privacy-acceptance'],
+    queryFn: () => chatsService.getPrivacyAcceptance(),
+    enabled: isAuthenticated,
+  });
+}
+
+export function useAcceptChatPrivacyPolicy() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => chatsService.acceptPrivacyPolicy(),
+    onSuccess: (data) => {
+      queryClient.setQueryData([...ChatsQueries.root, 'privacy-acceptance'], data);
+    },
+  });
 }
 
 export function useChatDetail(

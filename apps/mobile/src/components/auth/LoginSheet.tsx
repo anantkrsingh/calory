@@ -1,7 +1,9 @@
-import { TrueSheet } from '@lodev09/react-native-true-sheet';
-import { useRouter } from 'expo-router';
-import { Eye, EyeOff } from 'lucide-react-native';
-import { forwardRef, useImperativeHandle, useRef, useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { useFormField } from '@/hooks/use-form-field';
+import { TrueSheet } from "@lodev09/react-native-true-sheet";
+import { useRouter } from "expo-router";
+import { Eye, EyeOff } from "lucide-react-native";
+import { forwardRef, useImperativeHandle, useRef, useState } from "react";
 import {
   KeyboardAvoidingView,
   Platform,
@@ -9,21 +11,22 @@ import {
   ScrollView,
   StyleSheet,
   TextInput,
+  useColorScheme,
   View,
-} from 'react-native';
+} from "react-native";
 
-import { ThemedText } from '@/components/themed-text';
-import PrimaryButton from '@/components/ui/PrimaryButton';
-import { Pressed, Spacing } from '@/constants/theme';
-import { useTheme } from '@/hooks/use-theme';
-import { hasCompletedOnboarding } from '@/lib/onboarding';
-import { authService } from '@/services/auth.service';
+import { ThemedText } from "@/components/themed-text";
+import PrimaryButton from "@/components/ui/PrimaryButton";
+import { Pressed, Spacing } from "@/constants/theme";
+import { useTheme } from "@/hooks/use-theme";
+import { hasCompletedOnboarding } from "@/lib/onboarding";
+import { authService } from "@/services/auth.service";
 
 export type LoginSheetRef = {
   present: () => void;
 };
 
-const HANDLE_COLOR = 'rgba(120, 120, 128, 0.3)';
+const HANDLE_COLOR = "rgba(120, 120, 128, 0.3)";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -31,54 +34,51 @@ export default forwardRef<LoginSheetRef>(function LoginSheet(_props, ref) {
   const theme = useTheme();
   const router = useRouter();
   const sheetRef = useRef<TrueSheet>(null);
+  const scheme = useColorScheme();
+  const isDark = scheme === "dark";
 
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const form = useForm<{
+    email: string;
+    password: string;
+  }>({
+    defaultValues: {
+      email: "",
+      password: "",
+    },
+  });
+  const { handleSubmit: submitForm, reset, clearErrors } = form;
+  const [email, setEmail] = useFormField(form, 'email', {
+    validate: (value) => !value.trim() ? 'Email is required' : EMAIL_REGEX.test(value) || 'Please enter a valid email address',
+  });
+  const [password, setPassword] = useFormField(form, 'password', {
+    validate: (value) => !!value.trim() || 'Password is required',
+  });
   const [showPassword, setShowPassword] = useState(false);
-  const [errors, setErrors] = useState({ email: '', password: '' });
+  const { errors, isSubmitting: isLoading } = form.formState;
   const [formError, setFormError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
 
   useImperativeHandle(ref, () => ({
     present: () => {
-      setEmail('');
-      setPassword('');
+      reset();
       setShowPassword(false);
-      setErrors({ email: '', password: '' });
       setFormError(null);
-      setIsLoading(false);
       sheetRef.current?.present();
     },
   }));
 
   const handleEmailChange = (text: string) => {
     setEmail(text);
-    setErrors((prev) => ({ ...prev, email: '' }));
+    clearErrors('email');
     setFormError(null);
   };
 
   const handlePasswordChange = (text: string) => {
     setPassword(text);
-    setErrors((prev) => ({ ...prev, password: '' }));
+    clearErrors('password');
     setFormError(null);
   };
 
-  const validate = (): boolean => {
-    const emailError = email.trim() === ''
-      ? 'Email is required'
-      : EMAIL_REGEX.test(email)
-        ? ''
-        : 'Please enter a valid email address';
-    const passwordError = password.trim() === '' ? 'Password is required' : '';
-
-    setErrors({ email: emailError, password: passwordError });
-    return !emailError && !passwordError;
-  };
-
-  const handleSubmit = async () => {
-    if (!validate()) return;
-
-    setIsLoading(true);
+  const handleSubmit = submitForm(async ({ email, password }) => {
     setFormError(null);
 
     try {
@@ -87,32 +87,36 @@ export default forwardRef<LoginSheetRef>(function LoginSheet(_props, ref) {
         password,
       });
       await sheetRef.current?.dismiss();
-      router.replace(hasCompletedOnboarding(session.user) ? '/' : '/auth/onboarding');
+      router.replace(
+        hasCompletedOnboarding(session.user) ? "/" : "/auth/onboarding",
+      );
     } catch {
-      setFormError('Invalid email or password. Please try again.');
-    } finally {
-      setIsLoading(false);
+      setFormError("Invalid email or password. Please try again.");
     }
-  };
+  });
 
   const handleForgotPassword = async () => {
     await sheetRef.current?.dismiss();
-    router.push('/auth/forgot-password');
+    router.push("/auth/forgot-password");
   };
 
   return (
     <TrueSheet
       ref={sheetRef}
-      detents={['auto']}
+      detents={["auto"]}
       dimmed
       dimmedDetentIndex={0}
       backgroundColor="transparent"
       cornerRadius={0}
-      grabber={false}>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      grabber={false}
+    >
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      >
         <ScrollView
           keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}>
+          showsVerticalScrollIndicator={false}
+        >
           <View style={styles.sheetPadding}>
             <View style={[styles.card, { backgroundColor: theme.background }]}>
               <View style={styles.handle} />
@@ -120,7 +124,10 @@ export default forwardRef<LoginSheetRef>(function LoginSheet(_props, ref) {
               <ThemedText type="subtitle" style={styles.title}>
                 Welcome back
               </ThemedText>
-              <ThemedText type="small" style={[styles.subtitle, { color: theme.textSecondary }]}>
+              <ThemedText
+                type="small"
+                style={[styles.subtitle, { color: theme.textSecondary }]}
+              >
                 Sign in to continue
               </ThemedText>
 
@@ -135,7 +142,7 @@ export default forwardRef<LoginSheetRef>(function LoginSheet(_props, ref) {
                       backgroundColor: theme.backgroundElement,
                       color: theme.text,
                       borderWidth: errors.email ? 1.5 : 0,
-                      borderColor: '#ff3b30',
+                      borderColor: "#ff3b30",
                     },
                   ]}
                   placeholder="Enter your email"
@@ -148,7 +155,9 @@ export default forwardRef<LoginSheetRef>(function LoginSheet(_props, ref) {
                   returnKeyType="next"
                 />
                 {errors.email ? (
-                  <ThemedText type="small" style={styles.errorText}>{errors.email}</ThemedText>
+                  <ThemedText type="small" style={styles.errorText}>
+                    {errors.email?.message}
+                  </ThemedText>
                 ) : null}
               </View>
 
@@ -165,7 +174,7 @@ export default forwardRef<LoginSheetRef>(function LoginSheet(_props, ref) {
                         backgroundColor: theme.backgroundElement,
                         color: theme.text,
                         borderWidth: errors.password ? 1.5 : 0,
-                        borderColor: '#ff3b30',
+                        borderColor: "#ff3b30",
                       },
                     ]}
                     placeholder="Enter your password"
@@ -181,10 +190,14 @@ export default forwardRef<LoginSheetRef>(function LoginSheet(_props, ref) {
                   <Pressable
                     style={({ pressed }) => [
                       styles.eyeButton,
-                      pressed && { opacity: Pressed.opacity, transform: [{ translateY: -12 }, { scale: 0.99 }] },
+                      pressed && {
+                        opacity: Pressed.opacity,
+                        transform: [{ translateY: -12 }, { scale: 0.99 }],
+                      },
                     ]}
                     onPress={() => setShowPassword((value) => !value)}
-                    hitSlop={8}>
+                    hitSlop={8}
+                  >
                     {showPassword ? (
                       <EyeOff size={20} color={theme.textSecondary} />
                     ) : (
@@ -193,15 +206,24 @@ export default forwardRef<LoginSheetRef>(function LoginSheet(_props, ref) {
                   </Pressable>
                 </View>
                 {errors.password ? (
-                  <ThemedText type="small" style={styles.errorText}>{errors.password}</ThemedText>
+                  <ThemedText type="small" style={styles.errorText}>
+                    {errors.password?.message}
+                  </ThemedText>
                 ) : null}
               </View>
 
               <Pressable
-                style={({ pressed }) => [styles.forgotPassword, pressed && Pressed]}
+                style={({ pressed }) => [
+                  styles.forgotPassword,
+                  pressed && Pressed,
+                ]}
                 onPress={handleForgotPassword}
-                hitSlop={8}>
-                <ThemedText type="linkPrimary" style={styles.forgotPasswordText}>
+                hitSlop={8}
+              >
+                <ThemedText
+                  type="linkPrimary"
+                  style={styles.forgotPasswordText}
+                >
                   Forgot Password?
                 </ThemedText>
               </Pressable>
@@ -213,7 +235,8 @@ export default forwardRef<LoginSheetRef>(function LoginSheet(_props, ref) {
               ) : null}
 
               <PrimaryButton
-                label={isLoading ? 'Signing In...' : 'Sign In'}
+                textStyle={{ color: isDark ? "#fff" : "#000" }}
+                label={isLoading ? "Signing In..." : "Sign In"}
                 onPress={handleSubmit}
                 disabled={isLoading}
               />
@@ -232,11 +255,11 @@ const styles = StyleSheet.create({
   },
   card: {
     borderRadius: 24,
-    borderCurve: 'continuous',
+    borderCurve: "continuous",
     padding: Spacing.four,
   },
   handle: {
-    alignSelf: 'center',
+    alignSelf: "center",
     width: 36,
     height: 4,
     borderRadius: 2,
@@ -244,57 +267,57 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.three,
   },
   title: {
-    textAlign: 'left',
+    textAlign: "left",
     marginBottom: Spacing.one,
   },
   subtitle: {
-    textAlign: 'left',
+    textAlign: "left",
     marginBottom: Spacing.four,
   },
   inputGroup: {
-    width: '100%',
+    width: "100%",
     marginBottom: Spacing.three,
   },
   label: {
     marginBottom: Spacing.two,
   },
   input: {
-    width: '100%',
+    width: "100%",
     paddingHorizontal: Spacing.four,
     paddingVertical: Spacing.three,
     borderRadius: 999,
     fontSize: 16,
-    fontWeight: '500',
+    fontWeight: "500",
   },
   passwordWrapper: {
-    position: 'relative',
+    position: "relative",
   },
   passwordInput: {
     paddingRight: 50,
   },
   eyeButton: {
-    position: 'absolute',
+    position: "absolute",
     right: Spacing.four,
-    top: '50%',
+    top: "50%",
     transform: [{ translateY: -12 }],
   },
   errorText: {
-    color: '#ff3b30',
+    color: "#ff3b30",
     fontSize: 12,
     marginTop: Spacing.one,
   },
   forgotPassword: {
-    alignSelf: 'flex-end',
+    alignSelf: "flex-end",
     marginBottom: Spacing.four,
   },
   forgotPasswordText: {
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: "500",
   },
   formError: {
-    color: '#ff3b30',
+    color: "#ff3b30",
     fontSize: 14,
-    textAlign: 'left',
+    textAlign: "left",
     marginBottom: Spacing.three,
   },
 });

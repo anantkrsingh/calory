@@ -9,15 +9,14 @@ import { useTheme } from '@/hooks/use-theme';
 
 type ExtrasCardProps = {
   entries: LoggedPortion[];
-  onAdd: () => void;
+  onAdd?: () => void;
   onRemove: (entryId: Id) => void;
   disabled?: boolean;
 };
 
 /**
- * Anything eaten that was not on the plan. Collapses to a single "Add
- * something else" row when empty, so it costs nothing visually for users who
- * follow their plan exactly.
+ * Anything eaten that was not on the plan. Hidden when empty unless adding
+ * extra food is available.
  */
 function ExtrasCardComponent({
   entries,
@@ -27,6 +26,8 @@ function ExtrasCardComponent({
 }: ExtrasCardProps) {
   const theme = useTheme();
   const total = entries.reduce((sum, entry) => sum + entry.calories, 0);
+
+  if (entries.length === 0 && !onAdd) return null;
 
   return (
     <View
@@ -78,7 +79,7 @@ function ExtrasCardComponent({
         </>
       ) : null}
 
-      <Pressable
+      {onAdd ? <Pressable
         accessibilityRole="button"
         accessibilityLabel="Add food that was not on your plan"
         onPress={onAdd}
@@ -90,7 +91,7 @@ function ExtrasCardComponent({
         <ThemedText style={[styles.addText, { color: Brand.accent }]}>
           {entries.length > 0 ? 'Add more' : 'Add something else you ate'}
         </ThemedText>
-      </Pressable>
+      </Pressable> : null}
     </View>
   );
 }

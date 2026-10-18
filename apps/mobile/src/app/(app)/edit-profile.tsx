@@ -1,17 +1,19 @@
-import { LIMITS, UNIT_CONVERSION } from '@/constants/app';
-import type { Sex, UnitSystem } from '@fitness/types';
-import { SegmentedControl } from '@expo/ui/community/segmented-control';
-import { Image } from 'expo-image';
-import * as ImagePicker from 'expo-image-picker';
-import { useRouter } from 'expo-router';
+import { useForm } from "react-hook-form";
+import { useFormField } from "@/hooks/use-form-field";
+import { LIMITS, UNIT_CONVERSION } from "@/constants/app";
+import type { Sex, UnitSystem } from "@fitness/types";
+import { SegmentedControl } from "@expo/ui/community/segmented-control";
+import { Image } from "expo-image";
+import * as ImagePicker from "expo-image-picker";
+import { useRouter } from "expo-router";
 import {
   Camera,
   EyeOff,
   Mars,
   Venus,
   type LucideIcon,
-} from 'lucide-react-native';
-import { useCallback, useRef, useState, type ReactNode } from 'react';
+} from "lucide-react-native";
+import { useCallback, useRef, type ReactNode } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -19,42 +21,44 @@ import {
   StyleSheet,
   TextInput,
   View,
-} from 'react-native';
-import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
+} from "react-native";
+import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 
-import { getErrorMessage } from '@/api/errors';
-import { ScreenAppBar } from '@/components/screen-app-bar';
-import { TabScreen } from '@/components/tab-screen';
-import { ThemedText } from '@/components/themed-text';
+import { getErrorMessage } from "@/api/errors";
+import { ScreenAppBar } from "@/components/screen-app-bar";
+import { TabScreen } from "@/components/tab-screen";
+import { ThemedText } from "@/components/themed-text";
 import DateOfBirthPicker, {
   type DateOfBirthPickerRef,
-} from '@/components/ui/DateOfBirthPicker';
-import PrimaryButton from '@/components/ui/PrimaryButton';
-import { Brand, Spacing } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
-import { useTheme } from '@/hooks/use-theme';
-import { initialsOf } from '@/lib/user';
-import { useUpdateProfile, useUploadAvatar } from '@/queries/users.queries';
-import { selectUser, useAuthStore } from '@/stores/auth.store';
+} from "@/components/ui/DateOfBirthPicker";
+import PrimaryButton from "@/components/ui/PrimaryButton";
+import { Brand, Spacing } from "@/constants/theme";
+import { useColorScheme } from "@/hooks/use-color-scheme";
+import { useTheme } from "@/hooks/use-theme";
+import { initialsOf } from "@/lib/user";
+import { useUpdateProfile, useUploadAvatar } from "@/queries/users.queries";
+import { selectUser, useAuthStore } from "@/stores/auth.store";
 
 const AVATAR_SIZE = 96;
 const BADGE_SIZE = 32;
 const HAIRLINE = StyleSheet.hairlineWidth || 1;
 
 const SEX_OPTIONS: { value: Sex; label: string; Icon: LucideIcon }[] = [
-  { value: 'male', label: 'Male', Icon: Mars },
-  { value: 'female', label: 'Female', Icon: Venus },
-  { value: 'prefer_not_to_say', label: 'Prefer not to say', Icon: EyeOff },
+  { value: "male", label: "Male", Icon: Mars },
+  { value: "female", label: "Female", Icon: Venus },
+  { value: "prefer_not_to_say", label: "Prefer not to say", Icon: EyeOff },
 ];
 
 const round = (value: number): number => Math.round(value * 10) / 10;
 
 function heightToDisplay(cm: number, system: UnitSystem): number {
-  return system === 'metric' ? round(cm) : round(cm / UNIT_CONVERSION.cmPerInch);
+  return system === "metric"
+    ? round(cm)
+    : round(cm / UNIT_CONVERSION.cmPerInch);
 }
 
 function heightToCm(value: number, system: UnitSystem): number {
-  return system === 'metric' ? value : value * UNIT_CONVERSION.cmPerInch;
+  return system === "metric" ? value : value * UNIT_CONVERSION.cmPerInch;
 }
 
 type Draft = {
@@ -68,11 +72,11 @@ type Draft = {
 
 function draftFromUser(user: ReturnType<typeof selectUser>): Draft {
   return {
-    displayName: user?.profile.displayName ?? '',
+    displayName: user?.profile.displayName ?? "",
     sex: user?.profile.sex,
     dateOfBirth: user?.profile.dateOfBirth,
     heightCm: user?.profile.heightCm,
-    units: user?.preferences.units ?? 'metric',
+    units: user?.preferences.units ?? "metric",
     notificationsEnabled: user?.preferences.notificationsEnabled ?? false,
   };
 }
@@ -85,17 +89,34 @@ export default function EditProfileScreen() {
   const updateProfile = useUpdateProfile();
   const uploadAvatar = useUploadAvatar();
   const dobPickerRef = useRef<DateOfBirthPickerRef>(null);
-
-  const [draft, setDraft] = useState<Draft>(() => draftFromUser(user));
-  const patch = useCallback((next: Partial<Draft>) => {
-    setDraft((current) => ({ ...current, ...next }));
-  }, []);
+  const isDark = colorScheme === "dark";
+  const form = useForm<{
+    draft: Draft;
+  }>({
+    defaultValues: {
+      draft: draftFromUser(user),
+    },
+  });
+  const { handleSubmit: submitForm } = form;
+  const [draft, setDraft] = useFormField(form, "draft", {
+    validate: (value) =>
+      value.displayName.trim().length >= LIMITS.name.min &&
+      value.displayName.trim().length <= LIMITS.name.max,
+  });
+  const patch = useCallback(
+    (next: Partial<Draft>) => {
+      setDraft((current) => ({ ...current, ...next }));
+    },
+    [setDraft],
+  );
 
   const heightDisplay =
-    draft.heightCm === undefined ? '' : String(heightToDisplay(draft.heightCm, draft.units));
+    draft.heightCm === undefined
+      ? ""
+      : String(heightToDisplay(draft.heightCm, draft.units));
 
   const handleHeightChange = (text: string) => {
-    if (text.trim() === '') {
+    if (text.trim() === "") {
       patch({ heightCm: undefined });
       return;
     }
@@ -112,14 +133,14 @@ export default function EditProfileScreen() {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
       Alert.alert(
-        'Photo access needed',
-        'Allow photo library access in Settings to change your avatar.',
+        "Photo access needed",
+        "Allow photo library access in Settings to change your avatar.",
       );
       return;
     }
 
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
+      mediaTypes: ["images"],
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.8,
@@ -131,13 +152,13 @@ export default function EditProfileScreen() {
     try {
       await uploadAvatar.mutateAsync({
         uri: asset.uri,
-        name: asset.fileName ?? 'avatar.jpg',
-        type: asset.mimeType ?? 'image/jpeg',
+        name: asset.fileName ?? "avatar.jpg",
+        type: asset.mimeType ?? "image/jpeg",
       });
     } catch (err) {
       Alert.alert(
-        'Couldn’t update avatar',
-        getErrorMessage(err, 'Something went wrong. Try again.'),
+        "Couldn’t update avatar",
+        getErrorMessage(err, "Something went wrong. Try again."),
       );
     }
   }, [uploadAvatar]);
@@ -164,8 +185,8 @@ export default function EditProfileScreen() {
       router.back();
     } catch (err) {
       Alert.alert(
-        'Couldn’t save',
-        getErrorMessage(err, 'Something went wrong. Try again.'),
+        "Couldn’t save",
+        getErrorMessage(err, "Something went wrong. Try again."),
       );
     }
   }, [draft, nameValid, router, updateProfile]);
@@ -177,13 +198,15 @@ export default function EditProfileScreen() {
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="interactive"
         contentContainerStyle={styles.scrollContent}
-        bottomOffset={Spacing.four}>
+        bottomOffset={Spacing.four}
+      >
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Change profile photo"
           disabled={uploadAvatar.isPending}
           onPress={() => void pickAvatar()}
-          style={styles.avatarRow}>
+          style={styles.avatarRow}
+        >
           <View style={[styles.avatar, { backgroundColor: Brand.accent }]}>
             {user?.profile.avatarUrl ? (
               <Image
@@ -208,7 +231,8 @@ export default function EditProfileScreen() {
             style={[
               styles.avatarBadge,
               { backgroundColor: Brand.accent, borderColor: theme.background },
-            ]}>
+            ]}
+          >
             <Camera color="#FFFFFF" size={15} strokeWidth={2.4} />
           </View>
         </Pressable>
@@ -224,7 +248,11 @@ export default function EditProfileScreen() {
             returnKeyType="done"
             style={[
               styles.input,
-              { backgroundColor: theme.backgroundElement, borderColor: theme.border, color: theme.text },
+              {
+                backgroundColor: theme.backgroundElement,
+                borderColor: theme.border,
+                color: theme.text,
+              },
             ]}
           />
         </Field>
@@ -239,13 +267,19 @@ export default function EditProfileScreen() {
                   onPress={() => patch({ sex: value })}
                   style={[
                     styles.sexOption,
-                    { backgroundColor: selected ? Brand.accent : theme.backgroundElement },
-                  ]}>
-                  <Icon size={18} color={selected ? '#FFFFFF' : theme.text} />
+                    {
+                      backgroundColor: selected
+                        ? Brand.accent
+                        : theme.backgroundElement,
+                    },
+                  ]}
+                >
+                  <Icon size={18} color={selected ? "#FFFFFF" : theme.text} />
                   <ThemedText
                     type="small"
-                    style={{ color: selected ? '#FFFFFF' : theme.text }}
-                    numberOfLines={1}>
+                    style={{ color: selected ? "#FFFFFF" : theme.text }}
+                    numberOfLines={1}
+                  >
                     {label}
                   </ThemedText>
                 </Pressable>
@@ -260,35 +294,50 @@ export default function EditProfileScreen() {
             style={[
               styles.input,
               styles.dateInput,
-              { backgroundColor: theme.backgroundElement, borderColor: theme.border },
-            ]}>
+              {
+                backgroundColor: theme.backgroundElement,
+                borderColor: theme.border,
+              },
+            ]}
+          >
             <ThemedText
               type="default"
-              style={draft.dateOfBirth ? undefined : { color: theme.textSecondary }}>
-              {draft.dateOfBirth ?? 'Select your date of birth'}
+              style={
+                draft.dateOfBirth ? undefined : { color: theme.textSecondary }
+              }
+            >
+              {draft.dateOfBirth ?? "Select your date of birth"}
             </ThemedText>
           </Pressable>
         </Field>
 
-        <Field label={`Height (${draft.units === 'imperial' ? 'in' : 'cm'})`}>
+        <Field label={`Height (${draft.units === "imperial" ? "in" : "cm"})`}>
           <View style={styles.heightRow}>
             <TextInput
               value={heightDisplay}
               onChangeText={handleHeightChange}
-              placeholder={draft.units === 'imperial' ? 'e.g., 69' : 'e.g., 175'}
+              placeholder={
+                draft.units === "imperial" ? "e.g., 69" : "e.g., 175"
+              }
               placeholderTextColor={theme.textSecondary}
               keyboardType="numeric"
               returnKeyType="done"
               style={[
                 styles.input,
                 styles.heightInput,
-                { backgroundColor: theme.backgroundElement, borderColor: theme.border, color: theme.text },
+                {
+                  backgroundColor: theme.backgroundElement,
+                  borderColor: theme.border,
+                  color: theme.text,
+                },
               ]}
             />
             <SegmentedControl
-              values={['Metric', 'Imperial']}
-              selectedIndex={draft.units === 'metric' ? 0 : 1}
-              onValueChange={(value) => handleUnitsChange(value.toLowerCase() as UnitSystem)}
+              values={["Metric", "Imperial"]}
+              selectedIndex={draft.units === "metric" ? 0 : 1}
+              onValueChange={(value) =>
+                handleUnitsChange(value.toLowerCase() as UnitSystem)
+              }
               tintColor={Brand.accent}
               appearance={colorScheme}
               style={styles.segmentedControl}
@@ -297,10 +346,11 @@ export default function EditProfileScreen() {
         </Field>
 
         <PrimaryButton
-          label={updateProfile.isPending ? 'Saving…' : 'Save changes'}
+          label={updateProfile.isPending ? "Saving…" : "Save changes"}
           disabled={!nameValid || updateProfile.isPending}
+          textStyle={{ color: isDark ? "#fff" : "#000" }}
           onPress={() => {
-            void save();
+            void submitForm(save)();
           }}
           style={styles.saveButton}
         />
@@ -332,17 +382,17 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.six,
   },
   avatarRow: {
-    alignSelf: 'center',
+    alignSelf: "center",
     marginBottom: Spacing.five,
   },
   avatar: {
     width: AVATAR_SIZE,
     height: AVATAR_SIZE,
     borderRadius: AVATAR_SIZE / 2,
-    borderCurve: 'continuous',
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
+    borderCurve: "continuous",
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
   },
   avatarImage: {
     width: AVATAR_SIZE,
@@ -350,29 +400,29 @@ const styles = StyleSheet.create({
     borderRadius: AVATAR_SIZE / 2,
   },
   avatarInitials: {
-    color: '#FFFFFF',
+    color: "#FFFFFF",
     fontSize: 30,
   },
   avatarOverlay: {
-    position: 'absolute',
+    position: "absolute",
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.35)',
-    justifyContent: 'center',
+    alignItems: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.35)",
+    justifyContent: "center",
   },
   avatarBadge: {
-    position: 'absolute',
+    position: "absolute",
     right: 0,
     bottom: 0,
     width: BADGE_SIZE,
     height: BADGE_SIZE,
     borderRadius: BADGE_SIZE / 2,
     borderWidth: 2,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   field: {
     marginBottom: Spacing.four,
@@ -381,33 +431,33 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.two,
   },
   input: {
-    width: '100%',
+    width: "100%",
     paddingHorizontal: Spacing.four,
     paddingVertical: Spacing.three,
     borderRadius: 999,
     borderWidth: HAIRLINE,
     fontSize: 16,
-    fontWeight: '500',
+    fontWeight: "500",
   },
   dateInput: {
-    justifyContent: 'center',
+    justifyContent: "center",
   },
   pillRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexDirection: "row",
+    flexWrap: "wrap",
     gap: Spacing.two,
   },
   sexOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: Spacing.one,
     paddingHorizontal: Spacing.three,
     paddingVertical: Spacing.two,
     borderRadius: 999,
   },
   heightRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: Spacing.two,
   },
   heightInput: {

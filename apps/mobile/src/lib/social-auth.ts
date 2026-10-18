@@ -161,9 +161,10 @@ export async function authorizeApple(): Promise<SocialLoginInput> {
 
     return {
       token: credential.identityToken,
+      authorizationCode: credential.authorizationCode ?? undefined,
       email: credential.email ?? undefined,
       displayName: appleDisplayName(credential.fullName),
-    };
+    } as SocialLoginInput;
   } catch (error) {
     if (
       error &&

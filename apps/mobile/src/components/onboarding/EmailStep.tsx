@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { useFormField } from '@/hooks/use-form-field';
 import { StyleSheet, TextInput, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
@@ -21,23 +22,28 @@ export default function EmailStep({
   submitError,
 }: EmailStepProps) {
   const theme = useTheme();
-  const [input, setInput] = useState(email);
-  const [error, setError] = useState<string | null>(null);
+  const form = useForm<{
+    input: string;
+  }>({
+    defaultValues: {
+      input: email,
+    },
+  });
+  const { clearErrors, trigger } = form;
+  const [input, setInput] = useFormField(form, 'input', { validate: (value) => {
+      if (!value.trim()) return optional || 'Email is required';
+      return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value) || 'Please enter a valid email address';
+    } });
+  const error = form.formState.errors.input?.message;
   const displayedError = error ?? submitError;
 
   const handleChange = (text: string) => {
     setInput(text);
-    setError(null);
+    clearErrors('input');
     onChange({ email: isValidEmail(text) ? text : '' });
   };
 
-  const handleBlur = () => {
-    if (input.trim() === '') {
-      setError(optional ? null : 'Email is required');
-    } else if (!isValidEmail(input)) {
-      setError('Please enter a valid email address');
-    }
-  };
+  const handleBlur = () => { void trigger('input'); };
 
   const isValidEmail = (email: string): boolean => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;

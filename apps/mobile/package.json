@@ -44,6 +44,7 @@
     "lucide-react-native": "^1.28.0",
     "react": "19.2.3",
     "react-dom": "19.2.3",
+    "react-hook-form": "^7.90.0",
     "react-native": "0.86.2",
     "react-native-fbsdk-next": "^13.4.3",
     "react-native-gesture-handler": "~2.32.0",

@@ -1,5 +1,7 @@
+import { useForm } from 'react-hook-form';
+import { useFormField } from '@/hooks/use-form-field';
 import { TrueSheet } from "@lodev09/react-native-true-sheet";
-import { forwardRef, useImperativeHandle, useRef, useState } from "react";
+import { forwardRef, useImperativeHandle, useRef } from "react";
 import {
   Alert,
   KeyboardAvoidingView,
@@ -30,19 +32,27 @@ export const NamePromptSheet = forwardRef<NamePromptSheetRef>(function NamePromp
 ) {
   const theme = useTheme();
   const sheetRef = useRef<TrueSheet>(null);
-  const [displayName, setDisplayName] = useState("");
+  const form = useForm<{
+    displayName: string;
+  }>({
+    defaultValues: {
+      displayName: "",
+    },
+  });
+  const { handleSubmit: submitForm, reset } = form;
+  const [displayName, setDisplayName] = useFormField(form, 'displayName', { validate: (value) => !!value.trim() });
   const updateProfile = useUpdateProfile();
 
   useImperativeHandle(ref, () => ({
     present: () => {
-      setDisplayName("");
+      reset();
       sheetRef.current?.present();
     },
   }));
 
   const canSave = displayName.trim() !== "" && !updateProfile.isPending;
 
-  const handleSave = async () => {
+  const handleSave = submitForm(async () => {
     if (!canSave) return;
 
     try {
@@ -56,7 +66,7 @@ export const NamePromptSheet = forwardRef<NamePromptSheetRef>(function NamePromp
         cause instanceof Error ? cause.message : "Please try again.",
       );
     }
-  };
+  });
 
   return (
     <TrueSheet
