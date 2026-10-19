@@ -8,6 +8,7 @@ import {
   type AuthRequestConfig,
   type DiscoveryDocument,
 } from "expo-auth-session";
+import { randomUUID } from "expo-crypto";
 import * as WebBrowser from "expo-web-browser";
 import { Platform } from "react-native";
 
@@ -78,18 +79,28 @@ export async function authorizeGoogle(): Promise<SocialLoginInput> {
 export async function authorizeFacebook(): Promise<SocialLoginInput> {
   const appId = clientId("facebook");
 
-  const { AccessToken, LoginManager, Settings } =
+  const { AccessToken, AuthenticationToken, LoginManager, Settings } =
     await import("react-native-fbsdk-next");
 
   Settings.setAppID(appId);
   Settings.initializeSDK();
 
-  const result = await LoginManager.logInWithPermissions([
-    "public_profile",
-    "email",
-  ]);
+  const nonce = Platform.OS === "ios" ? randomUUID() : undefined;
+  const result = await LoginManager.logInWithPermissions(
+    ["public_profile", "email"],
+    Platform.OS === "ios" ? "limited" : undefined,
+    nonce,
+  );
 
   if (result.isCancelled) throw new SocialAuthCancelledError();
+
+  if (Platform.OS === "ios") {
+    const credential = await AuthenticationToken.getAuthenticationTokenIOS();
+    if (!credential?.authenticationToken || credential.nonce !== nonce) {
+      throw new Error("Facebook sign-in could not be completed. Please try again.");
+    }
+    return { token: credential.authenticationToken, nonce };
+  }
 
   const token = await AccessToken.getCurrentAccessToken();
   if (!token) throw new SocialAuthCancelledError();

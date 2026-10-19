@@ -53,6 +53,7 @@ export const refreshTokenSchema = z.object({
 export const socialLoginSchema = z
   .object({
     token: z.string().min(1, 'Provider token is required'),
+    nonce: z.string().min(1).max(256).regex(/^\S+$/).optional(),
     redirectUri: z.string().min(1).optional(),
     codeVerifier: z.string().min(1).optional(),
     email: emailSchema.optional(),

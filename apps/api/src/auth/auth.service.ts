@@ -264,7 +264,10 @@ export class AuthService {
 
     if (!profile.email && provider !== 'apple') {
       throw new ConflictException({
-        message: `Your ${provider} account did not share an email address`,
+        message:
+          provider === 'facebook'
+            ? 'Facebook did not share an email address. Allow email access in Facebook and try again, or sign up using email or another provider.'
+            : `Your ${provider} account did not share an email address`,
         details: { email: ['Required to create an account'] },
       });
     }

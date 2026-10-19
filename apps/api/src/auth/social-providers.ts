@@ -16,10 +16,14 @@ function reject(provider: AuthProvider): never {
   throw new BadRequestException(`Could not verify your ${provider} sign-in`);
 }
 
-function requireConfig<T>(value: T | undefined, provider: AuthProvider): T {
+function requireConfig<T>(
+  value: T | undefined,
+  provider: AuthProvider,
+  setting?: keyof Env,
+): T {
   if (!value) {
     throw new NotImplementedException(
-      `${provider} sign-in is not configured on this server`,
+      `${provider} sign-in is not configured on this server${setting ? `: missing ${setting}` : ''}`,
     );
   }
   return value;
@@ -87,11 +91,46 @@ export async function verifyGoogle(
   };
 }
 
+const facebookJwks = createRemoteJWKSet(
+  new URL('https://www.facebook.com/.well-known/oauth/openid/jwks/'),
+);
+
 export async function verifyFacebook(
   input: SocialLoginInput,
   env: Env,
 ): Promise<SocialProfile> {
   const appId = requireConfig(env.FACEBOOK_APP_ID, AuthProvider.Facebook);
+  // Limited Login returns an OIDC JWT, which Graph API cannot verify.
+  // Token shape only selects the verifier; it never establishes trust.
+  if (input.token.split('.').length === 3) {
+    if (!input.nonce) reject(AuthProvider.Facebook);
+    let payload: JWTPayload;
+    try {
+      ({ payload } = await jwtVerify(input.token, facebookJwks, {
+        issuer: 'https://www.facebook.com',
+        audience: appId,
+        algorithms: ['RS256'],
+        requiredClaims: ['sub', 'exp', 'iat', 'nonce'],
+      }));
+    } catch {
+      logger.warn('Facebook Limited Login token verification failed');
+      reject(AuthProvider.Facebook);
+    }
+    if (!payload.sub || payload.nonce !== input.nonce) {
+      reject(AuthProvider.Facebook);
+    }
+    const email = typeof payload.email === 'string' ? payload.email : undefined;
+    return {
+      provider: AuthProvider.Facebook,
+      subject: payload.sub,
+      email,
+      displayName: typeof payload.name === 'string' ? payload.name : undefined,
+      avatarUrl:
+        typeof payload.picture === 'string' ? payload.picture : undefined,
+      emailVerified: Boolean(email),
+    };
+  }
+
   const appSecret = requireConfig(
     env.FACEBOOK_APP_SECRET,
     AuthProvider.Facebook,
@@ -144,8 +183,8 @@ export async function verifyFacebook(
     reject(AuthProvider.Facebook);
   }
 
-  if (!profile?.id) {
-    logger.warn('Facebook profile request returned no id');
+  if (!profile?.id || profile.id !== debug.data.user_id) {
+    logger.warn('Facebook profile id did not match the verified token');
     reject(AuthProvider.Facebook);
   }
 
@@ -222,7 +261,11 @@ export async function verifyApple(
   input: SocialLoginInput,
   env: Env,
 ): Promise<SocialProfile> {
-  const audiences = requireConfig(env.APPLE_CLIENT_IDS, AuthProvider.Apple)
+  const audiences = requireConfig(
+    env.APPLE_CLIENT_IDS,
+    AuthProvider.Apple,
+    'APPLE_CLIENT_IDS',
+  )
     .split(',')
     .map((id) => id.trim())
     .filter(Boolean);
@@ -258,6 +301,7 @@ export async function verifyApple(
     const clientSecret = requireConfig(
       env.APPLE_CLIENT_SECRET,
       AuthProvider.Apple,
+      'APPLE_CLIENT_SECRET',
     );
     const exchange = (await getJson(
       'https://appleid.apple.com/auth/token',
@@ -295,13 +339,18 @@ export async function verifyApple(
 
 /** Revokes the Apple refresh token associated with an account. */
 export async function revokeAppleToken(token: string, env: Env): Promise<void> {
-  const clientIds = requireConfig(env.APPLE_CLIENT_IDS, AuthProvider.Apple)
+  const clientIds = requireConfig(
+    env.APPLE_CLIENT_IDS,
+    AuthProvider.Apple,
+    'APPLE_CLIENT_IDS',
+  )
     .split(',')
     .map((id) => id.trim())
     .filter(Boolean);
   const clientSecret = requireConfig(
     env.APPLE_CLIENT_SECRET,
     AuthProvider.Apple,
+    'APPLE_CLIENT_SECRET',
   );
   const response = await fetch('https://appleid.apple.com/auth/revoke', {
     method: 'POST',
