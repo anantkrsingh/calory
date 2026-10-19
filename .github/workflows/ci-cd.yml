@@ -89,6 +89,7 @@ jobs:
           CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET }}
           DEFAULT_PAGE_SIZE: ${{ secrets.DEFAULT_PAGE_SIZE }}
           APPLE_CLIENT_IDS: ${{ secrets.APPLE_CLIENT_IDS }}
+          APPLE_CLIENT_SECRET: ${{ secrets.APPLE_CLIENT_SECRET }}
           TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
         run: |
           set -euo pipefail
@@ -137,6 +138,7 @@ jobs:
           append CLOUDINARY_API_KEY "${CLOUDINARY_API_KEY:-}"
           append CLOUDINARY_API_SECRET "${CLOUDINARY_API_SECRET:-}"
           append APPLE_CLIENT_IDS "${APPLE_CLIENT_IDS:-}"
+          append APPLE_CLIENT_SECRET "${APPLE_CLIENT_SECRET:-}"
           append TAVILY_API_KEY "${TAVILY_API_KEY:-}"
       - name: Deploy with Docker Compose
         run: |
