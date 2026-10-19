@@ -67,14 +67,13 @@ export default function HomeScreen() {
     isLoading: isWeekCaloriesLoading,
     refetch: refetchWeekCalories,
   } = useWeekCalories(weekDates[0], weekDates[6]);
+  const notificationPermissionPrompt = useRegisterPushNotifications();
   const {
     steps: liveSteps,
     permissionPrompt: activityPermissionPrompt,
     deniedConfirmation: activityDeniedConfirmation,
-  } = useStepsTracker();
+  } = useStepsTracker(notificationPermissionPrompt.completed);
   const routineReconcileAttemptsRef = useRef(0);
-
-  const notificationPermissionPrompt = useRegisterPushNotifications();
 
   // Some social providers may not share a name for an account. If the profile
   // is still blank after onboarding, ask for it here.
@@ -337,6 +336,7 @@ export default function HomeScreen() {
         onAllow={notificationPermissionPrompt.allow}
         onDeny={notificationPermissionPrompt.deny}
         onRequestClose={notificationPermissionPrompt.close}
+        onDismiss={notificationPermissionPrompt.onDismiss}
       />
     </TabScreen>
   );

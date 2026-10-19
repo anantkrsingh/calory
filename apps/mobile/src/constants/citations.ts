@@ -1,7 +1,7 @@
 import type { Citation } from '@fitness/types';
 
 export const PROFILE_CITATIONS_DESCRIPTION =
-  'Sources from which Fit Crate draws its knowledge. These citation sources are not fixed and may vary by topic, response, and over time. The first 20 links are health and medical reference websites, followed by Fit Crate’s articles and their sources. Not every source is used in every response.';
+  'Sources from which Fit Crate draws its knowledge. These citation sources are not fixed and may vary by topic, response, and over time.The links are health and medical reference websites, followed by Fit Crate’s articles and their sources. Not every source is used in every response.';
 
 // Keep the landing article links and references in sync with apps/landing/src/app/blogs
 // and apps/landing/src/lib/blog-articles.ts. The first 20 entries are reference websites.

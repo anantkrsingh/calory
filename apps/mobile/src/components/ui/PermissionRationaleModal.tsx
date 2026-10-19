@@ -18,6 +18,7 @@ type PermissionRationaleModalProps = {
   onAllow?: () => void;
   onDeny?: () => void;
   onRequestClose: () => void;
+  onDismiss?: () => void;
 };
 
 export function PermissionRationaleModal({
@@ -31,6 +32,7 @@ export function PermissionRationaleModal({
   onAllow,
   onDeny,
   onRequestClose,
+  onDismiss,
 }: PermissionRationaleModalProps) {
   const theme = useTheme();
 
@@ -40,6 +42,7 @@ export function PermissionRationaleModal({
       transparent
       animationType="fade"
       statusBarTranslucent
+      onDismiss={onDismiss}
       onRequestClose={onRequestClose}>
       <View style={styles.root}>
         <Pressable style={StyleSheet.absoluteFill} onPress={onRequestClose} />

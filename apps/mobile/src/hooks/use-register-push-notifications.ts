@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { Platform } from 'react-native';
 
 import {
   getNotificationPermissionStatusAsync,
@@ -13,6 +14,8 @@ import { selectIsAuthenticated, useAuthStore } from '@/stores/auth.store';
 
 export type NotificationPermissionPromptState = {
   visible: boolean;
+  completed: boolean;
+  onDismiss: () => void;
   loading: boolean;
   allow: () => void;
   deny: () => void;
@@ -30,6 +33,15 @@ export function useRegisterPushNotifications(): NotificationPermissionPromptStat
   const attemptedRef = useRef(false);
   const [visible, setVisible] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [completed, setCompleted] = useState(false);
+
+  const dismiss = useCallback(() => {
+    setVisible(false);
+    // On iOS, wait for the native modal dismissal before presenting another.
+    if (Platform.OS !== 'ios') setCompleted(true);
+  }, []);
+
+  const onDismiss = useCallback(() => setCompleted(true), []);
 
   const registerToken = useCallback(async () => {
     const result = await registerForPushNotificationsAsync();
@@ -45,12 +57,15 @@ export function useRegisterPushNotifications(): NotificationPermissionPromptStat
     void (async () => {
       const status = await getNotificationPermissionStatusAsync();
       if (status === 'granted') {
+        setCompleted(true);
         await registerToken();
         return;
       }
 
       if (status === 'undetermined' && getPermissionChoice('notifications') !== 'denied') {
         setVisible(true);
+      } else {
+        setCompleted(true);
       }
     })();
     // Runs once per authenticated session; `registerPushToken` is a stable
@@ -64,18 +79,18 @@ export function useRegisterPushNotifications(): NotificationPermissionPromptStat
     void (async () => {
       await registerToken();
       setLoading(false);
-      setVisible(false);
+      dismiss();
     })();
-  }, [registerToken]);
+  }, [registerToken, dismiss]);
 
   const deny = useCallback(() => {
     setPermissionChoice('notifications', 'denied');
-    setVisible(false);
-  }, []);
+    dismiss();
+  }, [dismiss]);
 
   const close = useCallback(() => {
-    setVisible(false);
-  }, []);
+    if (!loading) dismiss();
+  }, [dismiss, loading]);
 
-  return { visible, loading, allow, deny, close };
+  return { visible, loading, completed, onDismiss, allow, deny, close };
 }

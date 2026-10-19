@@ -53,7 +53,7 @@ export type StepsTrackerState = {
  *
  * Synced values are also cached locally, so a cold start can paint instantly.
  */
-export function useStepsTracker(): StepsTrackerState {
+export function useStepsTracker(enabled = true): StepsTrackerState {
   const [date] = useState(todayIsoDate);
   const server = useDailySteps(date);
   const upsertSteps = useUpsertSteps();
@@ -105,7 +105,7 @@ export function useStepsTracker(): StepsTrackerState {
   useEffect(() => {
     // Only start watching once we know the server's existing total for
     // today — Android's baseline math needs it before the first reading.
-    if (!server.isSuccess) return;
+    if (!enabled || !server.isSuccess) return;
 
     let cancelled = false;
     let pollId: ReturnType<typeof setInterval> | null = null;
@@ -184,7 +184,7 @@ export function useStepsTracker(): StepsTrackerState {
       if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- baseline is read once per mount, not reactive
-  }, [server.isSuccess, permissionAttempt]);
+  }, [enabled, server.isSuccess, permissionAttempt]);
 
   const allowActivityTracking = () => {
     setPermissionChoice('activity', 'allowed');
