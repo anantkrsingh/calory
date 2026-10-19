@@ -6,6 +6,7 @@ import {
   Activity,
   Armchair,
   Bell,
+  BookOpen,
   Check,
   ChevronRight,
   Dumbbell,
@@ -45,6 +46,8 @@ import {
   type DeleteAccountSheetRef,
 } from "@/components/profile/DeleteAccountSheet";
 import { PremiumUpsellCard } from "@/components/profile/PremiumUpsellCard";
+import { CitationsSheet, type CitationsSheetRef } from "@/components/ui/CitationsSheet";
+import { PROFILE_CITATIONS, PROFILE_CITATIONS_DESCRIPTION } from "@/constants/citations";
 import Chip from "@/components/ui/Chip";
 import PrimaryButton from "@/components/ui/PrimaryButton";
 import { BottomTabInset, Brand, Pressed, Spacing } from "@/constants/theme";
@@ -109,6 +112,7 @@ const ACCOUNT_MENU_ITEMS: MenuItem[] = [
 ];
 
 const LEGAL_MENU_ITEMS: MenuItem[] = [
+  { key: "citations", icon: BookOpen, label: "Citations" },
   { key: "privacy", icon: ShieldCheck, label: "Privacy Policy" },
   { key: "terms", icon: FileText, label: "Terms of Service" },
 ];
@@ -122,6 +126,7 @@ export default function ProfileScreen() {
   const isDarkMode = useColorScheme() === "dark";
   const setThemePreference = useThemeStore((s) => s.setPreference);
   const deleteAccountSheetRef = useRef<DeleteAccountSheetRef>(null);
+  const citationsSheetRef = useRef<CitationsSheetRef>(null);
   const activitySheetRef = useRef<TrueSheet>(null);
   const goalsSheetRef = useRef<TrueSheet>(null);
 
@@ -155,7 +160,9 @@ export default function ProfileScreen() {
   };
 
   const handleLegalMenuPress = (key: string) => {
-    if (key === "privacy") {
+    if (key === "citations") {
+      citationsSheetRef.current?.present(PROFILE_CITATIONS, "Citations");
+    } else if (key === "privacy") {
       void Linking.openURL(PRIVACY_POLICY_URL);
     } else if (key === "terms") {
       void Linking.openURL(TERMS_OF_SERVICE_URL);
@@ -338,6 +345,11 @@ export default function ProfileScreen() {
           </View>
         ) : null}
       </ScrollView>
+
+      <CitationsSheet
+        ref={citationsSheetRef}
+        description={PROFILE_CITATIONS_DESCRIPTION}
+      />
 
       <DeleteAccountSheet ref={deleteAccountSheetRef} onDeleted={clearAuth} />
 

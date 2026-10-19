@@ -1,26 +1,35 @@
-import { useForm } from 'react-hook-form';
-import { useFormField } from '@/hooks/use-form-field';
-import { AUTH } from '@/constants/app';
-import type { RegisterInput } from '@fitness/validation';
-import { useRouter } from 'expo-router';
-import { useRef, useState } from 'react';
-import { Pressable, StyleSheet, TextInput, View } from 'react-native';
-import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useForm } from "react-hook-form";
+import { useFormField } from "@/hooks/use-form-field";
+import { AUTH } from "@/constants/app";
+import type { RegisterInput } from "@fitness/validation";
+import { useRouter } from "expo-router";
+import { useRef, useState } from "react";
+import { Pressable, StyleSheet, TextInput, View } from "react-native";
+import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
+import { SafeAreaView } from "react-native-safe-area-context";
 
-import VerifyEmailSheet, { type VerifyEmailSheetRef } from '@/components/auth/VerifyEmailSheet';
-import { ThemedText } from '@/components/themed-text';
-import CloseButton from '@/components/ui/CloseButton';
-import PrimaryButton from '@/components/ui/PrimaryButton';
-import { getErrorMessage } from '@/api';
-import { Pressed, Spacing } from '@/constants/theme';
-import { useTheme } from '@/hooks/use-theme';
-import { useRegister } from '@/queries';
-import { selectError, selectIsLoading, useOnboardingStore } from '@/stores/onboarding.store';
+import VerifyEmailSheet, {
+  type VerifyEmailSheetRef,
+} from "@/components/auth/VerifyEmailSheet";
+import { ThemedText } from "@/components/themed-text";
+import CloseButton from "@/components/ui/CloseButton";
+import PrimaryButton from "@/components/ui/PrimaryButton";
+import { getErrorMessage } from "@/api";
+import { Pressed, Spacing } from "@/constants/theme";
+import { useTheme } from "@/hooks/use-theme";
+import { useRegister } from "@/queries";
+import {
+  selectError,
+  selectIsLoading,
+  useOnboardingStore,
+} from "@/stores/onboarding.store";
+import { useColorScheme } from "@/hooks/use-color-scheme";
 
 export default function CreatePasswordScreen() {
   const theme = useTheme();
   const router = useRouter();
+
+  const scheme = useColorScheme();
   const userData = useOnboardingStore((state) => state.userData);
   const isLoading = useOnboardingStore(selectIsLoading);
   const error = useOnboardingStore(selectError);
@@ -28,19 +37,30 @@ export default function CreatePasswordScreen() {
   const setError = useOnboardingStore((state) => state.setError);
   const resetOnboarding = useOnboardingStore((state) => state.resetOnboarding);
   const register = useRegister();
+  const isDark = scheme === "dark";
+
   const verifyEmailSheetRef = useRef<VerifyEmailSheetRef>(null);
   const form = useForm<{
     password: string;
     confirmPassword: string;
   }>({
     defaultValues: {
-      password: '',
-      confirmPassword: '',
+      password: "",
+      confirmPassword: "",
     },
   });
   const { handleSubmit: submitForm, clearErrors, getValues } = form;
-  const [password, setPassword] = useFormField(form, 'password', { validate: (value) => validatePassword(value) || true });
-  const [confirmPassword, setConfirmPassword] = useFormField(form, 'confirmPassword', { validate: (value) => value === getValues('password') || 'Passwords do not match' });
+  const [password, setPassword] = useFormField(form, "password", {
+    validate: (value) => validatePassword(value) || true,
+  });
+  const [confirmPassword, setConfirmPassword] = useFormField(
+    form,
+    "confirmPassword",
+    {
+      validate: (value) =>
+        value === getValues("password") || "Passwords do not match",
+    },
+  );
   const { errors } = form.formState;
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -53,68 +73,77 @@ export default function CreatePasswordScreen() {
       return `Password must be less than ${AUTH.maxPasswordLength} characters`;
     }
     if (!/[a-z]/.test(pwd)) {
-      return 'Password must contain a lowercase letter';
+      return "Password must contain a lowercase letter";
     }
     if (!/[A-Z]/.test(pwd)) {
-      return 'Password must contain an uppercase letter';
+      return "Password must contain an uppercase letter";
     }
     if (!/[0-9]/.test(pwd)) {
-      return 'Password must contain a number';
+      return "Password must contain a number";
     }
-    return '';
-  };
+    return "";
+  }
 
   const handlePasswordChange = (text: string) => {
     setPassword(text);
-    clearErrors('password');
+    clearErrors("password");
   };
 
   const handleConfirmPasswordChange = (text: string) => {
     setConfirmPassword(text);
-    clearErrors('confirmPassword');
+    clearErrors("confirmPassword");
   };
 
-  const handleSubmit = () => submitForm(async ({ password }) => {
-    setLoading(true);
-    setError(null);
+  const handleSubmit = () =>
+    submitForm(async ({ password }) => {
+      setLoading(true);
+      setError(null);
 
-    try {
-      const payload: RegisterInput = {
-        email: userData.email,
-        password,
-        displayName: userData.displayName,
-        profile: {
-          ...(userData.dateOfBirth ? { dateOfBirth: userData.dateOfBirth } : {}),
-          ...(userData.sex ? { sex: userData.sex } : {}),
-          ...(userData.heightCm != null ? { heightCm: userData.heightCm } : {}),
-          ...(userData.activityLevel ? { activityLevel: userData.activityLevel } : {}),
-          ...(userData.fitnessGoals?.length
-            ? { fitnessGoals: userData.fitnessGoals }
+      try {
+        const payload: RegisterInput = {
+          email: userData.email,
+          password,
+          displayName: userData.displayName,
+          profile: {
+            ...(userData.dateOfBirth
+              ? { dateOfBirth: userData.dateOfBirth }
+              : {}),
+            ...(userData.sex ? { sex: userData.sex } : {}),
+            ...(userData.heightCm != null
+              ? { heightCm: userData.heightCm }
+              : {}),
+            ...(userData.activityLevel
+              ? { activityLevel: userData.activityLevel }
+              : {}),
+            ...(userData.fitnessGoals?.length
+              ? { fitnessGoals: userData.fitnessGoals }
+              : {}),
+          },
+          ...(userData.weightKg != null
+            ? {
+                measurement: {
+                  weightKg: userData.weightKg,
+                  measurements: {},
+                  photoUrls: [],
+                },
+              }
             : {}),
-        },
-        ...(userData.weightKg != null
-          ? {
-              measurement: {
-                weightKg: userData.weightKg,
-                measurements: {},
-                photoUrls: [],
-              },
-            }
-          : {}),
-      };
+        };
 
-      await register.mutateAsync(payload);
-      verifyEmailSheetRef.current?.present();
-    } catch (cause) {
-      setError(getErrorMessage(cause, 'Registration failed. Please try again.'));
-    } finally {
-      setLoading(false);
-    }
-  })();
+        await register.mutateAsync(payload);
+        verifyEmailSheetRef.current?.present();
+      } catch (cause) {
+        setError(
+          getErrorMessage(cause, "Registration failed. Please try again."),
+        );
+      } finally {
+        setLoading(false);
+      }
+    })();
 
   const handleClose = () => {
     resetOnboarding();
-    router.dismissTo('/auth/welcome');
+    router.dismissTo("/auth/welcome");
   };
 
   const submitting = isLoading || register.isPending;
@@ -122,9 +151,13 @@ export default function CreatePasswordScreen() {
   return (
     <SafeAreaView
       style={[styles.safeArea, { backgroundColor: theme.background }]}
-      edges={['top', 'bottom']}>
+      edges={["top", "bottom"]}
+    >
       <View style={styles.topBar}>
-        <CloseButton onPress={handleClose} accessibilityLabel="Cancel sign up" />
+        <CloseButton
+          onPress={handleClose}
+          accessibilityLabel="Cancel sign up"
+        />
       </View>
 
       <KeyboardAwareScrollView
@@ -132,12 +165,16 @@ export default function CreatePasswordScreen() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="interactive"
-        bottomOffset={Spacing.four}>
+        bottomOffset={Spacing.four}
+      >
         <View style={styles.header}>
           <ThemedText type="subtitle" style={styles.title}>
             Create your password
           </ThemedText>
-          <ThemedText type="small" style={[styles.subtitle, { color: theme.textSecondary }]}>
+          <ThemedText
+            type="small"
+            style={[styles.subtitle, { color: theme.textSecondary }]}
+          >
             Secure your account with a strong password
           </ThemedText>
         </View>
@@ -152,7 +189,9 @@ export default function CreatePasswordScreen() {
                 {
                   backgroundColor: theme.backgroundElement,
                   color: theme.text,
-                  borderColor: errors.password ? '#ff3b30' : theme.textSecondary,
+                  borderColor: errors.password
+                    ? "#ff3b30"
+                    : theme.textSecondary,
                 },
               ]}
               placeholder="Enter your password"
@@ -172,9 +211,10 @@ export default function CreatePasswordScreen() {
                   transform: [{ translateY: -12 }, { scale: 0.99 }],
                 },
               ]}
-              onPress={() => setShowPassword(!showPassword)}>
+              onPress={() => setShowPassword(!showPassword)}
+            >
               <ThemedText type="default" style={styles.eyeIconText}>
-                {showPassword ? '👁️' : '👁️‍🗨️'}
+                {showPassword ? "👁️" : "👁️‍🗨️"}
               </ThemedText>
             </Pressable>
           </View>
@@ -195,7 +235,9 @@ export default function CreatePasswordScreen() {
                 {
                   backgroundColor: theme.backgroundElement,
                   color: theme.text,
-                  borderColor: errors.confirmPassword ? '#ff3b30' : theme.textSecondary,
+                  borderColor: errors.confirmPassword
+                    ? "#ff3b30"
+                    : theme.textSecondary,
                 },
               ]}
               placeholder="Confirm your password"
@@ -215,9 +257,10 @@ export default function CreatePasswordScreen() {
                   transform: [{ translateY: -12 }, { scale: 0.99 }],
                 },
               ]}
-              onPress={() => setShowConfirmPassword(!showConfirmPassword)}>
+              onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+            >
               <ThemedText type="default" style={styles.eyeIconText}>
-                {showConfirmPassword ? '👁️' : '👁️‍🗨️'}
+                {showConfirmPassword ? "👁️" : "👁️‍🗨️"}
               </ThemedText>
             </Pressable>
           </View>
@@ -235,8 +278,9 @@ export default function CreatePasswordScreen() {
         ) : null}
 
         <PrimaryButton
-          label={submitting ? 'Creating account...' : 'Continue'}
+          label={submitting ? "Creating account..." : "Continue"}
           onPress={handleSubmit}
+          textStyle={{ color: isDark ? "#fff" : "#000" }}
           disabled={
             !password ||
             !confirmPassword ||
@@ -261,64 +305,64 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     paddingHorizontal: Spacing.four,
     paddingBottom: Spacing.three,
-    alignItems: 'stretch',
-    justifyContent: 'flex-start',
+    alignItems: "stretch",
+    justifyContent: "flex-start",
   },
   topBar: {
-    alignItems: 'flex-start',
+    alignItems: "flex-start",
     paddingHorizontal: Spacing.four,
     paddingTop: Spacing.four,
     paddingBottom: Spacing.three,
   },
   header: {
-    alignItems: 'flex-start',
+    alignItems: "flex-start",
     marginBottom: Spacing.five,
   },
   title: {
-    textAlign: 'left',
+    textAlign: "left",
     marginBottom: Spacing.two,
   },
   subtitle: {
-    textAlign: 'left',
+    textAlign: "left",
   },
   inputContainer: {
-    width: '100%',
+    width: "100%",
     marginBottom: Spacing.three,
   },
   label: {
     marginBottom: Spacing.two,
   },
   passwordInputWrapper: {
-    position: 'relative',
+    position: "relative",
   },
   passwordInput: {
-    width: '100%',
+    width: "100%",
     paddingHorizontal: Spacing.three,
     paddingVertical: Spacing.three,
     paddingRight: 50,
     borderRadius: 12,
     borderWidth: 1,
     fontSize: 16,
-    fontWeight: '500',
+    fontWeight: "500",
   },
   eyeIcon: {
-    position: 'absolute',
+    position: "absolute",
     right: 12,
-    top: '50%',
+    top: "50%",
     transform: [{ translateY: -12 }],
   },
   eyeIconText: {
     fontSize: 16,
   },
   errorText: {
-    color: '#ff3b30',
+    color: "#ff3b30",
     fontSize: 12,
     marginTop: Spacing.one,
   },
   errorMessage: {
-    color: '#ff3b30',
+    color: "#ff3b30",
     fontSize: 14,
-    textAlign: 'left',
+    textAlign: "left",
     marginBottom: Spacing.three,
   },
   submitButton: {

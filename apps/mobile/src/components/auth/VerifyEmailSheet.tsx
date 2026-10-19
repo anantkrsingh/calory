@@ -1,8 +1,15 @@
-import { useForm } from 'react-hook-form';
-import { useFormField } from '@/hooks/use-form-field';
-import { TrueSheet } from '@lodev09/react-native-true-sheet';
-import { useRouter } from 'expo-router';
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
+import { useForm } from "react-hook-form";
+import { useFormField } from "@/hooks/use-form-field";
+import { TrueSheet } from "@lodev09/react-native-true-sheet";
+import { useRouter } from "expo-router";
+import {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+} from "react";
 import {
   KeyboardAvoidingView,
   Platform,
@@ -11,254 +18,293 @@ import {
   StyleSheet,
   TextInput,
   View,
-} from 'react-native';
+} from "react-native";
 
-import { ThemedText } from '@/components/themed-text';
-import PrimaryButton from '@/components/ui/PrimaryButton';
-import { getErrorMessage } from '@/api';
-import { Brand, Pressed, Spacing } from '@/constants/theme';
-import { useTheme } from '@/hooks/use-theme';
-import { useRequestEmailChange, useResendOtp, useVerifyEmailChange, useVerifyRegistration } from '@/queries';
-import { useOnboardingStore } from '@/stores/onboarding.store';
+import { ThemedText } from "@/components/themed-text";
+import PrimaryButton from "@/components/ui/PrimaryButton";
+import { getErrorMessage } from "@/api";
+import { Brand, Pressed, Spacing } from "@/constants/theme";
+import { useTheme } from "@/hooks/use-theme";
+import {
+  useRequestEmailChange,
+  useResendOtp,
+  useVerifyEmailChange,
+  useVerifyRegistration,
+} from "@/queries";
+import { useOnboardingStore } from "@/stores/onboarding.store";
 
 export type VerifyEmailSheetRef = {
   present: () => void;
 };
 
 type VerifyEmailSheetProps = {
-  mode?: 'registration' | 'emailChange';
+  mode?: "registration" | "emailChange";
   email?: string;
   onVerified?: () => void;
 };
 
-const HANDLE_COLOR = 'rgba(120, 120, 128, 0.3)';
+const HANDLE_COLOR = "rgba(120, 120, 128, 0.3)";
 const OTP_LENGTH = 4;
 const RESEND_SECONDS = 60;
 
 const formatSeconds = (total: number): string => {
   const minutes = Math.floor(total / 60);
   const seconds = total % 60;
-  return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+  return `${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
 };
 
-export default forwardRef<VerifyEmailSheetRef, VerifyEmailSheetProps>(function VerifyEmailSheet(
-  { mode = 'registration', email: providedEmail, onVerified },
-  ref,
-) {
-  const theme = useTheme();
-  const router = useRouter();
-  const sheetRef = useRef<TrueSheet>(null);
-  const onboardingEmail = useOnboardingStore((state) => state.userData.email);
-  const email = providedEmail ?? onboardingEmail;
-  const resetOnboarding = useOnboardingStore((state) => state.resetOnboarding);
-  const resendOtp = useResendOtp();
-  const requestEmailChange = useRequestEmailChange();
-  const verifyRegistration = useVerifyRegistration();
-  const verifyEmailChange = useVerifyEmailChange();
+export default forwardRef<VerifyEmailSheetRef, VerifyEmailSheetProps>(
+  function VerifyEmailSheet(
+    { mode = "registration", email: providedEmail, onVerified },
+    ref,
+  ) {
+    const theme = useTheme();
+    const router = useRouter();
+    const sheetRef = useRef<TrueSheet>(null);
+    const onboardingEmail = useOnboardingStore((state) => state.userData.email);
+    const email = providedEmail ?? onboardingEmail;
+    const resetOnboarding = useOnboardingStore(
+      (state) => state.resetOnboarding,
+    );
+    const resendOtp = useResendOtp();
+    const requestEmailChange = useRequestEmailChange();
+    const verifyRegistration = useVerifyRegistration();
+    const verifyEmailChange = useVerifyEmailChange();
 
-  const form = useForm<{
-    otpDigits: string[];
-  }>({
-    defaultValues: {
-      otpDigits: Array(OTP_LENGTH).fill(''),
-    },
-  });
-  const { handleSubmit: submitForm, reset, clearErrors } = form;
-  const [otpDigits, setOtpDigits] = useFormField(form, 'otpDigits', { validate: (value) => value.join('').length === OTP_LENGTH || 'Please enter a 4-digit code' });
-  const [resendTimer, setResendTimer] = useState(RESEND_SECONDS);
-  const [serverError, setError] = useState<string | null>(null);
-  const inputs = useRef<(TextInput | null)[]>([]);
+    const form = useForm<{
+      otpDigits: string[];
+    }>({
+      defaultValues: {
+        otpDigits: Array(OTP_LENGTH).fill(""),
+      },
+    });
+    const { handleSubmit: submitForm, reset, clearErrors } = form;
+    const [otpDigits, setOtpDigits] = useFormField(form, "otpDigits", {
+      validate: (value) =>
+        value.join("").length === OTP_LENGTH || "Please enter a 4-digit code",
+    });
+    const [resendTimer, setResendTimer] = useState(RESEND_SECONDS);
+    const [serverError, setError] = useState<string | null>(null);
+    const inputs = useRef<(TextInput | null)[]>([]);
 
-  const error = form.formState.errors.otpDigits?.message ?? serverError;
+    const error = form.formState.errors.otpDigits?.message ?? serverError;
 
-  const otp = otpDigits.join('');
-  const canResend = resendTimer === 0;
-  const isVerifying =
-    verifyRegistration.isPending || verifyEmailChange.isPending;
+    const otp = otpDigits.join("");
+    const canResend = resendTimer === 0;
+    const isVerifying =
+      verifyRegistration.isPending || verifyEmailChange.isPending;
 
-  const sendVerificationCode = useCallback(async () => {
-    setResendTimer(RESEND_SECONDS);
-
-    try {
-      if (mode === 'emailChange') {
-        await requestEmailChange.mutateAsync({ email });
-      } else {
-        await resendOtp.mutateAsync({ email });
-      }
-    } catch (cause) {
-      setError(getErrorMessage(cause, 'Failed to send verification code'));
-    }
-  }, [email, mode, requestEmailChange, resendOtp]);
-
-  useEffect(() => {
-    if (resendTimer === 0) return;
-
-    const timer = setTimeout(() => setResendTimer((value) => value - 1), 1000);
-    return () => clearTimeout(timer);
-  }, [resendTimer]);
-
-  useImperativeHandle(ref, () => ({
-    present: () => {
-      // The code was already sent by register — just reset UI state.
-      reset();
-      setError(null);
+    const sendVerificationCode = useCallback(async () => {
       setResendTimer(RESEND_SECONDS);
-      sheetRef.current?.present();
-    },
-  }));
 
-  const handleDigitChange = (index: number, text: string) => {
-    clearErrors('otpDigits');
-    const digits = text.replace(/\D/g, '');
+      try {
+        if (mode === "emailChange") {
+          await requestEmailChange.mutateAsync({ email });
+        } else {
+          await resendOtp.mutateAsync({ email });
+        }
+      } catch (cause) {
+        setError(getErrorMessage(cause, "Failed to send verification code"));
+      }
+    }, [email, mode, requestEmailChange, resendOtp]);
 
-    if (digits.length > 1) {
-      const next = Array(OTP_LENGTH).fill('');
-      digits
-        .slice(0, OTP_LENGTH)
-        .split('')
-        .forEach((digit, position) => {
-          next[position] = digit;
-        });
+    useEffect(() => {
+      if (resendTimer === 0) return;
+
+      const timer = setTimeout(
+        () => setResendTimer((value) => value - 1),
+        1000,
+      );
+      return () => clearTimeout(timer);
+    }, [resendTimer]);
+
+    useImperativeHandle(ref, () => ({
+      present: () => {
+        // The code was already sent by register — just reset UI state.
+        reset();
+        setError(null);
+        setResendTimer(RESEND_SECONDS);
+        sheetRef.current?.present();
+      },
+    }));
+
+    const handleDigitChange = (index: number, text: string) => {
+      clearErrors("otpDigits");
+      const digits = text.replace(/\D/g, "");
+
+      if (digits.length > 1) {
+        const next = Array(OTP_LENGTH).fill("");
+        digits
+          .slice(0, OTP_LENGTH)
+          .split("")
+          .forEach((digit, position) => {
+            next[position] = digit;
+          });
+        setOtpDigits(next);
+        inputs.current[Math.min(digits.length, OTP_LENGTH - 1)]?.focus();
+        return;
+      }
+
+      const next = [...otpDigits];
+      next[index] = digits;
       setOtpDigits(next);
-      inputs.current[Math.min(digits.length, OTP_LENGTH - 1)]?.focus();
-      return;
-    }
 
-    const next = [...otpDigits];
-    next[index] = digits;
-    setOtpDigits(next);
-
-    if (digits && index < OTP_LENGTH - 1) {
-      inputs.current[index + 1]?.focus();
-    }
-  };
-
-  const handleKeyPress = (index: number, key: string) => {
-    if (key === 'Backspace' && !otpDigits[index] && index > 0) {
-      inputs.current[index - 1]?.focus();
-    }
-  };
-
-  const handleVerify = submitForm(async () => {
-    setError(null);
-
-    try {
-      if (mode === 'emailChange') {
-        await verifyEmailChange.mutateAsync({ email, code: otp });
-      } else {
-        await verifyRegistration.mutateAsync({ email, code: otp });
+      if (digits && index < OTP_LENGTH - 1) {
+        inputs.current[index + 1]?.focus();
       }
-      await sheetRef.current?.dismiss();
-      onVerified?.();
-      if (mode === 'registration') {
-        resetOnboarding();
-        router.replace('/');
+    };
+
+    const handleKeyPress = (index: number, key: string) => {
+      if (key === "Backspace" && !otpDigits[index] && index > 0) {
+        inputs.current[index - 1]?.focus();
       }
-    } catch (cause) {
-      setError(getErrorMessage(cause, 'Verification failed. Please try again.'));
-    }
-  });
+    };
 
-  const handleResend = async () => {
-    if (!canResend) return;
-    await sendVerificationCode();
-  };
+    const handleVerify = submitForm(async () => {
+      setError(null);
 
-  return (
-    <TrueSheet
-      ref={sheetRef}
-      detents={['auto']}
-      dimmed
-      dimmedDetentIndex={0}
-      backgroundColor="transparent"
-      cornerRadius={0}
-      grabber={false}>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}>
-          <View style={styles.sheetPadding}>
-            <View style={[styles.card, { backgroundColor: theme.background }]}>
-              <View style={styles.handle} />
+      try {
+        if (mode === "emailChange") {
+          await verifyEmailChange.mutateAsync({ email, code: otp });
+        } else {
+          await verifyRegistration.mutateAsync({ email, code: otp });
+        }
+        await sheetRef.current?.dismiss();
+        onVerified?.();
+        if (mode === "registration") {
+          resetOnboarding();
+          router.replace("/");
+        }
+      } catch (cause) {
+        setError(
+          getErrorMessage(cause, "Verification failed. Please try again."),
+        );
+      }
+    });
 
-              <ThemedText type="subtitle" style={styles.title}>
-                Verify your email
-              </ThemedText>
-              <ThemedText type="small" style={[styles.subtitle, { color: theme.textSecondary }]}>
-                We&apos;ve sent a 4-digit verification code to
-              </ThemedText>
-              <ThemedText type="smallBold" style={styles.email}>
-                {email}
-              </ThemedText>
+    const handleResend = async () => {
+      if (!canResend) return;
+      await sendVerificationCode();
+    };
 
-              <View style={styles.otpInputs}>
-                {otpDigits.map((digit, index) => (
-                  <TextInput
-                    key={index}
-                    ref={(input) => {
-                      inputs.current[index] = input;
-                    }}
-                    style={[
-                      styles.otpInput,
-                      {
-                        backgroundColor: theme.backgroundElement,
-                        color: theme.text,
-                        borderColor: digit ? Brand.accent : 'transparent',
-                      },
-                    ]}
-                    value={digit}
-                    onChangeText={(text) => handleDigitChange(index, text)}
-                    onKeyPress={({ nativeEvent }) => handleKeyPress(index, nativeEvent.key)}
-                    keyboardType="numeric"
-                    maxLength={OTP_LENGTH}
-                    textAlign="center"
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    textContentType="oneTimeCode"
-                  />
-                ))}
-              </View>
+    return (
+      <TrueSheet
+        ref={sheetRef}
+        detents={["auto"]}
+        dimmed
+        dimmedDetentIndex={0}
+        backgroundColor="transparent"
+        cornerRadius={0}
+        grabber={false}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+        >
+          <ScrollView
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
+            <View style={styles.sheetPadding}>
+              <View
+                style={[styles.card, { backgroundColor: theme.background }]}
+              >
+                <View style={styles.handle} />
 
-              {error ? (
-                <ThemedText type="small" style={styles.errorText}>
-                  {error}
+                <ThemedText type="subtitle" style={styles.title}>
+                  Verify your email
                 </ThemedText>
-              ) : null}
-
-              <PrimaryButton
-                label={isVerifying ? 'Verifying...' : 'Verify'}
-                onPress={handleVerify}
-                disabled={otp.length !== OTP_LENGTH || isVerifying}
-                style={styles.verifyButton}
-              />
-
-              <View style={styles.resendContainer}>
-                <ThemedText type="small" style={[styles.resendText, { color: theme.textSecondary }]}>
-                  Didn&apos;t receive a code?{' '}
+                <ThemedText
+                  type="small"
+                  style={[styles.subtitle, { color: theme.textSecondary }]}
+                >
+                  We have sent a 4-digit verification code to
                 </ThemedText>
-                <Pressable
-                  onPress={handleResend}
-                  disabled={!canResend}
-                  style={({ pressed }) => [pressed && canResend && Pressed]}>
-                  <ThemedText
-                    type="linkPrimary"
-                    style={[styles.resendLink, { opacity: canResend ? 1 : 0.5 }]}>
-                    Resend Code
-                  </ThemedText>
-                </Pressable>
-                {resendTimer > 0 ? (
-                  <ThemedText type="small" style={[styles.timer, { color: theme.textSecondary }]}>
-                    {formatSeconds(resendTimer)}
+                <ThemedText type="smallBold" style={styles.email}>
+                  {email}
+                </ThemedText>
+
+                <View style={styles.otpInputs}>
+                  {otpDigits.map((digit, index) => (
+                    <TextInput
+                      key={index}
+                      ref={(input) => {
+                        inputs.current[index] = input;
+                      }}
+                      style={[
+                        styles.otpInput,
+                        {
+                          backgroundColor: theme.backgroundElement,
+                          color: theme.text,
+                          borderColor: digit ? Brand.accent : "transparent",
+                        },
+                      ]}
+                      value={digit}
+                      onChangeText={(text) => handleDigitChange(index, text)}
+                      onKeyPress={({ nativeEvent }) =>
+                        handleKeyPress(index, nativeEvent.key)
+                      }
+                      keyboardType="numeric"
+                      maxLength={OTP_LENGTH}
+                      textAlign="center"
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                      textContentType="oneTimeCode"
+                    />
+                  ))}
+                </View>
+
+                {error ? (
+                  <ThemedText type="small" style={styles.errorText}>
+                    {error}
                   </ThemedText>
                 ) : null}
+
+                <PrimaryButton
+                  label={isVerifying ? "Verifying..." : "Verify"}
+                  onPress={handleVerify}
+                  disabled={otp.length !== OTP_LENGTH || isVerifying}
+                  style={styles.verifyButton}
+                />
+
+                <View style={styles.resendContainer}>
+                  <ThemedText
+                    type="small"
+                    style={[styles.resendText, { color: theme.textSecondary }]}
+                  >
+                    Didn&apos;t receive a code?{" "}
+                  </ThemedText>
+                  <Pressable
+                    onPress={handleResend}
+                    disabled={!canResend}
+                    style={({ pressed }) => [pressed && canResend && Pressed]}
+                  >
+                    <ThemedText
+                      type="linkPrimary"
+                      style={[
+                        styles.resendLink,
+                        { opacity: canResend ? 1 : 0.5 },
+                      ]}
+                    >
+                      Resend Code
+                    </ThemedText>
+                  </Pressable>
+                  {resendTimer > 0 ? (
+                    <ThemedText
+                      type="small"
+                      style={[styles.timer, { color: theme.textSecondary }]}
+                    >
+                      {formatSeconds(resendTimer)}
+                    </ThemedText>
+                  ) : null}
+                </View>
               </View>
             </View>
-          </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </TrueSheet>
-  );
-});
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </TrueSheet>
+    );
+  },
+);
 
 const styles = StyleSheet.create({
   sheetPadding: {
@@ -267,11 +313,11 @@ const styles = StyleSheet.create({
   },
   card: {
     borderRadius: 24,
-    borderCurve: 'continuous',
+    borderCurve: "continuous",
     padding: Spacing.four,
   },
   handle: {
-    alignSelf: 'center',
+    alignSelf: "center",
     width: 36,
     height: 4,
     borderRadius: 2,
@@ -279,11 +325,11 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.three,
   },
   title: {
-    textAlign: 'left',
+    textAlign: "left",
     marginBottom: Spacing.one,
   },
   subtitle: {
-    textAlign: 'left',
+    textAlign: "left",
     marginBottom: Spacing.one,
   },
   email: {
@@ -291,8 +337,8 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.four,
   },
   otpInputs: {
-    flexDirection: 'row',
-    justifyContent: 'flex-start',
+    flexDirection: "row",
+    justifyContent: "flex-start",
     gap: Spacing.two,
     marginBottom: Spacing.three,
   },
@@ -302,23 +348,23 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     borderWidth: 1.5,
     fontSize: 20,
-    fontWeight: '600',
-    textAlign: 'center',
+    fontWeight: "600",
+    textAlign: "center",
   },
   errorText: {
-    color: '#ff3b30',
+    color: "#ff3b30",
     fontSize: 14,
     marginBottom: Spacing.three,
-    textAlign: 'left',
+    textAlign: "left",
   },
   verifyButton: {
     marginBottom: Spacing.three,
   },
   resendContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'flex-start',
-    flexWrap: 'wrap',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "flex-start",
+    flexWrap: "wrap",
     gap: Spacing.one,
   },
   resendText: {
@@ -326,7 +372,7 @@ const styles = StyleSheet.create({
   },
   resendLink: {
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   timer: {
     fontSize: 12,

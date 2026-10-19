@@ -3,6 +3,7 @@ import { useMutation, useQueryClient, type UseMutationResult } from '@tanstack/r
 
 import { generateClientId } from '@/lib/client-id';
 import { workoutsService } from '@/services/workouts.service';
+import { WorkoutRoutinesQueries } from './workout-routines.queries';
 
 export interface LogExerciseSetInput {
   exercise: Exercise;
@@ -67,6 +68,11 @@ export function useLogExerciseSet(): UseMutationResult<
       });
       void queryClient.invalidateQueries({
         queryKey: ['workouts'],
+      });
+      // Refresh today's burned calories and exercise progress, plus the
+      // calorie history ranges that include the newly logged set.
+      void queryClient.invalidateQueries({
+        queryKey: WorkoutRoutinesQueries.root,
       });
     },
   });

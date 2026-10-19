@@ -82,6 +82,7 @@ import {
   chatCategorizationSchema,
   chatWorkflowPlanSchema,
   deterministicChatCategorization,
+  enforceChatCitationPolicy,
   type ChatCategorization,
   type ChatProfileSnapshot,
   type ChatWorkflow,
@@ -869,7 +870,7 @@ export class ChatsService {
 
       // The classifier distinguishes saved-data retrieval from advice; keywords
       // such as "weight" alone must not force citations back on.
-      return result.object;
+      return enforceChatCitationPolicy(content, result.object);
     } catch (error) {
       this.logger.warn(
         `Chat categorization failed; using deterministic fallback: ${

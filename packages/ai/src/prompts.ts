@@ -80,8 +80,13 @@ export const DEFAULT_PROMPTS: Record<PromptCategory, string> = {
     'workflow it needs. Mark citationsRequired false for greetings, normal questions, ' +
     'app navigation, and simple retrieval of stored user data such as name, weight, ' +
     'height, goals, activity level or workout history (category personal_data). ' +
-    'Require citations for researched health explanations, customized guidance, ' +
-    'recommendations and plans, including mixed lookup-and-advice requests. Mark unsafe for ' +
+    'Set citationsRequired true only when the intended reply provides medical or health ' +
+    'information, including health-metric interpretation and nutrition or exercise guidance. ' +
+    'Am I overweight? requires evidence for BMI category thresholds; What is my weight? ' +
+    'or What is my BMI? (number only) does not. Do not add unsolicited health assessments ' +
+    'to metric lookups. Saved-plan retrieval, logging, app actions and clarification-only ' +
+    'replies do not need citations. Mixed lookup-and-health-advice requests do. ' +
+    'Classify the intended claims, not keywords or available sources. Mark unsafe for ' +
     'self-harm, eating-disorder encouragement, dangerous rapid weight-loss, ' +
     'steroid/drug abuse, medical-emergency instructions, or unrelated illegal ' +
     'requests. Return only the requested structured fields.',

@@ -74,7 +74,7 @@ const PLAN_COMMAND_RE = /\b(create|generate|build|make)\b/i;
 const INFO_RE =
   /\b(what|why|how|when|should|am|is|are|tell|show|list|explain|benefit|safe)\b/i;
 const EVIDENCE_RE =
-  /\b(nutrition|diet|meal|protein|calorie|macro|health|injury|recovery|supplement|weight|bmi|body fat|weight loss|fat loss|workout|fitness|exercise|history|reps|shoulder|muscle|build|buld)\b/i;
+  /\b(overweight|underweight|obese|obesity|nutrition|diet|meal|protein|calorie|macro|health|injury|recovery|supplement|weight|bmi|body fat|weight loss|fat loss|workout|fitness|exercise|history|reps|shoulder|muscle|build|buld)\b/i;
 const PERSONAL_MEASUREMENT_RE =
   /\b(weight|overweight|underweight|bmi|body fat|calorie|calories|macro|macros|diet|meal|nutrition)\b/i;
 const DIET_TYPE_RE = /\b(vegan|vegetarian|veg|non[-\s]?veg|nonvegetarian)\b/i;
@@ -83,6 +83,36 @@ const GREETING_RE =
   /^\s*(hi|hello|hey|yo|thanks|thank you|ok|okay|cool|nice|great|yes|no|yep|nope)[\s!.?]*$/i;
 const UNSAFE_RE =
   /\b(self[-\s]?harm|suicide|kill myself|starve|purge|vomit|laxative|anabolic steroid|steroids?|dnp|clenbuterol|crash diet|water cut|rapid weight loss|medical emergency|chest pain|illegal drug|hack|weapon)\b/i;
+
+/** Interpretation requires evidence even when the underlying measurements are personal. */
+export function isHealthInterpretation(content: string): boolean {
+  return (
+    /\b(?:am i|are we|is (?:my|this|that|a|the))\b.*\b(?:overweight|underweight|obese|healthy|unhealthy|normal|safe|dangerous)\b/i.test(
+      content,
+    ) ||
+    /\b(?:bmi|weight|body fat|blood pressure|blood sugar)\b.*\b(?:category|categories|classified|classification|mean|means|healthy|normal|high|low)\b/i.test(
+      content,
+    ) ||
+    /\b(?:interpret|explain)\b.*\b(?:bmi|weight|body fat|blood pressure|blood sugar)\b/i.test(
+      content,
+    )
+  );
+}
+
+/** App operations and saved records do not establish medical claims. */
+export function isPlainAppRequest(content: string): boolean {
+  return (
+    /^(?:please\s+)?(?:show|list|open|display)(?: me)? my (?:saved |current |latest )?(?:diet|meal plan|workout|routine|workout plan|workout history|meal history)[?.!]*$/i.test(
+      content.trim(),
+    ) ||
+    /^(?:please\s+)?(?:log|record|save|update) my weight (?:as|to|at) \d+(?:\.\d+)?\s*(?:kg|kgs|lb|lbs|kilograms|pounds)[?.!]*$/i.test(
+      content.trim(),
+    ) ||
+    /^how (?:do|can) i (?:log|record|update|edit|delete|view|find) (?:my )?(?:weight|workout|diet|meal|routine|profile)(?: in (?:the )?app)?[?.!]*$/i.test(
+      content.trim(),
+    )
+  );
+}
 
 /** Deliberately anchored: mixed requests for advice must still be researched. */
 export function isPersonalDataLookup(content: string): boolean {
@@ -107,6 +137,8 @@ export function buildUserProfileContext(profile: ChatProfileSnapshot): string {
 
 export function routeChatIntent(content: string): ChatIntent {
   if (isPersonalDataLookup(content)) return 'personalized_info';
+  if (isPlainAppRequest(content)) return 'information_plain';
+  if (isHealthInterpretation(content)) return 'personalized_info';
   if (
     (PERSONAL_RE.test(content) || PLAN_COMMAND_RE.test(content)) &&
     PLAN_RE.test(content)
@@ -132,7 +164,7 @@ export function validateProfileForIntent(
   profile: ChatProfileSnapshot,
   content: string,
 ): string[] {
-  if (isPersonalDataLookup(content)) return [];
+  if (isPersonalDataLookup(content) || isPlainAppRequest(content)) return [];
 
   if (intent === 'personalized_info') {
     return PERSONAL_MEASUREMENT_RE.test(content) && !profile.heightCm
@@ -179,7 +211,7 @@ export function retrieveFitCrateEvidence(
     return [];
   }
 
-  if (isPersonalDataLookup(content)) return [];
+  if (isPersonalDataLookup(content) || isPlainAppRequest(content)) return [];
   return retrieveBlogEvidence(content);
 }
 
@@ -230,7 +262,11 @@ export function buildChatWorkflow(
 
 export const chatCategorizationSchema = z.object({
   safe: z.boolean(),
-  citationsRequired: z.boolean(),
+  citationsRequired: z
+    .boolean()
+    .describe(
+      'True only when the intended answer provides medical/health information, interprets health metrics, or gives health, nutrition, or exercise guidance. False for personal measurements alone, saved records, app actions, greetings, and clarification-only replies.',
+    ),
   category: z.enum([
     'greeting',
     'normal',
@@ -264,6 +300,25 @@ export function deterministicChatCategorization(
     };
   }
 
+  if (isPlainAppRequest(content)) {
+    return {
+      safe: true,
+      citationsRequired: false,
+      category: 'normal',
+      reason:
+        'App operation or saved-record retrieval without health interpretation.',
+    };
+  }
+
+  if (isHealthInterpretation(content)) {
+    return {
+      safe: true,
+      citationsRequired: true,
+      category: 'fitness_evidence',
+      reason: 'Interpreting a health metric or health category.',
+    };
+  }
+
   if (GREETING_RE.test(content)) {
     return {
       safe: true,
@@ -289,15 +344,13 @@ export function deterministicChatCategorization(
     workflow.intent === 'personalized_plan' ||
     workflow.intent === 'personalized_edit'
       ? 'plan_or_edit'
-      : workflow.intent === 'personalized_info'
-        ? 'personal_data'
-        : 'fitness_evidence';
+      : 'fitness_evidence';
 
   return {
     safe: true,
     citationsRequired: true,
     category,
-    reason: 'Fitness, nutrition, body-weight, workout, or progress topic.',
+    reason: 'Health explanation or personalized health guidance.',
   };
 }
 
@@ -312,7 +365,10 @@ export function buildChatCategorizationPrompt(
     rules: [
       'Return safe=false only for clearly unsafe or disallowed requests.',
       'Return citationsRequired=false for greetings, normal questions, app navigation, and retrieval of saved personal data (name, height, weight, goals, activity level, logged history) without advice. Use category personal_data for those lookups.',
-      'Return citationsRequired=true for researched health or fitness explanations, interpretation of health metrics, customized plans, or recommendations. A weight or workout keyword alone does not require citations. Mixed lookup-and-advice requests do require citations.',
+      'Decide based on the claims the answer needs to make, not topic keywords or the presence of retrieved evidence. Return citationsRequired=true only for medical or health information: explanations, health-metric interpretation, nutrition or exercise guidance, and health recommendations. Mixed lookup-and-health-advice requests require citations.',
+      'Am I overweight?, Is my BMI normal?, and What weight category am I in? require citations for the classification thresholds, even though the height, weight, and calculated BMI are personal data. Use fitness_evidence for interpretations, not personal_data.',
+      'What is my weight?, What is my BMI? (number only), Show my saved workout, Log my weight, and How do I edit my diet in the app? do not require citations. Reading or editing a saved plan is not itself health guidance. Neither greetings nor clarification-only replies need citations.',
+      'If a request needs a health interpretation, do not answer only the metric: explain the relevant category using evidence. If it only asks for a metric, do not add an unsolicited category, health assessment, or advice.',
       'Do not mark a safe health or fitness question unsafe just because it mentions weight, BMI, or weight loss.',
     ],
   });
@@ -371,7 +427,8 @@ export function buildFinalWorkflowInstruction(
       'Briefly decline unrelated parts such as programming or school/work tasks.',
       'If categorization.citationsRequired is true, answer with the attached verified citations in mind; do not invent URLs.',
       'Use the injected current user profile for name, height, weight, goals, and activity level. Use getUserDetails only for missing details or computed metrics. Do not request unrelated profile fields for simple lookups.',
-      'When citationsRequired is false, do not include citations or URLs, and do not expand a personal-data lookup into unsolicited health advice.',
+      'When citationsRequired is false, do not include citations or URLs, and do not expand a personal-data lookup into unsolicited health advice or BMI/weight category labels, even if a tool returns those labels.',
+      'For health interpretations, explain the category or threshold using the attached evidence, not just the measured value. If no verified evidence is attached, do not present an unsupported classification or invent a citation; explain that the interpretation could not be verified.',
       'Use getWorkoutHistory before answering exercise history, reps history, workout progress, or logged-set questions.',
       'For diet-plan generation, make sure BMI inputs and diet preferences are known before using regenerateDietPlan.',
       'For diet-plan generation, ask for confirmation before saving: "Should I update this in your Diets list?"',
@@ -379,4 +436,27 @@ export function buildFinalWorkflowInstruction(
     ],
     userMessage: content,
   });
+}
+
+export function enforceChatCitationPolicy(
+  content: string,
+  categorization: ChatCategorization,
+): ChatCategorization {
+  if (!categorization.safe)
+    return { ...categorization, citationsRequired: false };
+  if (
+    isPersonalDataLookup(content) ||
+    isPlainAppRequest(content) ||
+    GREETING_RE.test(content)
+  ) {
+    return { ...categorization, citationsRequired: false };
+  }
+  if (isHealthInterpretation(content)) {
+    return {
+      ...categorization,
+      category: 'fitness_evidence',
+      citationsRequired: true,
+    };
+  }
+  return categorization;
 }

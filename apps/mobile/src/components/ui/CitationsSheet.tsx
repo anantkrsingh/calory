@@ -1,7 +1,7 @@
 import type { Citation } from '@fitness/types';
 import { ExternalLink, X } from 'lucide-react-native';
 import { forwardRef, useCallback, useImperativeHandle, useState } from 'react';
-import { Animated, Easing, Linking, Modal, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { Alert, Animated, Easing, Linking, Modal, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
@@ -23,7 +23,11 @@ export type CitationsSheetRef = {
  * this one is plain content with no drag-to-resize needs, so a lighter,
  * dependency-free slide-up panel is enough.
  */
-function CitationsSheetComponent(_props: unknown, ref: React.Ref<CitationsSheetRef>) {
+type CitationsSheetProps = {
+  description?: string;
+};
+
+function CitationsSheetComponent({ description }: CitationsSheetProps, ref: React.Ref<CitationsSheetRef>) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const [visible, setVisible] = useState(false);
@@ -67,7 +71,9 @@ function CitationsSheetComponent(_props: unknown, ref: React.Ref<CitationsSheetR
   }, [progress]);
 
   const openUrl = useCallback((url: string) => {
-    void Linking.openURL(url);
+    void Linking.openURL(url).catch(() => {
+      Alert.alert('Couldn’t open source', 'Please try again in a moment.');
+    });
   }, []);
 
   return (
@@ -115,7 +121,7 @@ function CitationsSheetComponent(_props: unknown, ref: React.Ref<CitationsSheetR
           </Pressable>
         </View>
         <ThemedText themeColor="textSecondary" style={styles.subtitle}>
-          Real sources the AI referenced for these numbers.
+          {description ?? 'Real sources the AI referenced for these numbers.'}
         </ThemedText>
 
         <ScrollView
@@ -203,6 +209,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   list: {
+    flexShrink: 1,
     marginTop: Spacing.three,
   },
   listContent: {

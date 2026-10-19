@@ -23,8 +23,8 @@ export const DEFAULT_SUGGESTED_PROMPTS: SuggestedPrompt[] = [
     prompt: 'Tell My Exercise History ?',
   },
   {
-    label: 'How to buld shoulder',
-    prompt: 'How to buld shoulder',
+    label: 'How to bulid shoulder',
+    prompt: 'How to bulid shoulder',
   },
 ];
 
